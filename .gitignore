@@ -59,3 +59,9 @@ localink_mobile/.flutter-plugins-dependencies
 localink_mobile/app-release.apk
 *.apk
 *.ipa
+
+# Secrets
+.env
+.env.production
+.env.local
+.env.*
