@@ -8,6 +8,8 @@ using localink_be.Data;
 using localink_be.Models.Entities;
 using localink_be.Models.DTOs;
 using localink_be.Services.Interfaces;
+using Microsoft.AspNetCore.SignalR;
+using localink_be.Hubs;
 
 namespace localink_be.Services.Implementations
 {
@@ -15,11 +17,13 @@ public class AdminService : IAdminService
 {
     private readonly AppDbContext _db;
     private readonly IEmailService _emailService;
+    private readonly IHubContext<NotificationHub> _hubContext;
 
-    public AdminService(AppDbContext db, IEmailService emailService)
+    public AdminService(AppDbContext db, IEmailService emailService, IHubContext<NotificationHub> hubContext)
     {
         _db = db;
         _emailService = emailService;
+        _hubContext = hubContext;
     }
 
     public async Task<List<AdminBusinessDto>> GetAllAsync()
@@ -87,6 +91,9 @@ public class AdminService : IAdminService
             record.Status.ToString(),
             record.RejectionReason
         );
+
+        // Real-time status update notification to the business owner
+        await _hubContext.Clients.Group($"client_{business.UserId}").SendAsync("ReceiveNotification", $"Your business '{business.BusinessName}' status has been updated to {record.Status}.");
     }
 
     public async Task<byte[]> ExportAsync(string status)

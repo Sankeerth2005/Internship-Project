@@ -44,28 +44,32 @@ namespace localink_be.Services.Implementations
                 _db.BusinessHours.Add(businessHour);
                 await _db.SaveChangesAsync();
 
-                if (day.Mode == "custom")
+                var modeLower = day.Mode?.ToLower() ?? "";
+                if (modeLower == "custom" || modeLower == "open" || modeLower == "regular")
                 {
-                    if (day.Slots == null || !day.Slots.Any())
+                    if (modeLower == "custom" && (day.Slots == null || !day.Slots.Any()))
                         throw new ArgumentException($"Slots required for {day.DayOfWeek}");
 
-                    var sortedSlots = day.Slots.OrderBy(s => s.OpenTime).ToList();
-
-                    for (int i = 0; i < sortedSlots.Count - 1; i++)
+                    if (day.Slots != null && day.Slots.Any())
                     {
-                        if (sortedSlots[i].CloseTime > sortedSlots[i + 1].OpenTime)
-                            throw new ArgumentException($"Overlapping slots on {day.DayOfWeek}");
-                    }
+                        var sortedSlots = day.Slots.OrderBy(s => s.OpenTime).ToList();
 
-                    foreach (var slot in sortedSlots)
-                    {
-                        _db.BusinessHourSlots.Add(new BusinessHourSlot
+                        for (int i = 0; i < sortedSlots.Count - 1; i++)
                         {
-                            BusinessHourId = businessHour.BusinessHourId,
-                            OpenTime = slot.OpenTime,
-                            CloseTime = slot.CloseTime,
-                            CreatedAt = DateTime.UtcNow
-                        });
+                            if (sortedSlots[i].CloseTime > sortedSlots[i + 1].OpenTime)
+                                throw new ArgumentException($"Overlapping slots on {day.DayOfWeek}");
+                        }
+
+                        foreach (var slot in sortedSlots)
+                        {
+                            _db.BusinessHourSlots.Add(new BusinessHourSlot
+                            {
+                                BusinessHourId = businessHour.BusinessHourId,
+                                OpenTime = slot.OpenTime,
+                                CloseTime = slot.CloseTime,
+                                CreatedAt = DateTime.UtcNow
+                            });
+                        }
                     }
                 }
             }
@@ -108,7 +112,8 @@ namespace localink_be.Services.Implementations
                 _db.BusinessHours.Add(businessHour);
                 await _db.SaveChangesAsync();
 
-                if (day.Mode == "custom" && day.Slots != null)
+                var modeLower = day.Mode?.ToLower() ?? "";
+                if ((modeLower == "custom" || modeLower == "open" || modeLower == "regular") && day.Slots != null)
                 {
                     foreach (var slot in day.Slots)
                     {

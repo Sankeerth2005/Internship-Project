@@ -75,6 +75,16 @@ namespace localink_be.Data
                 entity.Property(b => b.CategoryId).HasColumnName("category_id");
                 entity.Property(b => b.SubcategoryId).HasColumnName("subcategory_id");
                 entity.Property(b => b.UserId).HasColumnName("user_id");
+
+                entity.HasOne(b => b.Category)
+                    .WithMany()
+                    .HasForeignKey(b => b.CategoryId)
+                    .OnDelete(DeleteBehavior.NoAction);
+
+                entity.HasOne(b => b.Subcategory)
+                    .WithMany()
+                    .HasForeignKey(b => b.SubcategoryId)
+                    .OnDelete(DeleteBehavior.NoAction);
             });
         }
 
@@ -184,7 +194,7 @@ namespace localink_be.Data
                 entity.HasOne(f => f.User)
                     .WithMany()
                     .HasForeignKey(f => f.UserId)
-                    .OnDelete(DeleteBehavior.Cascade);
+                    .OnDelete(DeleteBehavior.NoAction);
 
                 entity.HasOne(f => f.Business)
                     .WithMany()

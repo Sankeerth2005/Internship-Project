@@ -155,8 +155,13 @@ namespace localink_be.Services.Implementations
             return new
             {
                 token,
-                userType = user.AccountType,
-                name = user.FullName
+                user = new
+                {
+                    id = user.UserId.ToString(),
+                    name = user.FullName,
+                    email = user.Email,
+                    userType = user.AccountType
+                }
             };
         }
 
@@ -184,6 +189,9 @@ namespace localink_be.Services.Implementations
             user.OtpAttempts = 0;
 
             await _context.SaveChangesAsync();
+
+            // DEVELOPMENT ONLY: Log the OTP to the console so it can be retrieved without email configuration
+            Console.WriteLine($"[DEVELOPMENT OTP] OTP for {email} is: {otp}");
 
             try
             {

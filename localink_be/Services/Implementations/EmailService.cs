@@ -39,8 +39,8 @@ public class EmailService : IEmailService
             var email = new MimeMessage();
 
             email.From.Add(new MailboxAddress(
-                _config["Email:AppName"],
-                _config["Email:From"]
+                _config["Email:AppName"] ?? "Localink",
+                _config["Email:From"] ?? "noreply@localink.com"
             ));
 
             email.To.Add(MailboxAddress.Parse(toEmail));
@@ -53,9 +53,11 @@ public class EmailService : IEmailService
 
             using var smtp = new SmtpClient();
 
+            var portStr = _config["Email:Port"];
+            var port = int.TryParse(portStr, out var p) ? p : 587;
             await smtp.ConnectAsync(
-                _config["Email:Host"],
-                int.Parse(_config["Email:Port"]),
+                _config["Email:Host"] ?? "smtp.gmail.com",
+                port,
                 SecureSocketOptions.StartTls
             );
 
@@ -148,7 +150,7 @@ public class EmailService : IEmailService
                         </div>
 
                         <p style='color:#888;font-size:13px'>
-                            This OTP is valid for <b>10 minutes</b>.
+                            This OTP is valid for <b>5 minutes</b>.
                         </p>
 
                         <hr style='margin:25px 0'/>
@@ -296,5 +298,46 @@ public class EmailService : IEmailService
         }
 
         await SendEmailAsync(userEmail, subject, body);
+    }
+
+    public async Task SendBusinessRegistrationEmailToOwnerAsync(
+        string ownerEmail,
+        string ownerName,
+        string businessName,
+        string category)
+    {
+        var subject = "🏢 Business Registration Submitted - Pending Review";
+        var body = $@"
+<div style='background:#f4f6f8;padding:20px;font-family:Segoe UI,Arial'>
+    <table width='600' align='center' style='background:#fff;padding:25px;border-radius:10px'>
+
+        <h2 style='color:#2d89ef'>🏢 Submission Received!</h2>
+
+        <p>Hello {ownerName},</p>
+
+        <p style='color:#555'>
+            Thank you for registering your business, <b>{businessName}</b>.
+        </p>
+
+        <p style='color:#555'>
+            Your submission has been received and is currently in <b>Pending</b> status. Our administrators will review the details shortly and notify you via email once the status is updated.
+        </p>
+
+        <table width='100%' style='margin-top:20px;font-size:14px;color:#333;border-top:1px solid #eee;padding-top:15px'>
+            <tr><td><b>Business Name:</b></td><td>{businessName}</td></tr>
+            <tr><td><b>Category:</b></td><td>{category}</td></tr>
+            <tr><td><b>Status:</b></td><td>Pending Approval ⏳</td></tr>
+        </table>
+
+        <p style='margin-top:25px;font-size:13px;color:#888'>
+            If you need to make changes or have questions, please contact support.
+        </p>
+
+        <small style='color:#aaa'>Localink Team</small>
+
+    </table>
+</div>";
+
+        await SendEmailAsync(ownerEmail, subject, body);
     }
 }

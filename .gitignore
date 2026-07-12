@@ -50,3 +50,12 @@ localink_be/obj/
 localink-fe/angular.json
 Localink.Tests/bin/
 Localink.Tests/obj/
+
+# Flutter specific ignores
+localink_mobile/.dart_tool/
+localink_mobile/build/
+localink_mobile/.flutter-plugins
+localink_mobile/.flutter-plugins-dependencies
+localink_mobile/app-release.apk
+*.apk
+*.ipa

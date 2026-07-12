@@ -4,5 +4,7 @@ namespace localink_be.Services.Interfaces
     {
         Task<string[]> GetReviewSuggestionsAsync(string draftText, int rating, string businessName);
         Task<string?> GetReviewSummaryAsync(string[] reviews, double averageRating, int totalReviews, string businessName);
+        Task<string?> GenerateDescriptionAsync(string businessName, string category, string[] keywords);
+        Task<string?> ChatSearchAsync(string message, string chatHistoryJson);
     }
 }

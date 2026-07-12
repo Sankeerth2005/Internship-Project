@@ -24,6 +24,7 @@ public class AdminController : ControllerBase
     public async Task<IActionResult> UpdateStatus(long id, UpdateStatusDto dto)
     {
         var adminId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(adminId)) return Unauthorized();
         await _service.UpdateStatusAsync(id, dto, long.Parse(adminId));
         return Ok(new { message = "Status updated" });
     }

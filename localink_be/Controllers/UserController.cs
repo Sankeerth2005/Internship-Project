@@ -51,6 +51,7 @@ public class UserController : ControllerBase
     public async Task<IActionResult> GetProfile()
     {
         var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userId)) return Unauthorized();
 
         var result = await _service.GetUserProfileAsync(long.Parse(userId));
 

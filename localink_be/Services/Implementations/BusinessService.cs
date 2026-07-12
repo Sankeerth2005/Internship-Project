@@ -7,6 +7,8 @@ using localink_be.Data;
 using localink_be.Models.Entities;
 using localink_be.Models.DTOs;
 using localink_be.Services.Interfaces;
+using Microsoft.AspNetCore.SignalR;
+using localink_be.Hubs;
 
 namespace localink_be.Services.Implementations
 {
@@ -17,23 +19,27 @@ namespace localink_be.Services.Implementations
         private readonly IHoursService _hoursService;
         private readonly IPhotoService _photoService;
         private readonly IEmailService _emailService;
+        private readonly IHubContext<NotificationHub> _hubContext;
     public BusinessService(AppDbContext db,
                            IContactService contactService,
                            IHoursService hoursService,
                            IPhotoService photoService,
-                           IEmailService emailService)
+                           IEmailService emailService,
+                           IHubContext<NotificationHub> hubContext)
     {
         _db = db ?? throw new ArgumentNullException(nameof(db));
         _contactService = contactService;
         _hoursService = hoursService;
         _photoService = photoService;
         _emailService = emailService;
+        _hubContext = hubContext;
     }
 
  
     public async Task<List<object>> GetAllBusinessesAsync()
     {
         return await _db.Businesses
+            .Where(b => _db.AdminDashboards.Any(a => a.BusinessId == b.BusinessId && a.Status == BusinessStatus.Approved))
             .Select(b => new
             {
                 b.BusinessId,
@@ -53,6 +59,34 @@ namespace localink_be.Services.Implementations
                     .Average() ?? 0,
                 TotalReviews = _db.BusinessReviews
                     .Count(r => r.BusinessId == b.BusinessId),
+                StreetAddress = _db.BusinessContacts
+                    .Where(c => c.BusinessId == b.BusinessId)
+                    .Select(c => c.StreetAddress)
+                    .FirstOrDefault(),
+                City = _db.BusinessContacts
+                    .Where(c => c.BusinessId == b.BusinessId)
+                    .Select(c => c.City)
+                    .FirstOrDefault(),
+                State = _db.BusinessContacts
+                    .Where(c => c.BusinessId == b.BusinessId)
+                    .Select(c => c.State)
+                    .FirstOrDefault(),
+                Country = _db.BusinessContacts
+                    .Where(c => c.BusinessId == b.BusinessId)
+                    .Select(c => c.Country)
+                    .FirstOrDefault(),
+                Pincode = _db.BusinessContacts
+                    .Where(c => c.BusinessId == b.BusinessId)
+                    .Select(c => c.Pincode)
+                    .FirstOrDefault(),
+                Latitude = _db.BusinessContacts
+                    .Where(c => c.BusinessId == b.BusinessId)
+                    .Select(c => c.Latitude)
+                    .FirstOrDefault(),
+                Longitude = _db.BusinessContacts
+                    .Where(c => c.BusinessId == b.BusinessId)
+                    .Select(c => c.Longitude)
+                    .FirstOrDefault(),
                 b.CreatedAt
             })
             .ToListAsync<object>();
@@ -88,9 +122,23 @@ namespace localink_be.Services.Implementations
                         c.City,
                         c.State,
                         c.Country,
-                        c.Pincode
+                        c.Pincode,
+                        c.Latitude,
+                        c.Longitude
                     })
                     .FirstOrDefault(),
+                Hours = _db.BusinessHours
+                    .Where(h => h.BusinessId == b.BusinessId)
+                    .Select(h => new
+                    {
+                        h.DayOfWeek,
+                        h.Mode,
+                        Slots = _db.BusinessHourSlots
+                            .Where(s => s.BusinessHourId == h.BusinessHourId)
+                            .Select(s => new { s.OpenTime, s.CloseTime })
+                            .ToList()
+                    })
+                    .ToList(),
                 Photos = _db.BusinessPhotos
                     .Where(p => p.BusinessId == b.BusinessId)
                     .Select(p => new
@@ -129,6 +177,21 @@ namespace localink_be.Services.Implementations
             contact.Country = dto.Country;
             contact.Pincode = dto.Pincode;
             contact.StreetAddress = dto.StreetAddress;
+        }
+
+        // Save new photo if provided
+        if (!string.IsNullOrWhiteSpace(dto.Photo))
+        {
+            if (dto.Photo.Length > 5_000_000)
+                throw new Exception("Image too large");
+
+            await _photoService.SavePhotoAsync(dto.Photo, id);
+        }
+
+        // Update hours
+        if (dto.Hours != null && dto.Hours.Any())
+        {
+            await _hoursService.CreateOrReplaceBusinessHoursAsync(id, new BusinessHoursDto { Days = dto.Hours });
         }
 
         await _db.SaveChangesAsync();
@@ -228,6 +291,21 @@ namespace localink_be.Services.Implementations
                     contact?.Email
                 );
 
+                // Send welcome/pending email to business owner
+                var user = await _db.Users.FindAsync(userId);
+                if (user != null)
+                {
+                    await _emailService.SendBusinessRegistrationEmailToOwnerAsync(
+                        user.Email,
+                        user.FullName,
+                        business.BusinessName,
+                        categoryName ?? ""
+                    );
+                }
+
+                // Notify all active Admins of new pending business listing
+                await _hubContext.Clients.Group("admin").SendAsync("ReceiveNotification", $"New Business Alert: '{business.BusinessName}' has been registered and is pending approval.");
+ 
                 return business.BusinessId;
             }
             catch
@@ -383,7 +461,7 @@ namespace localink_be.Services.Implementations
         public async Task<List<BusinessDto>> GetBySubcategoryAsync(int subcategoryId)
         {
             return await _db.Businesses
-                .Where(b => b.SubcategoryId == subcategoryId)
+                .Where(b => b.SubcategoryId == subcategoryId && _db.AdminDashboards.Any(a => a.BusinessId == b.BusinessId && a.Status == BusinessStatus.Approved))
                 .Select(b => new BusinessDto
                 {
                     Id = b.BusinessId,
@@ -415,6 +493,10 @@ namespace localink_be.Services.Implementations
                     PrimaryImage = _db.BusinessPhotos
                         .Where(p => p.BusinessId == b.BusinessId && p.IsPrimary)
                         .Select(p => p.ImageUrl)
+                        .FirstOrDefault(),
+                    StreetAddress = _db.BusinessContacts
+                        .Where(c => c.BusinessId == b.BusinessId)
+                        .Select(c => c.StreetAddress)
                         .FirstOrDefault()
                 })
                 .ToListAsync();
@@ -445,6 +527,7 @@ namespace localink_be.Services.Implementations
             var businessesQuery = _db.Businesses
                 .AsNoTracking()
                 .Where(b =>
+                    _db.AdminDashboards.Any(a => a.BusinessId == b.BusinessId && a.Status == BusinessStatus.Approved) &&
                     (
                          EF.Functions.Like(b.BusinessName, $"%{query}%") ||
                         (b.Description != null && EF.Functions.Like(b.Description, $"%{query}%")) ||
@@ -477,6 +560,10 @@ namespace localink_be.Services.Implementations
                 State = _db.BusinessContacts
                     .Where(c => c.BusinessId == b.BusinessId)
                     .Select(c => c.State)
+                    .FirstOrDefault(),
+                StreetAddress = _db.BusinessContacts
+                    .Where(c => c.BusinessId == b.BusinessId)
+                    .Select(c => c.StreetAddress)
                     .FirstOrDefault(),
                 Latitude = _db.BusinessContacts
                     .Where(c => c.BusinessId == b.BusinessId)

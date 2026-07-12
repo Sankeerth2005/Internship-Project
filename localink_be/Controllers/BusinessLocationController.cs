@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 
 [ApiController]
-[Route("api/location")]
+[Route("api/v1/location")]
 public class BusinessLocationController : ControllerBase
 {
     private readonly BusinessLocationService _service;

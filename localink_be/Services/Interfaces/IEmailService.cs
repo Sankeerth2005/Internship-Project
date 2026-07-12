@@ -20,4 +20,11 @@ public interface IEmailService
         string status,
         string? rejectionReason
     );
+
+    Task SendBusinessRegistrationEmailToOwnerAsync(
+        string ownerEmail,
+        string ownerName,
+        string businessName,
+        string category
+    );
 }

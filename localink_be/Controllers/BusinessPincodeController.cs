@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using System.Text.Json;
 
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/v1/BusinessPincode")]
 public class BusinessPincodeController : ControllerBase
 {
     private readonly IBusinessPincodeService _service;

@@ -8,10 +8,42 @@ using localink_be.Data;
 using localink_be.Services.Interfaces;
 using localink_be.Services.Implementations;
 using localink_be.Middleware;
+using Microsoft.AspNetCore.RateLimiting;
+using System.Threading.RateLimiting;
 
 Env.Load();
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Map standard .env variables to ASP.NET Core hierarchical configuration
+var envMappings = new Dictionary<string, string>
+{
+    { "DB_CONNECTION_STRING", "ConnectionStrings:DefaultConnection" },
+    { "JWT_SECRET_KEY", "Jwt:Key" },
+    { "JWT_ISSUER", "Jwt:Issuer" },
+    { "JWT_AUDIENCE", "Jwt:Audience" },
+    { "JWT_EXPIRY_MINUTES", "Jwt:ExpiryMinutes" },
+    { "CAPTCHA_SECRET_KEY", "Captcha:SecretKey" },
+    { "COUNTRY_CSC_API_KEY", "CountryApi:ApiKey" },
+    { "GEOAPIFY_API_KEY", "Geoapify:ApiKey" },
+    { "GROQ_API_KEY", "Groq:ApiKey" },
+    { "EMAIL_HOST", "Email:Host" },
+    { "EMAIL_PORT", "Email:Port" },
+    { "EMAIL_USERNAME", "Email:Username" },
+    { "EMAIL_PASSWORD", "Email:Password" },
+    { "EMAIL_FROM", "Email:From" },
+    { "EMAIL_APP_NAME", "Email:AppName" }
+};
+
+foreach (var mapping in envMappings)
+{
+    var val = Environment.GetEnvironmentVariable(mapping.Key);
+    if (!string.IsNullOrEmpty(val))
+    {
+        builder.Configuration[mapping.Value] = val;
+    }
+}
+
 builder.Configuration.AddEnvironmentVariables();
 
 builder.Services.AddHttpClient();
@@ -55,6 +87,22 @@ builder.Services.AddScoped<IAIService, AIService>();
 builder.Services.AddHttpClient("GroqAI");
 builder.Services.AddScoped<IAIGatewayService, AIGatewayService>();
 
+// GLOBAL RATE LIMITER CONFIGURATION (100 requests per minute per IP address)
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? httpContext.Request.Headers.Host.ToString(),
+            factory: partition => new FixedWindowRateLimiterOptions
+            {
+                AutoReplenishment = true,
+                PermitLimit = 100,
+                QueueLimit = 0,
+                Window = TimeSpan.FromMinutes(1)
+            }));
+});
+
 var jwtKey = builder.Configuration["Jwt:Key"];
 
 builder.Services.AddAuthentication(options =>
@@ -92,14 +140,39 @@ builder.Services.AddControllers()
     });
 
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Type = Microsoft.OpenApi.Models.SecuritySchemeType.Http,
+        Scheme = "Bearer",
+        BearerFormat = "JWT",
+        In = Microsoft.OpenApi.Models.ParameterLocation.Header,
+        Description = "Enter 'Bearer' [space] and then your valid token in the text input below.\n\nExample: \"Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9\""
+    });
+    c.AddSecurityRequirement(new Microsoft.OpenApi.Models.OpenApiSecurityRequirement
+    {
+        {
+            new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+            {
+                Reference = new Microsoft.OpenApi.Models.OpenApiReference
+                {
+                    Type = Microsoft.OpenApi.Models.ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            new string[] {}
+        }
+    });
+});
 builder.Services.AddSignalR();
 
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend",
         policy => policy
-            .WithOrigins("http://localhost:4200")
+            .SetIsOriginAllowed(origin => true)
             .AllowCredentials()
             .AllowAnyMethod()
             .AllowAnyHeader());
@@ -125,6 +198,9 @@ app.UseStaticFiles();
 
 // CORS FIRST
 app.UseCors("AllowFrontend");
+
+// RATE LIMITER MIDDLEWARE
+app.UseRateLimiter();
 
 // AUTH PIPELINE (IMPORTANT)
 app.UseAuthentication();

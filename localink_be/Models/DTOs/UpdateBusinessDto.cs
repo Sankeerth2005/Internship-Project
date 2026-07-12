@@ -1,17 +1,25 @@
-public class UpdateBusinessDto
+using System.Collections.Generic;
+
+namespace localink_be.Models.DTOs
 {
-    public string BusinessName { get; set; }
-    public string Description { get; set; }
-    public int CategoryId { get; set; }
-    public int SubcategoryId { get; set; }
+    public class UpdateBusinessDto
+    {
+        public string BusinessName { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+        public int CategoryId { get; set; }
+        public int SubcategoryId { get; set; }
 
-    public string PhoneCode { get; set; }
-    public string PhoneNumber { get; set; }
-    public string Email { get; set; }
+        public string PhoneCode { get; set; } = string.Empty;
+        public string PhoneNumber { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public string Website { get; set; } = string.Empty;
 
-    public string City { get; set; }
-    public string StreetAddress { get; set; }
-    public string State { get; set; }
-    public string Country { get; set; }
-    public string Pincode { get; set; }
+        public string City { get; set; } = string.Empty;
+        public string StreetAddress { get; set; } = string.Empty;
+        public string State { get; set; } = string.Empty;
+        public string Country { get; set; } = string.Empty;
+        public string Pincode { get; set; } = string.Empty;
+        public string? Photo { get; set; }
+        public List<DayHoursDto> Hours { get; set; } = new List<DayHoursDto>();
+    }
 }

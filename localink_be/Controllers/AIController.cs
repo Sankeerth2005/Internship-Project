@@ -57,6 +57,44 @@ namespace localink_be.Controllers
 
             return Ok(new { success = true, data = summary });
         }
+
+        [HttpPost("generate-description")]
+        public async Task<IActionResult> GenerateDescription([FromBody] GenerateDescriptionRequest request)
+        {
+            if (string.IsNullOrWhiteSpace(request.BusinessName))
+                return BadRequest(new { success = false, message = "Business name is required" });
+
+            var keywords = request.Keywords ?? Array.Empty<string>();
+            var description = await _aiService.GenerateDescriptionAsync(
+                request.BusinessName,
+                request.Category ?? "general",
+                keywords);
+
+            return Ok(new { success = true, data = description });
+        }
+
+        [HttpPost("chat-search")]
+        public async Task<IActionResult> ChatSearch([FromBody] ChatSearchRequest request)
+        {
+            if (string.IsNullOrWhiteSpace(request.Message))
+                return BadRequest(new { success = false, message = "Message is required" });
+
+            var reply = await _aiService.ChatSearchAsync(request.Message, request.ChatHistoryJson ?? "");
+            return Ok(new { success = true, data = reply });
+        }
+    }
+
+    public class GenerateDescriptionRequest
+    {
+        public string BusinessName { get; set; } = string.Empty;
+        public string? Category { get; set; }
+        public string[]? Keywords { get; set; }
+    }
+
+    public class ChatSearchRequest
+    {
+        public string Message { get; set; } = string.Empty;
+        public string? ChatHistoryJson { get; set; }
     }
 
     public class ReviewSuggestionRequest

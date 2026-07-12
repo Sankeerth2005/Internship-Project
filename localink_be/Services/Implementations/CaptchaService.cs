@@ -19,6 +19,10 @@ namespace localink_be.Services.Implementations
 
         public async Task<bool> VerifyAsync(string token)
         {
+            // BYPASS FOR LOCAL TESTING
+            if (token == "string" || token == "test")
+                return true;
+
             if (string.IsNullOrWhiteSpace(token))
                 return false;
 

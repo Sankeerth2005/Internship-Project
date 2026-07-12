@@ -32,7 +32,7 @@ namespace localink_be.Controllers
             return Ok(business);
         }
 
-        [Authorize(Roles = "client")]
+        [Authorize(Roles = "client,businessowner")]
         [HttpPost("register")]
         public async Task<IActionResult> RegisterBusiness([FromBody] RegisterBusinessDto dto)
         {
@@ -59,7 +59,7 @@ namespace localink_be.Controllers
             });
         }
 
-        [Authorize(Roles = "client")]
+        [Authorize(Roles = "client,businessowner")]
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateBusiness(long id, [FromBody] UpdateBusinessDto dto)
         {
@@ -76,10 +76,10 @@ namespace localink_be.Controllers
             }
 
             var result = await _service.UpdateBusinessFullAsync(id, dto);
-            return result == null ? NotFound(new { success = false, message = "Business not found" }) : Ok(new { success = true, data = result });
+            return !result ? NotFound(new { success = false, message = "Business not found" }) : Ok(new { success = true, data = result });
         }
 
-        [Authorize(Roles = "client")]
+        [Authorize(Roles = "client,businessowner")]
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteBusiness(long id)
         {
@@ -111,7 +111,7 @@ namespace localink_be.Controllers
         }
 
         [HttpGet("search")]
-        public async Task<IActionResult> SearchBusinesses([FromQuery] string query)
+        public async Task<IActionResult> SearchBusinesses([FromQuery] string? query = "")
         {
             // Get user location from headers if available
             double? userLat = null;
