@@ -105,8 +105,8 @@ CREATE TABLE [business] (
     [created_at] datetime2 NOT NULL,
     [updated_at] datetime2 NOT NULL,
     CONSTRAINT [PK_business] PRIMARY KEY ([business_id]),
-    CONSTRAINT [FK_business_category_category_id] FOREIGN KEY ([category_id]) REFERENCES [category] ([category_id]) ON DELETE CASCADE,
-    CONSTRAINT [FK_business_subcategory_subcategory_id] FOREIGN KEY ([subcategory_id]) REFERENCES [subcategory] ([subcategory_id]) ON DELETE CASCADE,
+    CONSTRAINT [FK_business_category_category_id] FOREIGN KEY ([category_id]) REFERENCES [category] ([category_id]) ON DELETE NO ACTION,
+    CONSTRAINT [FK_business_subcategory_subcategory_id] FOREIGN KEY ([subcategory_id]) REFERENCES [subcategory] ([subcategory_id]) ON DELETE NO ACTION,
     CONSTRAINT [FK_business_users_user_id] FOREIGN KEY ([user_id]) REFERENCES [users] ([user_id]) ON DELETE CASCADE
 );
 GO
@@ -240,5 +240,3 @@ CREATE TABLE [search_query_log] (
     CONSTRAINT [PK_search_query_log] PRIMARY KEY ([id])
 );
 GO
-
-
