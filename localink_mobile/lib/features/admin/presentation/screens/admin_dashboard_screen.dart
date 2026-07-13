@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../auth/providers/auth_provider.dart';
 import '../../data/models/admin_business_dto.dart';
@@ -255,6 +256,11 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
             icon: const Icon(Icons.download, color: Color(0xFFC8A97E)),
             tooltip: 'Export Excel Report',
             onPressed: _handleExport,
+          ),
+          IconButton(
+            icon: const Icon(Icons.map, color: Color(0xFFC8A97E)),
+            tooltip: 'Operational Heatmap',
+            onPressed: () => context.push('/admin-heatmap'),
           ),
           IconButton(
             icon: const Icon(Icons.logout, color: Colors.white70),

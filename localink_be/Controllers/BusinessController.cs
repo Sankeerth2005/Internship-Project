@@ -111,7 +111,7 @@ namespace localink_be.Controllers
         }
 
         [HttpGet("search")]
-        public async Task<IActionResult> SearchBusinesses([FromQuery] string? query = "")
+        public async Task<IActionResult> SearchBusinesses([FromQuery] string? query = "", [FromServices] localink_be.Data.AppDbContext db = null!)
         {
             // Get user location from headers if available
             double? userLat = null;
@@ -126,6 +126,23 @@ namespace localink_be.Controllers
                     userLat = lat;
                     userLng = lng;
                 }
+            }
+
+            if (db != null && !string.IsNullOrEmpty(query))
+            {
+                try
+                {
+                    var log = new localink_be.Models.Entities.SearchQueryLog
+                    {
+                        Query = query,
+                        Latitude = userLat ?? 19.0760, // Default to Mumbai coordinates if no GPS header
+                        Longitude = userLng ?? 72.8777,
+                        Timestamp = DateTime.UtcNow
+                    };
+                    db.SearchQueryLogs.Add(log);
+                    await db.SaveChangesAsync();
+                }
+                catch { /* Suppress DB logging errors */ }
             }
 
             return Ok(await _service.SearchBusinessesAsync(query, userLat, userLng));

@@ -1,4 +1,4 @@
-﻿CREATE TABLE [addresses] (
+CREATE TABLE [addresses] (
     [address_id] bigint NOT NULL IDENTITY,
     [user_id] bigint NOT NULL,
     [country] nvarchar(100) NOT NULL,
@@ -217,6 +217,28 @@ GO
 
 
 CREATE UNIQUE INDEX [IX_users_phone_number] ON [users] ([phone_number]) WHERE [phone_number] IS NOT NULL;
+GO
+
+CREATE TABLE [business_metric] (
+    [id] bigint NOT NULL IDENTITY,
+    [business_id] bigint NOT NULL,
+    [views] int NOT NULL DEFAULT 0,
+    [favorites_count] int NOT NULL DEFAULT 0,
+    [contact_clicks] int NOT NULL DEFAULT 0,
+    [updated_at] datetime2 NOT NULL DEFAULT GETUTCDATE(),
+    CONSTRAINT [PK_business_metric] PRIMARY KEY ([id]),
+    CONSTRAINT [FK_business_metric_business_business_id] FOREIGN KEY ([business_id]) REFERENCES [business] ([business_id]) ON DELETE CASCADE
+);
+GO
+
+CREATE TABLE [search_query_log] (
+    [id] bigint NOT NULL IDENTITY,
+    [query] nvarchar(max) NOT NULL,
+    [latitude] float NOT NULL,
+    [longitude] float NOT NULL,
+    [timestamp] datetime2 NOT NULL DEFAULT GETUTCDATE(),
+    CONSTRAINT [PK_search_query_log] PRIMARY KEY ([id])
+);
 GO
 
 

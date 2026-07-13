@@ -236,6 +236,12 @@ class BusinessDashboardScreen extends ConsumerWidget {
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
                     TextButton.icon(
+                      icon: const Icon(Icons.analytics_outlined, size: 16),
+                      label: const Text('Analytics'),
+                      onPressed: () => context.push('/owner-analytics/${business.businessId}/${Uri.encodeComponent(business.businessName)}'),
+                    ),
+                    const SizedBox(width: 10),
+                    TextButton.icon(
                       icon: const Icon(Icons.visibility, size: 16),
                       label: const Text('View'),
                       onPressed: () => context.push('/business-detail/${business.businessId}'),

@@ -288,6 +288,66 @@ Rules:
                 return "Sorry, an unexpected error occurred. Please try again.";
             }
         }
+
+        public async Task<string?> GetBusinessInsightsAsync(int views, int favorites, int clicks, string businessName)
+        {
+            try
+            {
+                var prompt = $"Write 3 bulleted business recommendations/insights for a business named '{businessName}' based on the weekly metrics: Views = {views}, Favorites = {favorites}, Contact Clicks = {clicks}. Keep the recommendations extremely concise (max 1 sentence per bullet), constructive, and formatted with emojis. Do not output any introductory or concluding text, only the 3 bullet points.";
+                
+                var requestBody = new
+                {
+                    model = "llama-3.1-8b-instant",
+                    messages = new[]
+                    {
+                        new { role = "system", content = "You are a senior business analytics advisor." },
+                        new { role = "user", content = prompt }
+                    },
+                    temperature = 0.7,
+                    max_tokens = 250
+                };
+
+                var response = await _httpClient.PostAsJsonAsync("https://api.groq.com/openai/v1/chat/completions", requestBody);
+                if (!response.IsSuccessStatusCode) return "• Keep posting updates to gain more views.\n• Add high-quality photos to attract favorites.\n• Verify your contact info matches client search locations.";
+
+                var result = await response.Content.ReadFromJsonAsync<GroqResponse>();
+                return result?.choices?.FirstOrDefault()?.message?.content?.Trim();
+            }
+            catch
+            {
+                return "• Post updates regularly to build engagement.\n• Showcase premium offers on your profile page.\n• Verify your address details are precise.";
+            }
+        }
+
+        public async Task<string?> GetPersonalizedWelcomeAsync(string categoryPref, string timeOfDay)
+        {
+            try
+            {
+                var prompt = $"Write a personalized welcoming message for a local user. The current time of day is {timeOfDay}. Their favorite local category is {categoryPref}. Keep it warm, spiritual (with a subtle 'Namaste' or traditional vibe), and under 2 sentences. Do not use placeholders.";
+                
+                var requestBody = new
+                {
+                    model = "llama-3.1-8b-instant",
+                    messages = new[]
+                    {
+                        new { role = "system", content = "You are a warm local guide assistant." },
+                        new { role = "user", content = prompt }
+                    },
+                    temperature = 0.7,
+                    max_tokens = 150
+                };
+
+                var response = await _httpClient.PostAsJsonAsync("https://api.groq.com/openai/v1/chat/completions", requestBody);
+                if (!response.IsSuccessStatusCode) return $"Namaste! Good {timeOfDay}. Discover the finest local {categoryPref} businesses around you today.";
+
+                var result = await response.Content.ReadFromJsonAsync<GroqResponse>();
+                return result?.choices?.FirstOrDefault()?.message?.content?.Trim();
+            }
+            catch
+            {
+                return $"Namaste! Wishing you a wonderful {timeOfDay}. Explore local services and businesses near you.";
+            }
+        }
     }
 
     public class GroqResponse

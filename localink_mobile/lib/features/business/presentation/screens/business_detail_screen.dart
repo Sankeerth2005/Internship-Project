@@ -27,6 +27,24 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
   bool _loadingAISuggestions = false;
 
   @override
+  void initState() {
+    super.initState();
+    _incrementViewCount();
+  }
+
+  Future<void> _incrementViewCount() async {
+    try {
+      await DioClient().dio.post('analytics/business/${widget.businessId}/view');
+    } catch (_) {}
+  }
+
+  Future<void> _incrementClickCount() async {
+    try {
+      await DioClient().dio.post('analytics/business/${widget.businessId}/click');
+    } catch (_) {}
+  }
+
+  @override
   void dispose() {
     _commentController.dispose();
     super.dispose();
@@ -300,6 +318,7 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
                           mainAxisAlignment: MainAxisAlignment.spaceAround,
                           children: [
                             _buildActionBtn(Icons.phone, 'Call', () async {
+                              _incrementClickCount();
                               final cleanCode = business.phoneCode.replaceAll('+', '').trim();
                               final cleanNum = business.phoneNumber.trim();
                               if (cleanNum.isEmpty) {
@@ -319,6 +338,7 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
                               }
                             }),
                             _buildActionBtn(Icons.directions, 'Directions', () async {
+                              _incrementClickCount();
                               if (business.latitude != null && business.longitude != null) {
                                 try {
                                   final url = 'https://www.google.com/maps/search/?api=1&query=${business.latitude},${business.longitude}';
@@ -337,6 +357,7 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
                               }
                             }),
                             _buildActionBtn(Icons.language, 'Website', () async {
+                              _incrementClickCount();
                               if (business.website.trim().isNotEmpty) {
                                 try {
                                   var urlStr = business.website.trim();

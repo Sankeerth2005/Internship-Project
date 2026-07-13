@@ -16,6 +16,10 @@ import 'features/business/presentation/screens/business_dashboard_screen.dart';
 import 'features/business/presentation/screens/business_registration_screen.dart';
 import 'features/business/presentation/screens/business_detail_screen.dart';
 import 'features/business/presentation/screens/ai_assistant_screen.dart';
+import 'features/business/presentation/screens/ar_hud_screen.dart';
+import 'features/business/presentation/screens/for_you_feed_screen.dart';
+import 'features/business/presentation/screens/analytics_dashboard_screen.dart';
+import 'features/admin/presentation/screens/admin_heatmap_screen.dart';
 import 'features/shared/presentation/screens/main_shell.dart';
 import 'features/admin/presentation/screens/admin_dashboard_screen.dart';
 
@@ -155,6 +159,25 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/ai-assistant',
         builder: (context, state) => const AiAssistantScreen(),
+      ),
+      GoRoute(
+        path: '/ar-hud',
+        builder: (context, state) => const ArHudScreen(),
+      ),
+      GoRoute(
+        path: '/for-you',
+        builder: (context, state) => const ForYouFeedScreen(),
+      ),
+      GoRoute(
+        path: '/owner-analytics/:id/:name',
+        builder: (context, state) => AnalyticsDashboardScreen(
+          businessId: int.parse(state.pathParameters['id']!),
+          businessName: state.pathParameters['name']!,
+        ),
+      ),
+      GoRoute(
+        path: '/admin-heatmap',
+        builder: (context, state) => const AdminHeatmapScreen(),
       ),
     ],
   );

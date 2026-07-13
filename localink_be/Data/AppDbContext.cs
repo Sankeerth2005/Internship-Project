@@ -24,6 +24,8 @@ namespace localink_be.Data
         public DbSet<BusinessReview> BusinessReviews { get; set; }
         public DbSet<Feedback> Feedbacks { get; set; }
         public DbSet<Favorite> Favorites { get; set; }
+        public DbSet<BusinessMetric> BusinessMetrics { get; set; }
+        public DbSet<SearchQueryLog> SearchQueryLogs { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
