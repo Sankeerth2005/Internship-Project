@@ -19,7 +19,7 @@ class DioClient {
   }
 
   DioClient._internal() {
-    String baseUrlStr = 'https://8c24-49-206-52-240.ngrok-free.app/api/v1/';
+    String baseUrlStr = 'https://cf07-49-206-35-44.ngrok-free.app/api/v1/';
 
     _dio = Dio(
       BaseOptions(

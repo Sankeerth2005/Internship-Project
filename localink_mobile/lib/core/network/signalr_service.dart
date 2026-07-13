@@ -19,7 +19,7 @@ class SignalRService {
       return;
     }
 
-    String url = 'https://8c24-49-206-52-240.ngrok-free.app/notifications';
+    String url = 'https://cf07-49-206-35-44.ngrok-free.app/notifications';
 
     _hubConnection = HubConnectionBuilder().withUrl(url).build();
 
