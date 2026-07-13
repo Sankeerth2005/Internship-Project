@@ -19,7 +19,7 @@ class SignalRService {
       return;
     }
 
-    String url = 'https://cf07-49-206-35-44.ngrok-free.app/notifications';
+    String url = 'https://bulldog-kinsman-tutor.ngrok-free.dev/notifications';
 
     _hubConnection = HubConnectionBuilder().withUrl(url).build();
 
