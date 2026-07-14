@@ -380,8 +380,17 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
                               _incrementClickCount();
                               if (business.latitude != null && business.longitude != null) {
                                 try {
-                                  final url = 'https://www.google.com/maps/search/?api=1&query=${business.latitude},${business.longitude}';
-                                  await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+                                  // Use geo: URI first — opens native Maps with exact pin
+                                  final geoUri = Uri.parse(
+                                    'geo:${business.latitude},${business.longitude}?q=${business.latitude},${business.longitude}(${Uri.encodeComponent(business.businessName)})',
+                                  );
+                                  if (await canLaunchUrl(geoUri)) {
+                                    await launchUrl(geoUri);
+                                  } else {
+                                    // Fallback to Google Maps web with exact coords
+                                    final url = 'https://www.google.com/maps/dir/?api=1&destination=${business.latitude},${business.longitude}&travelmode=driving';
+                                    await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+                                  }
                                 } catch (e) {
                                   if (context.mounted) {
                                     ScaffoldMessenger.of(context).showSnackBar(

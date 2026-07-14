@@ -178,20 +178,20 @@ class BusinessRepository {
 
   // ─── FAVORITES ───
   Future<List<int>> getFavorites(int userId) async {
-    final response = await _dio.get('Favorites/user/$userId');
+    final response = await _dio.get('favorites/user/$userId');
     final list = response.data as List? ?? [];
     return list.map<int>((e) => (e as num).toInt()).toList();
   }
 
   Future<void> addFavorite(int userId, int businessId) async {
-    await _dio.post('Favorites/add', data: {
+    await _dio.post('favorites/add', data: {
       'userId': userId,
       'businessId': businessId,
     });
   }
 
   Future<void> removeFavorite(int userId, int businessId) async {
-    await _dio.delete('Favorites/remove', queryParameters: {
+    await _dio.delete('favorites/remove', queryParameters: {
       'userId': userId,
       'businessId': businessId,
     });

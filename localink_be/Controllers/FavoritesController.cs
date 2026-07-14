@@ -5,7 +5,7 @@ using localink_be.Services.Interfaces;
 
 namespace localink_be.Controllers
 {
-    [Route("api/[controller]")]
+    [Route("api/v1/favorites")]
     [ApiController]
     public class FavoritesController : ControllerBase
     {

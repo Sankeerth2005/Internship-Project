@@ -232,29 +232,42 @@ class BusinessDashboardScreen extends ConsumerWidget {
                   ],
                 ),
                 const SizedBox(height: 12),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
+                Wrap(
+                  alignment: WrapAlignment.end,
+                  spacing: 4,
+                  runSpacing: 4,
                   children: [
                     TextButton.icon(
-                      icon: const Icon(Icons.analytics_outlined, size: 16),
-                      label: const Text('Analytics'),
+                      icon: const Icon(Icons.analytics_outlined, size: 14),
+                      label: const Text('Analytics', style: TextStyle(fontSize: 12)),
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
                       onPressed: () => context.push('/owner-analytics/${business.businessId}/${Uri.encodeComponent(business.businessName)}'),
                     ),
-                    const SizedBox(width: 10),
                     TextButton.icon(
-                      icon: const Icon(Icons.visibility, size: 16),
-                      label: const Text('View'),
+                      icon: const Icon(Icons.visibility, size: 14),
+                      label: const Text('View', style: TextStyle(fontSize: 12)),
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
                       onPressed: () => context.push('/business-detail/${business.businessId}'),
                     ),
-                    const SizedBox(width: 10),
                     ElevatedButton.icon(
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFFC8A97E),
                         foregroundColor: Colors.black,
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                        textStyle: const TextStyle(fontSize: 12),
                       ),
-                      icon: const Icon(Icons.edit, size: 16),
+                      icon: const Icon(Icons.edit, size: 14),
                       label: const Text('Edit'),
                       onPressed: () => context.push('/register-business', extra: business),
                     ),

@@ -194,7 +194,17 @@ app.UseResponseTranslation();
 
 app.UseHttpsRedirection();
 
+// Serve default wwwroot static files
 app.UseStaticFiles();
+
+// Serve uploads folder at /uploads route
+var uploadsPath = Path.Combine(Directory.GetCurrentDirectory(), "uploads");
+if (!Directory.Exists(uploadsPath)) Directory.CreateDirectory(uploadsPath);
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(uploadsPath),
+    RequestPath = "/uploads"
+});
 
 // CORS FIRST
 app.UseCors("AllowFrontend");
