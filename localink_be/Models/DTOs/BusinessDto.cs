@@ -26,5 +26,7 @@ namespace localink_be.Models.DTOs
         public double? Latitude { get; set; }
         public double? Longitude { get; set; }
         public double? Distance { get; set; } 
+        public double AverageRating { get; set; }
+        public int TotalReviews { get; set; }
     }
 }

@@ -245,6 +245,7 @@ class BusinessReviewDto {
   final String comment;
   final String userName;
   final DateTime createdAt;
+  final String? imageUrl;
 
   BusinessReviewDto({
     required this.reviewId,
@@ -253,6 +254,7 @@ class BusinessReviewDto {
     required this.comment,
     required this.userName,
     required this.createdAt,
+    this.imageUrl,
   });
 
   factory BusinessReviewDto.fromJson(Map<String, dynamic> json) {
@@ -265,6 +267,7 @@ class BusinessReviewDto {
       createdAt: json['createdAt'] != null 
           ? DateTime.parse(json['createdAt']) 
           : DateTime.now(),
+      imageUrl: json['imageUrl'] as String?,
     );
   }
 }

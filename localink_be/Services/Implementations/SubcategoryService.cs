@@ -35,6 +35,7 @@ namespace localink_be.Services.Implementations
                         IconUrl = s.IconUrl,
                         Count = _context.Businesses.Count(b => b.SubcategoryId == s.SubcategoryId)
                     })
+                    .OrderBy(s => s.Name)
                     .ToListAsync();
 
                 return subcategories; // Return empty list if none found

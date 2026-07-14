@@ -16,17 +16,25 @@ namespace localink_be.Services.Implementations
     {
         private readonly AppDbContext _context;
         private readonly IHubContext<NotificationHub> _hubContext;
+        private readonly IPhotoService _photoService;
 
-        public ReviewService(AppDbContext context, IHubContext<NotificationHub> hubContext)
+        public ReviewService(AppDbContext context, IHubContext<NotificationHub> hubContext, IPhotoService photoService)
         {
             _context = context;
             _hubContext = hubContext;
+            _photoService = photoService;
         }
 
         public async Task AddOrUpdateReview(long userId, ReviewRequestDto dto)
         {
             if (dto.Rating < 1 || dto.Rating > 5)
                 throw new Exception("Rating must be between 1 and 5");
+
+            string? reviewImageUrl = null;
+            if (!string.IsNullOrWhiteSpace(dto.Image))
+            {
+                reviewImageUrl = await _photoService.SaveReviewPhotoAsync(dto.Image);
+            }
 
             var existingReview = await _context.BusinessReviews
                 .FirstOrDefaultAsync(r =>
@@ -37,6 +45,10 @@ namespace localink_be.Services.Implementations
             {
                 existingReview.Rating = dto.Rating;
                 existingReview.Comment = dto.Comment;
+                if (reviewImageUrl != null)
+                {
+                    existingReview.ImageUrl = reviewImageUrl;
+                }
                 existingReview.UpdatedAt = DateTime.UtcNow;
             }
             else
@@ -47,6 +59,7 @@ namespace localink_be.Services.Implementations
                     UserId = userId,
                     Rating = dto.Rating,
                     Comment = dto.Comment,
+                    ImageUrl = reviewImageUrl,
                     CreatedAt = DateTime.UtcNow
                 };
 
@@ -74,7 +87,8 @@ namespace localink_be.Services.Implementations
                     Rating = r.Rating,
                     Comment = r.Comment,
                     CreatedAt = r.CreatedAt,
-                    UserName = r.User.FullName
+                    UserName = r.User.FullName,
+                    ImageUrl = r.ImageUrl
                 })
                 .ToListAsync();
         }

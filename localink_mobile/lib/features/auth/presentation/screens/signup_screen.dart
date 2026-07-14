@@ -102,6 +102,17 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
       setState(() {
         _countries = countries;
         if (codes.isNotEmpty) _phoneCountries = codes;
+        
+        // Pre-select India as default country
+        try {
+          final india = countries.firstWhere((c) => c.name.toLowerCase() == 'india');
+          _selectedCountry = india;
+          if (india.phoneCode != null) {
+            _selectedPhoneCode = india.phoneCode!.replaceAll('+', '');
+          }
+          _loadStates(india.iso2);
+        } catch (_) {}
+        
         _loadingCountries = false;
       });
     } catch (e, st) {
@@ -301,6 +312,15 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
             backgroundColor: const Color(0xFFFF4D4F),
           ),
         );
+      } else if (next is AuthAuthenticated) {
+        final role = next.userType.toLowerCase().trim();
+        if (role == 'admin') {
+          context.go('/admin-dashboard');
+        } else if (role == 'client' || role == 'businessowner') {
+          context.go('/business-dashboard');
+        } else {
+          context.go('/home');
+        }
       }
     });
 
@@ -487,6 +507,64 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
               label: _isSubmitting ? null : 'Create Account',
               isLoading: _isSubmitting,
               onPressed: _isSubmitting ? null : _onSubmit,
+            ),
+            const SizedBox(height: 16),
+
+            Row(
+              children: [
+                Expanded(child: Divider(color: Colors.white.withValues(alpha: 0.15))),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  child: Text(
+                    'OR',
+                    style: TextStyle(
+                      fontFamily: 'Inter',
+                      fontSize: 12,
+                      color: Colors.white.withValues(alpha: 0.4),
+                    ),
+                  ),
+                ),
+                Expanded(child: Divider(color: Colors.white.withValues(alpha: 0.15))),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            OutlinedButton.icon(
+              onPressed: _isSubmitting
+                  ? null
+                  : () async {
+                      setState(() => _isSubmitting = true);
+                      try {
+                        await ref.read(authProvider.notifier).signInWithGoogle();
+                      } finally {
+                        if (mounted) setState(() => _isSubmitting = false);
+                      }
+                    },
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size(double.infinity, 48),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                side: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
+                foregroundColor: Colors.white,
+              ),
+              icon: Image.network(
+                'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_%22G%22_logo.svg/24px-Google_%22G%22_logo.svg.png',
+                height: 18,
+                errorBuilder: (context, error, stackTrace) => const Icon(
+                  Icons.g_mobiledata,
+                  color: Color(0xFFC8A97E),
+                  size: 24,
+                ),
+              ),
+              label: const Text(
+                'Continue with Google',
+                style: TextStyle(
+                  fontFamily: 'Inter',
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ),
             const SizedBox(height: 16),
 

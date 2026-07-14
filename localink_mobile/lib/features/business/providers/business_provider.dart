@@ -2,6 +2,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/dio_client.dart';
 import '../data/models/business_models.dart';
 import '../data/repositories/business_repository.dart';
+import '../../auth/providers/auth_provider.dart';
+import '../../auth/providers/auth_state.dart';
+import '../../auth/providers/user_provider.dart';
 
 final businessRepositoryProvider = Provider<BusinessRepository>((ref) {
   return BusinessRepository(dio: DioClient().dio);
@@ -62,6 +65,8 @@ class SearchQueryState {
   final double? latitude;
   final double? longitude;
   final bool isVoiceSearch;
+  final String sortBy;
+  final String userPincode;
 
   SearchQueryState({
     this.query = '',
@@ -69,6 +74,8 @@ class SearchQueryState {
     this.latitude,
     this.longitude,
     this.isVoiceSearch = false,
+    this.sortBy = 'distance',
+    this.userPincode = '',
   });
 
   SearchQueryState copyWith({
@@ -77,6 +84,8 @@ class SearchQueryState {
     double? latitude,
     double? longitude,
     bool? isVoiceSearch,
+    String? sortBy,
+    String? userPincode,
     bool clearCategory = false,
   }) {
     return SearchQueryState(
@@ -85,6 +94,8 @@ class SearchQueryState {
       latitude: latitude ?? this.latitude,
       longitude: longitude ?? this.longitude,
       isVoiceSearch: isVoiceSearch ?? this.isVoiceSearch,
+      sortBy: sortBy ?? this.sortBy,
+      userPincode: userPincode ?? this.userPincode,
     );
   }
 }
@@ -101,6 +112,8 @@ class SearchQueryNotifier extends Notifier<SearchQueryState> {
   void setCategory(int? id) => state = state.copyWith(selectedCategoryId: id, isVoiceSearch: false);
   void clearCategory() => state = state.copyWith(clearCategory: true, isVoiceSearch: false);
   void setLocation(double lat, double lng) => state = state.copyWith(latitude: lat, longitude: lng);
+  void setSortBy(String sort) => state = state.copyWith(sortBy: sort);
+  void setPincode(String pin) => state = state.copyWith(userPincode: pin);
 }
 
 final searchQueryProvider = NotifierProvider<SearchQueryNotifier, SearchQueryState>(
@@ -112,12 +125,25 @@ final searchResultsProvider = FutureProvider<List<BusinessDto>>((ref) async {
   final queryState = ref.watch(searchQueryProvider);
   final repo = ref.watch(businessRepositoryProvider);
 
+  String resolvedPincode = queryState.userPincode;
+  if (resolvedPincode.isEmpty) {
+    try {
+      final profileAsync = ref.watch(userProfileProvider);
+      final profile = profileAsync.value;
+      if (profile != null && profile.address.pincode != null) {
+        resolvedPincode = profile.address.pincode!;
+      }
+    } catch (_) {}
+  }
+
   if (queryState.query.isEmpty && queryState.selectedCategoryId == null) {
-    return await repo.getAllBusinesses();
+    // Bring all and sort alphabetically by default if no filters/query
+    final all = await repo.getAllBusinesses();
+    all.sort((a, b) => a.businessName.toLowerCase().compareTo(b.businessName.toLowerCase()));
+    return all;
   }
 
   if (queryState.isVoiceSearch && queryState.query.isNotEmpty) {
-    // Call voice search text API which runs structured search on backend
     return await repo.voiceSearchText(
       queryState.query,
       lat: queryState.latitude,
@@ -128,7 +154,9 @@ final searchResultsProvider = FutureProvider<List<BusinessDto>>((ref) async {
   // If query is empty but category is selected, load all businesses and filter locally
   if (queryState.query.isEmpty && queryState.selectedCategoryId != null) {
     final all = await repo.getAllBusinesses();
-    return all.where((b) => b.categoryId == queryState.selectedCategoryId).toList();
+    final filtered = all.where((b) => b.categoryId == queryState.selectedCategoryId).toList();
+    filtered.sort((a, b) => a.businessName.toLowerCase().compareTo(b.businessName.toLowerCase()));
+    return filtered;
   }
 
   // Filter or search normally
@@ -136,6 +164,8 @@ final searchResultsProvider = FutureProvider<List<BusinessDto>>((ref) async {
     queryState.query,
     latitude: queryState.latitude,
     longitude: queryState.longitude,
+    sortBy: queryState.sortBy,
+    userPincode: resolvedPincode,
   );
 
   if (queryState.selectedCategoryId != null) {
@@ -151,18 +181,48 @@ final reviewsProvider = FutureProvider.family<List<BusinessReviewDto>, int>((ref
   return await repo.getReviews(businessId);
 });
 
-// Favorites Provider (Local simulation mapping)
+// Favorites Provider (Linked to Backend API)
 class FavoritesNotifier extends Notifier<List<int>> {
   @override
   List<int> build() {
+    final authState = ref.watch(authProvider);
+    if (authState is AuthAuthenticated) {
+      final userId = authState.userId;
+      Future.microtask(() => loadFavorites(userId));
+    }
     return [];
   }
 
-  void toggleFavorite(int businessId) {
-    if (state.contains(businessId)) {
+  Future<void> loadFavorites(int userId) async {
+    try {
+      final repo = ref.read(businessRepositoryProvider);
+      final list = await repo.getFavorites(userId);
+      state = list;
+    } catch (_) {}
+  }
+
+  Future<void> toggleFavorite(int businessId) async {
+    final authState = ref.read(authProvider);
+    if (authState is! AuthAuthenticated) return;
+    final userId = authState.userId;
+
+    final repo = ref.read(businessRepositoryProvider);
+    final exists = state.contains(businessId);
+
+    if (exists) {
       state = state.where((id) => id != businessId).toList();
+      try {
+        await repo.removeFavorite(userId, businessId);
+      } catch (_) {
+        state = [...state, businessId]; // Rollback
+      }
     } else {
       state = [...state, businessId];
+      try {
+        await repo.addFavorite(userId, businessId);
+      } catch (_) {
+        state = state.where((id) => id != businessId).toList(); // Rollback
+      }
     }
   }
 

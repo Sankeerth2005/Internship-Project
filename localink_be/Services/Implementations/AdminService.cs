@@ -56,6 +56,7 @@ public class AdminService : IAdminService
                 Status = a.Status.ToString(),
                 RejectionComment = a.RejectionReason
             })
+            .OrderBy(b => b.Name)
             .ToListAsync();
     }
     public async Task UpdateStatusAsync(long businessId, UpdateStatusDto dto, long adminId)

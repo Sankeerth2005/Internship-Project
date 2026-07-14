@@ -28,6 +28,11 @@ public class ExceptionMiddleware
             _logger.LogWarning(ex, "Resource Not Found");
             await HandleException(context, HttpStatusCode.NotFound, ex.Message);
         }
+        catch (UnauthorizedAccessException ex)
+        {
+            _logger.LogWarning(ex, "Unauthorized Access");
+            await HandleException(context, HttpStatusCode.Unauthorized, ex.Message);
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Internal Server Error");

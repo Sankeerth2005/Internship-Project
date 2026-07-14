@@ -11,5 +11,6 @@ namespace localink_be.Services.Interfaces
         Task<List<BusinessPhoto>> GetPhotosAsync(long businessId);
         Task<bool> DeletePhotoAsync(long photoId);
         Task SavePhotoAsync(string photoBase64, long businessId);
+        Task<string> SaveReviewPhotoAsync(string photoBase64);
     }
 }

@@ -147,6 +147,7 @@ namespace localink_be.Services.Implementations
                 .FirstOrDefaultAsync(u => u.Email == email);
 
             if (user == null ||
+                string.IsNullOrEmpty(user.PasswordHash) ||
                 !BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
                 throw new UnauthorizedAccessException("Invalid credentials");
 
@@ -245,6 +246,84 @@ namespace localink_be.Services.Implementations
             rng.GetBytes(bytes);
             int number = BitConverter.ToInt32(bytes, 0) & 0x7fffffff;
             return (number % 900000 + 100000).ToString();
+        }
+
+        public async Task<object> GoogleSignInAsync(string idToken)
+        {
+            if (string.IsNullOrWhiteSpace(idToken))
+                throw new ArgumentException("ID token is required");
+
+            try
+            {
+                // Validate Google ID token
+                var payload = await Google.Apis.Auth.GoogleJsonWebSignature.ValidateAsync(idToken);
+                if (payload == null)
+                    throw new UnauthorizedAccessException("Google token validation failed");
+
+                var email = payload.Email.Trim().ToLower();
+                var googleId = payload.Subject;
+
+                // 1. Check if user already has this google_id linked
+                var user = await _context.Users
+                    .FirstOrDefaultAsync(u => u.GoogleId == googleId);
+
+                if (user == null)
+                {
+                    // 2. If not, check if user exists with the same email
+                    user = await _context.Users
+                        .FirstOrDefaultAsync(u => u.Email == email);
+
+                    if (user != null)
+                      {
+                        // Link Google account to existing user
+                        user.GoogleId = googleId;
+                        await _context.SaveChangesAsync();
+                    }
+                    else
+                    {
+                        // 3. Register a new user
+                        user = new User
+                        {
+                            FullName = payload.Name ?? "Google User",
+                            Email = email,
+                            GoogleId = googleId,
+                            AccountType = "client", // Default type is client
+                            PasswordHash = null,
+                            CountryCode = "" // Default empty
+                        };
+
+                        await _context.Users.AddAsync(user);
+                        await _context.SaveChangesAsync();
+
+                        try
+                        {
+                            await _emailService.SendWelcomeEmailAsync(user.Email, user.FullName);
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"Welcome email failed: {ex.Message}");
+                        }
+                    }
+                }
+
+                var token = GenerateJwtToken(user);
+
+                return new
+                {
+                    token,
+                    user = new
+                    {
+                        id = user.UserId.ToString(),
+                        name = user.FullName,
+                        email = user.Email,
+                        userType = user.AccountType
+                    }
+                };
+            }
+            catch (Exception ex)
+            {
+                throw new UnauthorizedAccessException($"Google authentication failed: {ex.Message}");
+            }
         }
 
         private string GenerateJwtToken(User user)

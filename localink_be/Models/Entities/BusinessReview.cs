@@ -11,6 +11,7 @@ namespace localink_be.Models.Entities
         public string? Comment { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
+        public string? ImageUrl { get; set; }
 
         public User User { get; set; }  
     }

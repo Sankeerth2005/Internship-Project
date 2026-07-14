@@ -21,6 +21,19 @@ class AuthRepository {
     }
   }
 
+  Future<AuthResponse> loginWithGoogle(String idToken) async {
+    try {
+      final response = await dio.post('auth/google', data: {'idToken': idToken});
+      if (response.data['success'] == true) {
+        return AuthResponse.fromJson(response.data['data']);
+      } else {
+        throw Exception(response.data['message'] ?? 'Google Login failed');
+      }
+    } on DioException catch (e) {
+      throw Exception(_handleDioError(e));
+    }
+  }
+
   Future<String> register(RegisterRequest request) async {
     try {
       final response = await dio.post('auth/register', data: request.toJson());

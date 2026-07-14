@@ -45,10 +45,16 @@ class BusinessRepository {
     String query, {
     double? latitude,
     double? longitude,
+    String? sortBy,
+    String? userPincode,
   }) async {
     final response = await _dio.get(
       'business/search',
-      queryParameters: {'query': query},
+      queryParameters: {
+        'query': query,
+        if (sortBy != null) 'sortBy': sortBy,
+        if (userPincode != null) 'userPincode': userPincode,
+      },
       options: Options(
         headers: {
           if (latitude != null) 'X-User-Latitude': latitude.toString(),
@@ -120,7 +126,7 @@ class BusinessRepository {
   }
 
   // ADD REVIEW
-  Future<void> addReview(int businessId, double rating, String comment) async {
+  Future<void> addReview(int businessId, double rating, String comment, {String? image}) async {
     final options = await _getAuthOptions();
     await _dio.post(
       'reviews',
@@ -128,6 +134,7 @@ class BusinessRepository {
         'businessId': businessId,
         'rating': rating.toInt(),
         'comment': comment,
+        if (image != null) 'image': image,
       },
       options: options,
     );

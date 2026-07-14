@@ -149,8 +149,9 @@ namespace localink_be.Data
                 entity.Property(u => u.FullName).HasColumnName("full_name");
                 entity.Property(u => u.Email).HasColumnName("email");
                 entity.Property(u => u.PhoneNumber).HasColumnName("phone_number");
-                entity.Property(u => u.PasswordHash).HasColumnName("password_hash");
+                entity.Property(u => u.PasswordHash).HasColumnName("password_hash").IsRequired(false);
                 entity.Property(u => u.CountryCode).HasColumnName("country_code");
+                entity.Property(u => u.GoogleId).HasColumnName("google_id");
 
                 entity.Property(u => u.PasswordResetOtp).HasColumnName("password_reset_otp");
                 entity.Property(u => u.OtpExpiry).HasColumnName("otp_expiry");
@@ -173,6 +174,7 @@ namespace localink_be.Data
                 entity.Property(r => r.Comment).HasColumnName("comment");
                 entity.Property(r => r.CreatedAt).HasColumnName("created_at");
                 entity.Property(r => r.UpdatedAt).HasColumnName("updated_at");
+                entity.Property(r => r.ImageUrl).HasColumnName("image_url");
                 entity.HasOne(r => r.User)
                     .WithMany()
                     .HasForeignKey(r => r.UserId)

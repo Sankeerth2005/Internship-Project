@@ -111,7 +111,11 @@ namespace localink_be.Controllers
         }
 
         [HttpGet("search")]
-        public async Task<IActionResult> SearchBusinesses([FromQuery] string? query = "", [FromServices] localink_be.Data.AppDbContext db = null!)
+        public async Task<IActionResult> SearchBusinesses(
+            [FromQuery] string? query = "", 
+            [FromQuery] string? sortBy = "distance", 
+            [FromQuery] string? userPincode = "", 
+            [FromServices] localink_be.Data.AppDbContext db = null!)
         {
             // Get user location from headers if available
             double? userLat = null;
@@ -145,7 +149,7 @@ namespace localink_be.Controllers
                 catch { /* Suppress DB logging errors */ }
             }
 
-            return Ok(await _service.SearchBusinessesAsync(query, userLat, userLng));
+            return Ok(await _service.SearchBusinessesAsync(query, userLat, userLng, sortBy, userPincode));
         }
 
         [HttpGet("validate-pincode/{pincode}")]

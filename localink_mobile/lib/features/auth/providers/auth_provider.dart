@@ -1,3 +1,4 @@
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dio/dio.dart';
 import '../../../core/network/dio_client.dart';
@@ -68,7 +69,7 @@ class AuthNotifier extends Notifier<AuthState> {
       String errorMessage = 'Something went wrong. Please try again.';
       if (e is DioException) {
         if (e.response?.statusCode == 401) {
-          errorMessage = 'Wrong credentials. Please check your email and password.';
+          errorMessage = 'The email or password you entered is incorrect. Please double-check your details and try again';
         } else if (e.response?.statusCode == 429) {
           errorMessage = 'Too many requests. Please wait a moment before trying again.';
         } else if (e.type == DioExceptionType.connectionTimeout || e.type == DioExceptionType.receiveTimeout) {
@@ -116,6 +117,53 @@ class AuthNotifier extends Notifier<AuthState> {
       }
       state = AuthError(errorMessage);
       return null;
+    }
+  }
+
+  Future<void> signInWithGoogle() async {
+    state = const AuthLoading();
+    try {
+      final googleSignIn = GoogleSignIn(
+        scopes: ['email', 'profile'],
+      );
+
+      final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
+      if (googleUser == null) {
+        // User cancelled the login flow
+        state = const AuthUnauthenticated();
+        return;
+      }
+
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final String? idToken = googleAuth.idToken;
+
+      if (idToken == null) {
+        throw Exception('Google verification failed (no ID token returned).');
+      }
+
+      final response = await _repository.loginWithGoogle(idToken);
+      final parsedUserId = int.tryParse(response.user.id) ?? 0;
+
+      await SecureStorageService.saveToken(response.token);
+      await SecureStorageService.saveUserType(response.user.userType);
+      await SecureStorageService.saveUserId(parsedUserId);
+
+      ref.read(userRepositoryProvider).clearCache();
+      ref.invalidate(userProfileProvider);
+      state = AuthAuthenticated(response.user.userType, parsedUserId);
+    } catch (e) {
+      String errorMessage = 'Google Sign-In failed. Please try again.';
+      if (e is DioException) {
+        if (e.response?.data != null && e.response?.data is Map) {
+          final data = e.response?.data as Map;
+          errorMessage = data['message'] ?? data['title'] ?? e.message ?? errorMessage;
+        } else {
+          errorMessage = e.message ?? errorMessage;
+        }
+      } else {
+        errorMessage = e.toString().replaceAll('Exception: ', '');
+      }
+      state = AuthError(errorMessage);
     }
   }
 

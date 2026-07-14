@@ -491,84 +491,93 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header: Name & Status
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Text(
-                  business.name,
-                  style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () => context.push('/business-detail/${business.id}'),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header: Name & Status
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        business.name,
+                        style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: badgeColor.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: badgeColor.withValues(alpha: 0.4)),
+                      ),
+                      child: Text(
+                        business.status,
+                        style: TextStyle(color: badgeColor, fontSize: 10, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: badgeColor.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: badgeColor.withValues(alpha: 0.4)),
+                const SizedBox(height: 4),
+                // Category
+                Text(
+                  business.category,
+                  style: const TextStyle(color: Color(0xFFC8A97E), fontSize: 12, fontWeight: FontWeight.w500),
                 ),
-                child: Text(
-                  business.status,
-                  style: TextStyle(color: badgeColor, fontSize: 10, fontWeight: FontWeight.bold),
+                const SizedBox(height: 10),
+                // Description
+                Text(
+                  business.description,
+                  style: const TextStyle(color: Colors.white70, fontSize: 13, height: 1.4),
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          // Category
-          Text(
-            business.category,
-            style: const TextStyle(color: Color(0xFFC8A97E), fontSize: 12, fontWeight: FontWeight.w500),
-          ),
-          const SizedBox(height: 10),
-          // Description
-          Text(
-            business.description,
-            style: const TextStyle(color: Colors.white70, fontSize: 13, height: 1.4),
-            maxLines: 3,
-            overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: 12),
-          const Divider(color: Colors.white10),
-          const SizedBox(height: 10),
-          // Contact Information
-          if (business.phone != null && business.phone!.isNotEmpty)
-            _buildContactRow(Icons.phone, business.phone!),
-          if (business.email != null && business.email!.isNotEmpty)
-            _buildContactRow(Icons.email, business.email!),
-          if (business.address != null && business.address!.isNotEmpty)
-            _buildContactRow(Icons.location_on, business.address!),
+                const SizedBox(height: 12),
+                const Divider(color: Colors.white10),
+                const SizedBox(height: 10),
+                // Contact Information
+                if (business.phone != null && business.phone!.isNotEmpty)
+                  _buildContactRow(Icons.phone, business.phone!),
+                if (business.email != null && business.email!.isNotEmpty)
+                  _buildContactRow(Icons.email, business.email!),
+                if (business.address != null && business.address!.isNotEmpty)
+                  _buildContactRow(Icons.location_on, business.address!),
 
-          // Rejection Comments
-          if (business.rejectionComment != null && business.rejectionComment!.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: Colors.redAccent.withValues(alpha: 0.05),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.redAccent.withValues(alpha: 0.15)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Rejection Reason:',
-                    style: TextStyle(color: Colors.redAccent, fontSize: 11, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    business.rejectionComment!,
-                    style: const TextStyle(color: Colors.white70, fontSize: 12),
+                // Rejection Comments
+                if (business.rejectionComment != null && business.rejectionComment!.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.redAccent.withValues(alpha: 0.05),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.redAccent.withValues(alpha: 0.15)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Rejection Reason:',
+                          style: TextStyle(color: Colors.redAccent, fontSize: 11, fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          business.rejectionComment!,
+                          style: const TextStyle(color: Colors.white70, fontSize: 12),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
-              ),
+              ],
             ),
-          ],
+          ),
 
           // Approval Action Buttons (Only for Pending)
           if (isPending) ...[

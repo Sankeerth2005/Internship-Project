@@ -16,7 +16,7 @@ public class EmailService : IEmailService
     // OTP EMAIL
     public async Task SendOtpEmailAsync(string toEmail, string otp)
     {
-        var subject = "Password Reset OTP - Localink";
+        var subject = "Password Reset OTP - Vocal For Sanatan";
         var body = GetOtpTemplate(otp);
 
         await SendEmailAsync(toEmail, subject, body);
@@ -25,7 +25,7 @@ public class EmailService : IEmailService
     // WELCOME EMAIL
     public async Task SendWelcomeEmailAsync(string toEmail, string name)
     {
-        var subject = "Welcome to Localink!";
+        var subject = "Welcome to Vocal For Sanatan!";
         var body = GetWelcomeTemplate(name);
 
         await SendEmailAsync(toEmail, subject, body);
@@ -39,7 +39,7 @@ public class EmailService : IEmailService
             var email = new MimeMessage();
 
             email.From.Add(new MailboxAddress(
-                _config["Email:AppName"] ?? "Localink",
+                _config["Email:AppName"] ?? "Vocal For Sanatan",
                 _config["Email:From"] ?? "noreply@localink.com"
             ));
 
@@ -89,7 +89,7 @@ public class EmailService : IEmailService
                         
                         <tr>
                             <td align='center'>
-                                <h1 style='color:#2d89ef;margin-bottom:5px'>Welcome to Localink 🚀</h1>
+                                <h1 style='color:#2d89ef;margin-bottom:5px'>Welcome to Vocal For Sanatan 🚀</h1>
                                 <p style='color:#555;font-size:16px'>Hi {name}, we're excited to have you onboard!</p>
                             </td>
                         </tr>
@@ -104,7 +104,7 @@ public class EmailService : IEmailService
                             <td align='center'>
                                 <a href='#' style='background:#2d89ef;color:#fff;padding:12px 25px;
                                     border-radius:6px;text-decoration:none;font-weight:bold'>
-                                    Explore Localink
+                                    Explore Vocal For Sanatan
                                 </a>
                             </td>
                         </tr>
@@ -117,7 +117,7 @@ public class EmailService : IEmailService
 
                         <tr>
                             <td style='padding-top:10px;font-size:12px;color:#aaa;text-align:center'>
-                                © {DateTime.Now.Year} Localink. All rights reserved.
+                                © {DateTime.Now.Year} Vocal For Sanatan. All rights reserved.
                             </td>
                         </tr>
 
@@ -160,7 +160,7 @@ public class EmailService : IEmailService
                         </p>
 
                         <p style='color:#aaa;font-size:11px'>
-                            Localink Security Team
+                            Vocal For Sanatan Security Team
                         </p>
 
                     </table>
@@ -208,7 +208,7 @@ public class EmailService : IEmailService
             Please review this request in the admin dashboard.
         </p>
 
-        <small style='color:#aaa'>Localink System</small>
+        <small style='color:#aaa'>Vocal For Sanatan System</small>
 
     </table>
 </div>";
@@ -256,7 +256,7 @@ public class EmailService : IEmailService
             Start attracting customers today 🚀
         </p>
 
-        <small style='color:#aaa'>Localink Team</small>
+        <small style='color:#aaa'>Vocal For Sanatan Team</small>
 
     </table>
 </div>";
@@ -291,7 +291,7 @@ public class EmailService : IEmailService
             You can update your details and resubmit anytime.
         </p>
 
-        <small style='color:#aaa'>Localink Team</small>
+        <small style='color:#aaa'>Vocal For Sanatan Team</small>
 
     </table>
 </div>";
@@ -333,7 +333,7 @@ public class EmailService : IEmailService
             If you need to make changes or have questions, please contact support.
         </p>
 
-        <small style='color:#aaa'>Localink Team</small>
+        <small style='color:#aaa'>Vocal For Sanatan Team</small>
 
     </table>
 </div>";

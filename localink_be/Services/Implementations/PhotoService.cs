@@ -93,5 +93,23 @@ namespace localink_be.Services.Implementations
         await _db.SaveChangesAsync();
     }
 
+    public async Task<string> SaveReviewPhotoAsync(string photoBase64)
+    {
+        if (string.IsNullOrWhiteSpace(photoBase64)) return null;
+
+        var bytes = Convert.FromBase64String(photoBase64);
+
+        var rootPath = _env.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+        var uploadsPath = Path.Combine(rootPath, "uploads", "reviews");
+        if (!Directory.Exists(uploadsPath))
+            Directory.CreateDirectory(uploadsPath);
+
+        var fileName = $"{Guid.NewGuid()}.jpg";
+        var filePath = Path.Combine(uploadsPath, fileName);
+
+        await File.WriteAllBytesAsync(filePath, bytes);
+
+        return $"/uploads/reviews/{fileName}";
+    }
 }
 }

@@ -20,12 +20,14 @@ namespace localink_be.Services.Implementations
         private readonly IPhotoService _photoService;
         private readonly IEmailService _emailService;
         private readonly IHubContext<NotificationHub> _hubContext;
+        private readonly IServiceProvider _serviceProvider;
     public BusinessService(AppDbContext db,
                            IContactService contactService,
                            IHoursService hoursService,
                            IPhotoService photoService,
                            IEmailService emailService,
-                           IHubContext<NotificationHub> hubContext)
+                           IHubContext<NotificationHub> hubContext,
+                           IServiceProvider serviceProvider)
     {
         _db = db ?? throw new ArgumentNullException(nameof(db));
         _contactService = contactService;
@@ -33,6 +35,7 @@ namespace localink_be.Services.Implementations
         _photoService = photoService;
         _emailService = emailService;
         _hubContext = hubContext;
+        _serviceProvider = serviceProvider;
     }
 
  
@@ -209,6 +212,14 @@ namespace localink_be.Services.Implementations
 
     public async Task<long> RegisterBusinessAsync(RegisterBusinessDto dto, long userId)
     {
+        // 1. Duplication Prevention: Check if business name is already registered by this user
+        var normalizedName = dto.BusinessName?.Trim().ToLower();
+        var exists = await _db.Businesses.AnyAsync(b => b.UserId == userId && b.BusinessName.ToLower() == normalizedName);
+        if (exists)
+        {
+            throw new ArgumentException("A business with this name has already been registered under your account.");
+        }
+
         var strategy = _db.Database.CreateExecutionStrategy();
         
         return await strategy.ExecuteAsync(async () =>
@@ -268,44 +279,57 @@ namespace localink_be.Services.Implementations
                 await _db.SaveChangesAsync();
 
                 await transaction.CommitAsync();
-                // GET BUSINESS DETAILS FOR EMAIL
-                var contact = await _db.BusinessContacts
-                    .Where(c => c.BusinessId == business.BusinessId)
-                    .FirstOrDefaultAsync();
 
-                var categoryName = await _db.Categories
-                    .Where(c => c.CategoryId == business.CategoryId)
-                    .Select(c => c.CategoryName)
-                    .FirstOrDefaultAsync();
-
-                // ADMIN EMAIL FROM CONFIG
-                var adminEmail = "aadarshreddydepa@gmail.com"; // move to config later
-
-                await _emailService.SendNewBusinessNotificationToAdminAsync(
-                    adminEmail,
-                    business.BusinessName,
-                    categoryName ?? "",
-                    business.Description ?? "",
-                    contact?.City + ", " + contact?.State,
-                    contact?.PhoneCode + contact?.PhoneNumber,
-                    contact?.Email
-                );
-
-                // Send welcome/pending email to business owner
-                var user = await _db.Users.FindAsync(userId);
-                if (user != null)
+                // 2. Heavy operations (SMTP Emails & SignalR broadcasts) are executed on a background thread
+                // to prevent client-side HTTP timeouts (like DioTimeoutException).
+                _ = Task.Run(async () =>
                 {
-                    await _emailService.SendBusinessRegistrationEmailToOwnerAsync(
-                        user.Email,
-                        user.FullName,
-                        business.BusinessName,
-                        categoryName ?? ""
-                    );
-                }
+                    try
+                    {
+                        using var scope = _serviceProvider.CreateScope();
+                        var scopedDb = scope.ServiceProvider.GetRequiredService<localink_be.Data.AppDbContext>();
+                        var scopedEmail = scope.ServiceProvider.GetRequiredService<IEmailService>();
 
-                // Notify all active Admins of new pending business listing
-                await _hubContext.Clients.Group("admin").SendAsync("ReceiveNotification", $"New Business Alert: '{business.BusinessName}' has been registered and is pending approval.");
- 
+                        var contact = await scopedDb.BusinessContacts
+                            .Where(c => c.BusinessId == business.BusinessId)
+                            .FirstOrDefaultAsync();
+
+                        var categoryName = await scopedDb.Categories
+                            .Where(c => c.CategoryId == business.CategoryId)
+                            .Select(c => c.CategoryName)
+                            .FirstOrDefaultAsync();
+
+                        var adminEmail = "aadarshreddydepa@gmail.com";
+
+                        await scopedEmail.SendNewBusinessNotificationToAdminAsync(
+                            adminEmail,
+                            business.BusinessName,
+                            categoryName ?? "",
+                            business.Description ?? "",
+                            (contact?.City ?? "") + ", " + (contact?.State ?? ""),
+                            (contact?.PhoneCode ?? "") + (contact?.PhoneNumber ?? ""),
+                            contact?.Email ?? ""
+                        );
+
+                        var user = await scopedDb.Users.FindAsync(userId);
+                        if (user != null)
+                        {
+                            await scopedEmail.SendBusinessRegistrationEmailToOwnerAsync(
+                                user.Email,
+                                user.FullName,
+                                business.BusinessName,
+                                categoryName ?? ""
+                            );
+                        }
+
+                        await _hubContext.Clients.Group("admin").SendAsync("ReceiveNotification", $"New Business Alert: '{business.BusinessName}' has been registered and is pending approval.");
+                    }
+                    catch (Exception ex)
+                    {
+                        // Fail silently to prevent crashing the response
+                    }
+                });
+
                 return business.BusinessId;
             }
             catch
@@ -455,6 +479,7 @@ namespace localink_be.Services.Implementations
                         .Select(p => p.ImageUrl)
                         .FirstOrDefault()
                 })
+                .OrderBy(b => b.Name)
                 .ToListAsync();
         }
 
@@ -499,6 +524,7 @@ namespace localink_be.Services.Implementations
                         .Select(c => c.StreetAddress)
                         .FirstOrDefault()
                 })
+                .OrderBy(b => b.Name)
                 .ToListAsync();
         }
 
@@ -517,7 +543,7 @@ namespace localink_be.Services.Implementations
                 .FirstOrDefaultAsync();
         }
 
-        public async Task<List<BusinessDto>> SearchBusinessesAsync(string query, double? userLat = null, double? userLng = null)
+        public async Task<List<BusinessDto>> SearchBusinessesAsync(string query, double? userLat = null, double? userLng = null, string? sortBy = "distance", string? userPincode = "")
         {
             if (string.IsNullOrWhiteSpace(query))
                 return new List<BusinessDto>();
@@ -536,7 +562,7 @@ namespace localink_be.Services.Implementations
                     )
                 );
 
-            // Project to DTO with distance calculation
+            // Project to DTO
             var projectedQuery = businessesQuery.Select(b => new BusinessDto
             {
                 Id = b.BusinessId,
@@ -565,6 +591,10 @@ namespace localink_be.Services.Implementations
                     .Where(c => c.BusinessId == b.BusinessId)
                     .Select(c => c.StreetAddress)
                     .FirstOrDefault(),
+                Pincode = _db.BusinessContacts
+                    .Where(c => c.BusinessId == b.BusinessId)
+                    .Select(c => c.Pincode)
+                    .FirstOrDefault(),
                 Latitude = _db.BusinessContacts
                     .Where(c => c.BusinessId == b.BusinessId)
                     .Select(c => c.Latitude)
@@ -581,6 +611,12 @@ namespace localink_be.Services.Implementations
                     .Where(p => p.BusinessId == b.BusinessId && p.IsPrimary)
                     .Select(p => p.ImageUrl)
                     .FirstOrDefault(),
+                AverageRating = _db.BusinessReviews
+                    .Where(r => r.BusinessId == b.BusinessId)
+                    .Select(r => (double?)r.Rating)
+                    .Average() ?? 0.0,
+                TotalReviews = _db.BusinessReviews
+                    .Count(r => r.BusinessId == b.BusinessId),
                 // Calculate distance using Haversine formula approximation
                 Distance = userLat.HasValue && userLng.HasValue
                     ? _db.BusinessContacts
@@ -593,14 +629,42 @@ namespace localink_be.Services.Implementations
                     : null
             });
 
-            // Sort by distance if location provided, otherwise by name
-            var results = await (userLat.HasValue && userLng.HasValue
-                ? projectedQuery.OrderBy(b => b.Distance ?? double.MaxValue)
-                : projectedQuery.OrderBy(b => b.Name))
-                .Take(10)
-                .ToListAsync();
+            var allMatches = await projectedQuery.ToListAsync();
 
-            return results;
+            // Perform sorting on the matched results list in memory
+            var normalizedSort = sortBy?.ToLower().Trim() ?? "distance";
+            IEnumerable<BusinessDto> sortedResults;
+
+            if (normalizedSort == "alphabetical")
+            {
+                sortedResults = allMatches.OrderBy(b => b.Name);
+            }
+            else if (normalizedSort == "reviews")
+            {
+                // Descending order of review ratings
+                sortedResults = allMatches.OrderByDescending(b => b.AverageRating)
+                                          .ThenByDescending(b => b.TotalReviews)
+                                          .ThenBy(b => b.Name);
+            }
+            else // Default: Sort by distance / pincode
+            {
+                var cleanPincode = userPincode?.Trim();
+                
+                if (!string.IsNullOrEmpty(cleanPincode))
+                {
+                    // Prioritize exact pincode match first, then sort remaining by distance
+                    sortedResults = allMatches.OrderBy(b => (b.Pincode != null && b.Pincode.Trim() == cleanPincode) ? 0 : 1)
+                                              .ThenBy(b => b.Distance ?? double.MaxValue)
+                                              .ThenBy(b => b.Name);
+                }
+                else
+                {
+                    sortedResults = allMatches.OrderBy(b => b.Distance ?? double.MaxValue)
+                                              .ThenBy(b => b.Name);
+                }
+            }
+
+            return sortedResults.Take(25).ToList();
         }
 
         public async Task<VoiceSearchResponse> VoiceSearchAsync(VoiceSearchRequest request, double? userLat = null, double? userLng = null)

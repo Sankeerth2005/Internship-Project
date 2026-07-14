@@ -109,5 +109,26 @@ namespace localink_be.Controllers
                 message = result
             });
         }
+
+        // GOOGLE SIGN IN
+        [HttpPost("google")]
+        public async Task<IActionResult> GoogleSignIn([FromBody] GoogleLoginRequest request)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(new { success = false, errors = ModelState });
+
+            var result = await _authService.GoogleSignInAsync(request.IdToken);
+
+            return Ok(new
+            {
+                success = true,
+                data = result
+            });
+        }
+    }
+
+    public class GoogleLoginRequest
+    {
+        public string IdToken { get; set; } = null!;
     }
 }

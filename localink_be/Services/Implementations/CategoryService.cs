@@ -29,6 +29,7 @@ namespace localink_be.Services.Implementations
                         Name = c.CategoryName,
                         IconUrl = c.IconUrl
                     })
+                    .OrderBy(c => c.Name)
                     .ToListAsync();
 
                 return categories; // Return empty list if none found

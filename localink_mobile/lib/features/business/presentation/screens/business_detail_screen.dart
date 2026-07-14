@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:convert';
+import 'dart:io';
 import '../../providers/business_provider.dart';
 import '../../data/models/business_models.dart';
 import '../../../../core/network/dio_client.dart';
@@ -20,6 +23,40 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
   final _commentController = TextEditingController();
   double _userRating = 5.0;
   bool _isSubmittingReview = false;
+  File? _pickedImage;
+  String? _base64Image;
+
+  Future<void> _pickImage() async {
+    try {
+      final picker = ImagePicker();
+      final pickedFile = await picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1024,
+        maxHeight: 1024,
+        imageQuality: 85,
+      );
+      if (pickedFile != null) {
+        final bytes = await pickedFile.readAsBytes();
+        setState(() {
+          _pickedImage = File(pickedFile.path);
+          _base64Image = base64Encode(bytes);
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to pick image: $e')),
+        );
+      }
+    }
+  }
+
+  void _clearImage() {
+    setState(() {
+      _pickedImage = null;
+      _base64Image = null;
+    });
+  }
 
   // AI Review Features State
   String _aiSummary = '';
@@ -61,6 +98,7 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
         widget.businessId,
         _userRating,
         _commentController.text.trim(),
+        image: _base64Image,
       );
 
       // Reset AI summary so it is re-fetched next time
@@ -71,6 +109,7 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
       
       if (mounted) {
         _commentController.clear();
+        _clearImage();
         setState(() => _userRating = 5.0);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Review submitted successfully!')),
@@ -554,6 +593,54 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
                                     ),
                                   ),
                                 ),
+                                const SizedBox(height: 10),
+                                Row(
+                                  children: [
+                                    OutlinedButton.icon(
+                                      onPressed: _pickImage,
+                                      icon: const Icon(Icons.add_photo_alternate, color: Color(0xFFC8A97E), size: 16),
+                                      label: const Text('Add Image', style: TextStyle(color: Color(0xFFC8A97E), fontSize: 12)),
+                                      style: OutlinedButton.styleFrom(
+                                        side: const BorderSide(color: Color(0xFFC8A97E)),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                      ),
+                                    ),
+                                    if (_pickedImage != null) ...[
+                                      const SizedBox(width: 12),
+                                      Stack(
+                                        clipBehavior: Clip.none,
+                                        children: [
+                                          ClipRRect(
+                                            borderRadius: BorderRadius.circular(8),
+                                            child: Image.file(
+                                              _pickedImage!,
+                                              width: 50,
+                                              height: 50,
+                                              fit: BoxFit.cover,
+                                            ),
+                                          ),
+                                          Positioned(
+                                            top: -6,
+                                            right: -6,
+                                            child: GestureDetector(
+                                              onTap: _clearImage,
+                                              child: Container(
+                                                padding: const EdgeInsets.all(2),
+                                                decoration: const BoxDecoration(
+                                                  color: Colors.redAccent,
+                                                  shape: BoxShape.circle,
+                                                ),
+                                                child: const Icon(Icons.close, color: Colors.white, size: 12),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ],
+                                ),
                                 const SizedBox(height: 12),
                                 Row(
                                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -756,6 +843,23 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
             review.comment,
             style: const TextStyle(color: Colors.white70, fontSize: 13, height: 1.3),
           ),
+          if (review.imageUrl != null && review.imageUrl!.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Image.network(
+                review.imageUrl!.startsWith('http')
+                    ? review.imageUrl!
+                    : '${DioClient().dio.options.baseUrl.replaceAll('/api/v1/', '')}${review.imageUrl}',
+                width: double.infinity,
+                height: 180,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return const SizedBox.shrink();
+                },
+              ),
+            ),
+          ],
         ],
       ),
     );

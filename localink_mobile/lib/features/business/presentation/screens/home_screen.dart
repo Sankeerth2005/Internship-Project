@@ -183,45 +183,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 15),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: ElevatedButton.icon(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF2E2416),
-                                foregroundColor: const Color(0xFFC8A97E),
-                                elevation: 0,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                  side: BorderSide(color: const Color(0xFFC8A97E).withValues(alpha: 0.2)),
-                                ),
-                                padding: const EdgeInsets.symmetric(vertical: 12),
-                              ),
-                              onPressed: () => context.push('/for-you'),
-                              icon: const Icon(Icons.auto_awesome, size: 16),
-                              label: const Text('AI Feed', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                            ),
+                      ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF2E2416),
+                          foregroundColor: const Color(0xFFC8A97E),
+                          minimumSize: const Size(double.infinity, 44),
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            side: BorderSide(color: const Color(0xFFC8A97E).withValues(alpha: 0.2)),
                           ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: ElevatedButton.icon(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF1E1E1E),
-                                foregroundColor: Colors.white,
-                                elevation: 0,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                  side: BorderSide(color: Colors.white.withValues(alpha: 0.05)),
-                                ),
-                                padding: const EdgeInsets.symmetric(vertical: 12),
-                              ),
-                              onPressed: () => context.push('/ar-hud'),
-                              icon: const Icon(Icons.center_focus_weak, size: 16),
-                              label: const Text('AR Street View', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                            ),
-                          ),
-                        ],
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                        onPressed: () => context.push('/for-you'),
+                        icon: const Icon(Icons.auto_awesome, size: 16),
+                        label: const Text('AI Feed', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                       ),
                     ],
                   ),
@@ -307,34 +283,52 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             // Business Results Header
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.only(left: 20, right: 20, top: 25, bottom: 10),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      queryState.query.isEmpty && queryState.selectedCategoryId == null
-                          ? 'All Businesses'
-                          : 'Search Results',
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.9),
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    if (favorites.isNotEmpty)
-                      GestureDetector(
-                        onTap: () {
-                          // Toggle showing favorites by setting search query/category or custom state
-                        },
-                        child: Text(
-                          '${favorites.length} Saved',
-                          style: const TextStyle(
-                            color: Color(0xFFC8A97E),
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          queryState.query.isEmpty && queryState.selectedCategoryId == null
+                              ? 'All Businesses'
+                              : 'Search Results',
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.9),
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
-                      )
+                        if (favorites.isNotEmpty)
+                          Text(
+                            '${favorites.length} Saved',
+                            style: const TextStyle(
+                              color: Color(0xFFC8A97E),
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          const Text(
+                            'Sort by: ',
+                            style: TextStyle(color: Colors.white38, fontSize: 12),
+                          ),
+                          const SizedBox(width: 8),
+                          _buildSortChip(ref, 'distance', 'Nearest (PIN Code)', queryState.sortBy),
+                          const SizedBox(width: 8),
+                          _buildSortChip(ref, 'alphabetical', 'Alphabetical (A-Z)', queryState.sortBy),
+                          const SizedBox(width: 8),
+                          _buildSortChip(ref, 'reviews', 'Top Rated', queryState.sortBy),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -548,6 +542,34 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSortChip(WidgetRef ref, String sortVal, String label, String currentSort) {
+    final isSelected = currentSort == sortVal;
+    return ChoiceChip(
+      showCheckmark: false,
+      label: Text(label),
+      selected: isSelected,
+      onSelected: (selected) {
+        if (selected) {
+          ref.read(searchQueryProvider.notifier).setSortBy(sortVal);
+        }
+      },
+      backgroundColor: const Color(0xFF1E1E1E),
+      selectedColor: const Color(0xFFC8A97E),
+      labelStyle: TextStyle(
+        color: isSelected ? Colors.black : Colors.white70,
+        fontSize: 11,
+        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+        side: BorderSide(
+          color: isSelected ? const Color(0xFFC8A97E) : Colors.white.withValues(alpha: 0.1),
         ),
       ),
     );
