@@ -6,7 +6,9 @@ import '../../providers/auth_state.dart';
 import '../widgets/animated_background.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
-  const LoginScreen({super.key});
+  final String? selectedRole;
+
+  const LoginScreen({super.key, this.selectedRole});
 
   @override
   ConsumerState<LoginScreen> createState() => _LoginScreenState();
@@ -126,7 +128,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     center: const Alignment(0.4, -0.4),
                     radius: 1.5,
                     colors: [
-                      const Color(0xFFC8A97E).withValues(alpha: 0.15),
+                      const Color(0xFFFF7A00).withValues(alpha: 0.15),
                       Colors.transparent,
                     ],
                   ),
@@ -163,11 +165,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           ],
         ),
         border: Border.all(
-          color: const Color(0xFFC8A97E).withValues(alpha: 0.25),
+          color: const Color(0xFFFF7A00).withValues(alpha: 0.25),
         ),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFFC8A97E).withValues(alpha: 0.2),
+            color: const Color(0xFFFF7A00).withValues(alpha: 0.2),
             blurRadius: 50,
           ),
           BoxShadow(
@@ -186,7 +188,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             // Logo text with gradient
             ShaderMask(
               shaderCallback: (bounds) => const LinearGradient(
-                colors: [Color(0xFFC8A97E), Colors.white],
+                colors: [Color(0xFFFF7A00), Colors.white],
               ).createShader(bounds),
               child: const Text(
                 'VOCAL FOR SANATAN',
@@ -203,14 +205,28 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             const SizedBox(height: 8),
 
             // Subtitle
-            Text(
-              'Welcome Back',
-              style: TextStyle(
-                fontFamily: 'Inter',
-                fontSize: 14,
-                color: Colors.white.withValues(alpha: 0.6),
-              ),
-              textAlign: TextAlign.center,
+            Builder(
+              builder: (context) {
+                final role = widget.selectedRole?.toLowerCase().trim();
+                String subtitleText = 'Welcome Back';
+                if (role == 'admin') {
+                  subtitleText = 'Administrator Login';
+                } else if (role == 'client') {
+                  subtitleText = 'Business Owner Login';
+                } else if (role == 'user') {
+                  subtitleText = 'Customer Login';
+                }
+                return Text(
+                  subtitleText,
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 14,
+                    color: Colors.white.withValues(alpha: 0.6),
+                    fontWeight: FontWeight.w600,
+                  ),
+                  textAlign: TextAlign.center,
+                );
+              },
             ),
             const SizedBox(height: 25),
 
@@ -234,7 +250,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               child: TextButton(
                 onPressed: () => context.push('/forgot-password'),
                 style: TextButton.styleFrom(
-                  foregroundColor: const Color(0xFFC8A97E),
+                  foregroundColor: const Color(0xFFFF7A00),
                   padding: const EdgeInsets.only(top: 8),
                   minimumSize: const Size(0, 0),
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -258,32 +274,34 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             ),
             const SizedBox(height: 20),
 
-            // Sign up link
-            Wrap(
-              alignment: WrapAlignment.center,
-              children: [
-                Text(
-                  "Don't have an account? ",
-                  style: TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 14,
-                    color: Colors.white.withValues(alpha: 0.5),
-                  ),
-                ),
-                GestureDetector(
-                  onTap: () => context.push('/signup'),
-                  child: const Text(
-                    'Sign Up',
+            // Sign up link (hidden for admin)
+            if (widget.selectedRole?.toLowerCase().trim() != 'admin') ...[
+              Wrap(
+                alignment: WrapAlignment.center,
+                children: [
+                  Text(
+                    "Don't have an account? ",
                     style: TextStyle(
                       fontFamily: 'Inter',
                       fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFFC8A97E),
+                      color: Colors.white.withValues(alpha: 0.5),
                     ),
                   ),
-                ),
-              ],
-            ),
+                  GestureDetector(
+                    onTap: () => context.push('/signup', extra: widget.selectedRole),
+                    child: const Text(
+                      'Sign Up',
+                      style: TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFFFF7A00),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ],
         ),
       ),
@@ -296,7 +314,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       style: const TextStyle(
         fontFamily: 'Inter',
         fontSize: 13,
-        color: Color(0xFFC8A97E),
+        color: Color(0xFFFF7A00),
       ),
     );
   }
@@ -337,7 +355,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             padding: const EdgeInsets.only(right: 12),
             child: Icon(
               _showPassword ? Icons.visibility_off : Icons.visibility,
-              color: const Color(0xFFC8A97E),
+              color: const Color(0xFFFF7A00),
               size: 18,
             ),
           ),
@@ -371,7 +389,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
-        borderSide: const BorderSide(color: Color(0xFFC8A97E)),
+        borderSide: const BorderSide(color: Color(0xFFFF7A00)),
       ),
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
@@ -399,11 +417,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
         gradient: const LinearGradient(
-          colors: [Color(0xFFC8A97E), Color(0xFFE6C89F)],
+          colors: [Color(0xFFFF7A00), Color(0xFFFF9E40)],
         ),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFFC8A97E).withValues(alpha: 0.3),
+            color: const Color(0xFFFF7A00).withValues(alpha: 0.3),
             blurRadius: 15,
             offset: const Offset(0, 4),
           ),

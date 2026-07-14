@@ -10,4 +10,9 @@ public class AdminBusinessDto
     public string? Description { get; set; }
     public string Status { get; set; }
     public string? RejectionComment { get; set; }
+
+    public bool IsTemporaryClosurePending { get; set; }
+    public string? TemporaryClosureReason { get; set; }
+    public int? TemporaryClosureDays { get; set; }
+    public string? OwnerName { get; set; }
 }

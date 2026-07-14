@@ -11,7 +11,9 @@ import '../../providers/location_provider.dart';
 import '../widgets/animated_background.dart';
 
 class SignupScreen extends ConsumerStatefulWidget {
-  const SignupScreen({super.key});
+  final String? preSelectedRole;
+
+  const SignupScreen({super.key, this.preSelectedRole});
 
   @override
   ConsumerState<SignupScreen> createState() => _SignupScreenState();
@@ -68,6 +70,14 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   @override
   void initState() {
     super.initState();
+    if (widget.preSelectedRole != null) {
+      final role = widget.preSelectedRole!.toLowerCase().trim();
+      if (role == 'client' || role == 'businessowner') {
+        _selectedType = 'client';
+      } else if (role == 'user') {
+        _selectedType = 'user';
+      }
+    }
     _loadCountries();
   }
 
@@ -378,7 +388,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                         center: const Alignment(0.4, -0.4),
                         radius: 1.5,
                         colors: [
-                          const Color(0xFFC8A97E).withValues(alpha: 0.15),
+                          const Color(0xFFFF7A00).withValues(alpha: 0.15),
                           Colors.transparent,
                         ],
                       ),
@@ -414,11 +424,11 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
         color: const Color(0xFF141414).withValues(alpha: 0.6),
         backgroundBlendMode: BlendMode.srcOver,
         border: Border.all(
-          color: const Color(0xFFC8A97E).withValues(alpha: 0.25),
+          color: const Color(0xFFFF7A00).withValues(alpha: 0.25),
         ),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFFC8A97E).withValues(alpha: 0.12),
+            color: const Color(0xFFFF7A00).withValues(alpha: 0.12),
             blurRadius: 20,
           ),
           BoxShadow(
@@ -530,7 +540,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                       fontFamily: 'Inter',
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
-                      color: Color(0xFFC8A97E),
+                      color: Color(0xFFFF7A00),
                     ),
                   ),
                 ),
@@ -567,7 +577,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(20),
                   gradient: const LinearGradient(
-                    colors: [Color(0xFFC8A97E), Color(0xFFE6C89F)],
+                    colors: [Color(0xFFFF7A00), Color(0xFFFF9E40)],
                   ),
                 ),
               ),
@@ -923,7 +933,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
       style: const TextStyle(
         fontFamily: 'Inter',
         fontSize: 11,
-        color: Color(0xFFC8A97E),
+        color: Color(0xFFFF7A00),
       ),
     );
   }
@@ -1008,7 +1018,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(color: Color(0xFFC8A97E)),
+        borderSide: const BorderSide(color: Color(0xFFFF7A00)),
       ),
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
@@ -1035,7 +1045,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
           width: 16,
           child: CircularProgressIndicator(
             strokeWidth: 2,
-            color: Color(0xFFC8A97E),
+            color: Color(0xFFFF7A00),
           ),
         ),
       ),
@@ -1052,11 +1062,11 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(10),
         gradient: const LinearGradient(
-          colors: [Color(0xFFC8A97E), Color(0xFFE6C89F)],
+          colors: [Color(0xFFFF7A00), Color(0xFFFF9E40)],
         ),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFFC8A97E).withValues(alpha: 0.4),
+            color: const Color(0xFFFF7A00).withValues(alpha: 0.4),
             blurRadius: 20,
             offset: const Offset(0, 6),
           ),
@@ -1105,11 +1115,11 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
             color: const Color(0xFF1A1A1A),
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: const Color(0xFFC8A97E).withValues(alpha: 0.3),
+              color: const Color(0xFFFF7A00).withValues(alpha: 0.3),
             ),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFFC8A97E).withValues(alpha: 0.2),
+                color: const Color(0xFFFF7A00).withValues(alpha: 0.2),
                 blurRadius: 30,
               ),
             ],
@@ -1121,7 +1131,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                 height: 40,
                 width: 40,
                 child: CircularProgressIndicator(
-                  color: Color(0xFFC8A97E),
+                  color: Color(0xFFFF7A00),
                   strokeWidth: 3,
                 ),
               ),

@@ -54,7 +54,14 @@ public class AdminService : IAdminService
                     .FirstOrDefault(),
 
                 Status = a.Status.ToString(),
-                RejectionComment = a.RejectionReason
+                RejectionComment = a.RejectionReason,
+                IsTemporaryClosurePending = a.Business.TemporaryClosureStatus == "Pending",
+                TemporaryClosureReason = a.Business.TemporaryClosureReason,
+                TemporaryClosureDays = a.Business.TemporaryClosureDays,
+                OwnerName = _db.Users
+                    .Where(u => u.UserId == a.Business.UserId)
+                    .Select(u => u.FullName)
+                    .FirstOrDefault()
             })
             .OrderBy(b => b.Name)
             .ToListAsync();
@@ -99,18 +106,32 @@ public class AdminService : IAdminService
 
     public async Task<byte[]> ExportAsync(string status)
     {
-        if (!Enum.TryParse<BusinessStatus>(status, true, out var parsedStatus))
+        bool exportAll = status.Equals("All", StringComparison.OrdinalIgnoreCase);
+        BusinessStatus? parsedStatus = null;
+
+        if (!exportAll)
         {
-            throw new Exception("Invalid status");
+            if (!Enum.TryParse<BusinessStatus>(status, true, out var result))
+            {
+                throw new Exception("Invalid status");
+            }
+            parsedStatus = result;
         }
 
         var isRejectedStatus = parsedStatus == BusinessStatus.Rejected;
 
-        var data = await _db.AdminDashboards
+        var query = _db.AdminDashboards
             .Include(a => a.Business)
                 .ThenInclude(b => b.Category)
             .Include(a => a.Business.Subcategory)
-            .Where(a => a.Status == parsedStatus)
+            .AsQueryable();
+
+        if (!exportAll && parsedStatus.HasValue)
+        {
+            query = query.Where(a => a.Status == parsedStatus.Value);
+        }
+
+        var data = await query
             .Select(a => new
             {
                 BusinessName = a.Business.BusinessName,
@@ -143,15 +164,15 @@ public class AdminService : IAdminService
 
                 Status = a.Status.ToString(),
 
-                RejectionReason = isRejectedStatus ? a.RejectionReason : null
-                            })
+                RejectionReason = (exportAll || isRejectedStatus) ? a.RejectionReason : null
+            })
             .ToListAsync();
 
         using var package = new OfficeOpenXml.ExcelPackage();
         var sheet = package.Workbook.Worksheets.Add("Businesses");
 
-        // Remove RejectionReason column if not rejected status
-        if (!isRejectedStatus && data.Count > 0)
+        // Remove RejectionReason column if not rejected status and not exporting all
+        if (!exportAll && !isRejectedStatus && data.Count > 0)
         {
             var dataWithoutReason = data.Select(d => new
             {
@@ -203,5 +224,46 @@ public class AdminService : IAdminService
 
         return package.GetAsByteArray();
     }
+
+    public async Task<List<AdminUserDto>> GetUsersAsync()
+    {
+        return await _db.Users
+            .OrderBy(u => u.FullName)
+            .Select(u => new AdminUserDto
+            {
+                UserId = u.UserId,
+                FullName = u.FullName,
+                Email = u.Email,
+                AccountType = u.AccountType,
+                PhoneNumber = u.PhoneNumber
+            })
+            .ToListAsync();
+    }
+
+    public async Task<AdminStatsDto> GetStatsAsync()
+    {
+        var totalUsers = await _db.Users.LongCountAsync();
+        var totalBusinesses = await _db.Businesses.LongCountAsync();
+        var approvedBusinesses = await _db.AdminDashboards.LongCountAsync(a => a.Status == BusinessStatus.Approved);
+        var pendingBusinesses = await _db.AdminDashboards.LongCountAsync(a => a.Status == BusinessStatus.Pending);
+        var totalViews = await _db.BusinessMetrics.SumAsync(m => (long?)m.Views) ?? 0;
+        var totalClicks = await _db.BusinessMetrics.SumAsync(m => (long?)m.ContactClicks) ?? 0;
+        var totalReviews = await _db.BusinessReviews.LongCountAsync();
+        var averageRating = totalReviews > 0
+            ? await _db.BusinessReviews.AverageAsync(r => (double?)r.Rating) ?? 0.0
+            : 0.0;
+
+        return new AdminStatsDto
+        {
+            TotalUsers = totalUsers,
+            TotalBusinesses = totalBusinesses,
+            ApprovedBusinesses = approvedBusinesses,
+            PendingBusinesses = pendingBusinesses,
+            TotalViews = totalViews,
+            TotalClicks = totalClicks,
+            TotalReviews = totalReviews,
+            AverageRating = Math.Round(averageRating, 1)
+        };
+    }
 }
-}
+}

@@ -70,7 +70,7 @@ class _AnimatedAuthBackgroundState extends State<AnimatedAuthBackground>
                 center: Alignment(0.4, -0.4),
                 radius: 1.2,
                 colors: [
-                  Color(0x26C8A97E), // rgba(200,169,126,0.15)
+                  Color(0x26FF7A00), // rgba(200,169,126,0.15)
                   Colors.transparent,
                 ],
               ),
@@ -103,7 +103,7 @@ class _PlasmaPainter extends CustomPainter {
     final p1 = Paint()
       ..shader = RadialGradient(
         colors: [
-          const Color(0x40C8A97E), // rgba(200,169,126,0.25)
+          const Color(0x40FF7A00), // rgba(200,169,126,0.25)
           Colors.transparent,
         ],
       ).createShader(Rect.fromCircle(center: c1, radius: w * 0.5));
@@ -131,7 +131,7 @@ class _PlasmaPainter extends CustomPainter {
     final p3 = Paint()
       ..shader = RadialGradient(
         colors: [
-          const Color(0x26C8A97E), // rgba(200,169,126,0.15)
+          const Color(0x26FF7A00), // rgba(200,169,126,0.15)
           Colors.transparent,
         ],
       ).createShader(Rect.fromCircle(center: c3, radius: w * 0.5));
@@ -152,7 +152,7 @@ class _ParticlePainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     const spacing = 70.0;
     const radius = 1.2;
-    final paint = Paint()..color = const Color(0x40C8A97E); // opacity ~0.25
+    final paint = Paint()..color = const Color(0x40FF7A00); // opacity ~0.25
     final drift =
         t * 300; // particles move up by 300px over the animation cycle
 

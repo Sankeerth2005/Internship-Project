@@ -21,6 +21,8 @@ import 'features/business/presentation/screens/analytics_dashboard_screen.dart';
 import 'features/admin/presentation/screens/admin_heatmap_screen.dart';
 import 'features/shared/presentation/screens/main_shell.dart';
 import 'features/admin/presentation/screens/admin_dashboard_screen.dart';
+import 'features/auth/presentation/screens/splash_screen.dart';
+import 'features/auth/presentation/screens/welcome_screen.dart';
 
 import 'core/theme/app_theme.dart';
 import 'core/network/dio_client.dart';
@@ -34,23 +36,25 @@ final _rootNavigatorKey = GlobalKey<NavigatorState>();
 final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     navigatorKey: _rootNavigatorKey,
-    initialLocation: '/login',
+    initialLocation: '/splash',
     refreshListenable: GoRouterRefreshListenable(ref),
     redirect: (context, state) {
       final authState = ref.read(authProvider);
 
-      final isLoggingIn =
+      final isPublicRoute =
+          state.matchedLocation == '/splash' ||
+          state.matchedLocation == '/welcome' ||
           state.matchedLocation == '/login' ||
           state.matchedLocation == '/signup' ||
           state.matchedLocation == '/forgot-password' ||
           state.matchedLocation == '/verify-otp' ||
           state.matchedLocation == '/reset-password';
 
-      if (authState is AuthUnauthenticated && !isLoggingIn) {
-        return '/login';
+      if (authState is AuthUnauthenticated && !isPublicRoute) {
+        return '/splash';
       }
 
-      if (authState is AuthAuthenticated && isLoggingIn) {
+      if (authState is AuthAuthenticated && isPublicRoute) {
         // Normalize matching on backend role string (lowercase/uppercase check)
         final role = authState.userType.toLowerCase().trim();
         if (role == 'admin') {
@@ -66,12 +70,26 @@ final routerProvider = Provider<GoRouter>((ref) {
     },
     routes: [
       GoRoute(
+        path: '/splash',
+        builder: (context, state) => const SplashScreen(),
+      ),
+      GoRoute(
+        path: '/welcome',
+        builder: (context, state) => const WelcomeScreen(),
+      ),
+      GoRoute(
         path: '/login',
-        builder: (context, state) => const LoginScreen(),
+        builder: (context, state) {
+          final role = state.extra as String?;
+          return LoginScreen(selectedRole: role);
+        },
       ),
       GoRoute(
         path: '/signup',
-        builder: (context, state) => const SignupScreen(),
+        builder: (context, state) {
+          final role = state.extra as String?;
+          return SignupScreen(preSelectedRole: role);
+        },
       ),
       GoRoute(
         path: '/forgot-password',

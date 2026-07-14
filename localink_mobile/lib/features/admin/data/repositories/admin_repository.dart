@@ -43,6 +43,26 @@ class AdminRepository {
     );
     return response.statusCode == 200;
   }
+
+  // APPROVE TEMPORARY CLOSURE
+  Future<bool> approveTemporaryClosure(int id) async {
+    final options = await _getAuthOptions();
+    final response = await dio.put(
+      'admin/business/$id/temporary-closure/approve',
+      options: options,
+    );
+    return response.statusCode == 200;
+  }
+
+  // REJECT TEMPORARY CLOSURE
+  Future<bool> rejectTemporaryClosure(int id) async {
+    final options = await _getAuthOptions();
+    final response = await dio.put(
+      'admin/business/$id/temporary-closure/reject',
+      options: options,
+    );
+    return response.statusCode == 200;
+  }
 }
 
 final adminRepositoryProvider = Provider<AdminRepository>((ref) {

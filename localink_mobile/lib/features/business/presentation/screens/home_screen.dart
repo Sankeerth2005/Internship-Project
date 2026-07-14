@@ -75,13 +75,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         Text(
                           'Vocal for Sanatan',
                           style: TextStyle(
-                            color: const Color(0xFFC8A97E),
+                            color: const Color(0xFFFF7A00),
                             fontSize: 22,
                             fontWeight: FontWeight.bold,
                             letterSpacing: 0.5,
                             shadows: [
                               Shadow(
-                                color: const Color(0xFFC8A97E).withValues(alpha: 0.3),
+                                color: const Color(0xFFFF7A00).withValues(alpha: 0.3),
                                 blurRadius: 8,
                                 offset: const Offset(0, 2),
                               )
@@ -111,16 +111,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     gradient: LinearGradient(
                       colors: [
                         const Color(0xFF1A1A1A).withValues(alpha: 0.95),
-                        const Color(0xFF2C1E14).withValues(alpha: 0.90),
+                        const Color(0xFF2E1A0F).withValues(alpha: 0.90),
                       ],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),
-                    border: Border.all(color: const Color(0xFFC8A97E).withValues(alpha: 0.25)),
+                    border: Border.all(color: const Color(0xFFFF7A00).withValues(alpha: 0.25)),
                     borderRadius: BorderRadius.circular(16),
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(0xFFC8A97E).withValues(alpha: 0.05),
+                        color: const Color(0xFFFF7A00).withValues(alpha: 0.05),
                         blurRadius: 15,
                         offset: const Offset(0, 5),
                       ),
@@ -138,7 +138,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               decoration: InputDecoration(
                                 hintText: 'Search restaurants, services, shops...',
                                 hintStyle: const TextStyle(color: Colors.white38, fontSize: 14),
-                                prefixIcon: const Icon(Icons.search, color: Color(0xFFC8A97E)),
+                                prefixIcon: const Icon(Icons.search, color: Color(0xFFFF7A00)),
                                 suffixIcon: _searchController.text.isNotEmpty
                                     ? IconButton(
                                         icon: const Icon(Icons.clear, color: Colors.white38),
@@ -168,30 +168,31 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             child: Container(
                               padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
-                                color: const Color(0xFFC8A97E),
+                                color: const Color(0xFFFF7A00),
                                 borderRadius: BorderRadius.circular(12),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: const Color(0xFFC8A97E).withValues(alpha: 0.3),
+                                    color: const Color(0xFFFF7A00).withValues(alpha: 0.3),
                                     blurRadius: 8,
                                     offset: const Offset(0, 3),
                                   )
                                 ],
                               ),
-                              child: const Icon(Icons.mic, color: Colors.black, size: 22),
+                              child: const Icon(Icons.mic, color: Colors.white, size: 22),
                             ),
                           ),
                         ],
                       ),
+                      const SizedBox(height: 10),
                       ElevatedButton.icon(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF2E2416),
-                          foregroundColor: const Color(0xFFC8A97E),
+                          backgroundColor: const Color(0xFF2A1C12),
+                          foregroundColor: const Color(0xFFFF7A00),
                           minimumSize: const Size(double.infinity, 44),
                           elevation: 0,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(10),
-                            side: BorderSide(color: const Color(0xFFC8A97E).withValues(alpha: 0.2)),
+                            side: BorderSide(color: const Color(0xFFFF7A00).withValues(alpha: 0.25)),
                           ),
                           padding: const EdgeInsets.symmetric(vertical: 12),
                         ),
@@ -241,9 +242,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               ref.read(searchQueryProvider.notifier).clearCategory();
                             },
                             backgroundColor: const Color(0xFF1E1E1E),
-                            selectedColor: const Color(0xFFC8A97E),
+                            selectedColor: const Color(0xFFFF7A00),
                             labelStyle: TextStyle(
-                              color: isSelected ? Colors.black : Colors.white70,
+                              color: isSelected ? Colors.white : Colors.white70,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -262,16 +263,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 .setCategory(selected ? category.categoryId : null);
                           },
                           backgroundColor: const Color(0xFF1E1E1E),
-                          selectedColor: const Color(0xFFC8A97E),
+                          selectedColor: const Color(0xFFFF7A00),
                           labelStyle: TextStyle(
-                            color: isSelected ? Colors.black : Colors.white70,
+                            color: isSelected ? Colors.white : Colors.white70,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
                       );
                     },
                   ),
-                  loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFFC8A97E))),
+                  loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFFFF7A00))),
                   error: (err, stack) => const Padding(
                     padding: EdgeInsets.symmetric(horizontal: 20),
                     child: Text('Error loading categories', style: TextStyle(color: Colors.redAccent)),
@@ -304,7 +305,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           Text(
                             '${favorites.length} Saved',
                             style: const TextStyle(
-                              color: Color(0xFFC8A97E),
+                              color: Color(0xFFFF7A00),
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
                             ),
@@ -369,7 +370,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               loading: () => const SliverToBoxAdapter(
                 child: Padding(
                   padding: EdgeInsets.all(50.0),
-                  child: Center(child: CircularProgressIndicator(color: Color(0xFFC8A97E))),
+                  child: Center(child: CircularProgressIndicator(color: Color(0xFFFF7A00))),
                 ),
               ),
               error: (err, stack) => SliverToBoxAdapter(
@@ -385,10 +386,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ),
       ),
       floatingActionButton: FloatingActionButton(
-        backgroundColor: const Color(0xFFC8A97E),
+        backgroundColor: const Color(0xFFFF7A00),
         tooltip: 'AI Search Assistant',
         onPressed: () => context.push('/ai-assistant'),
-        child: const Icon(Icons.auto_awesome, color: Colors.black),
+        child: const Icon(Icons.auto_awesome, color: Colors.white),
       ),
     );
   }
@@ -399,8 +400,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       child: Container(
         margin: const EdgeInsets.only(bottom: 15),
         decoration: BoxDecoration(
-          color: const Color(0xFF1E1E1E).withValues(alpha: 0.8),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+          color: const Color(0xFF161616),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
           borderRadius: BorderRadius.circular(16),
         ),
         child: ClipRRect(
@@ -414,11 +415,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   Container(
                     height: 140,
                     width: double.infinity,
-                    decoration: BoxDecoration(
+                    decoration: const BoxDecoration(
                       gradient: LinearGradient(
                         colors: [
-                          const Color(0xFF2E2E2E),
-                          const Color(0xFF121212),
+                          Color(0xFF2E2E2E),
+                          Color(0xFF121212),
                         ],
                       ),
                     ),
@@ -428,12 +429,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             fit: BoxFit.cover,
                             errorBuilder: (context, error, stackTrace) => Container(
                               color: const Color(0xFF2A2A2A),
-                              child: const Icon(Icons.store, color: Color(0xFFC8A97E), size: 40),
+                              child: const Icon(Icons.store, color: Color(0xFFFF7A00), size: 40),
                             ),
                           )
                         : Container(
                             color: const Color(0xFF2A2A2A),
-                            child: const Icon(Icons.store, color: Color(0xFFC8A97E), size: 40),
+                            child: const Icon(Icons.store, color: Color(0xFFFF7A00), size: 40),
                           ),
                   ),
                   Positioned(
@@ -465,9 +466,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           color: Colors.black87,
                           borderRadius: BorderRadius.circular(6),
                         ),
-                        child: Text(
-                          business.categoryName!,
-                          style: const TextStyle(color: Color(0xFFC8A97E), fontSize: 11, fontWeight: FontWeight.bold),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.spa, color: Color(0xFFFF7A00), size: 11),
+                            const SizedBox(width: 4),
+                            Text(
+                              business.categoryName!,
+                              style: const TextStyle(color: Color(0xFFFF7A00), fontSize: 10, fontWeight: FontWeight.bold),
+                            ),
+                          ],
                         ),
                       ),
                     ),
@@ -497,7 +505,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         ),
                         Row(
                           children: [
-                            const Icon(Icons.star, color: Color(0xFFC8A97E), size: 16),
+                            const Icon(Icons.star, color: Color(0xFFFF7A00), size: 16),
                             const SizedBox(width: 4),
                             Text(
                               business.averageRating.toStringAsFixed(1),
@@ -521,7 +529,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     const SizedBox(height: 12),
                     Row(
                       children: [
-                        const Icon(Icons.location_on, color: Color(0xFFC8A97E), size: 14),
+                        const Icon(Icons.location_on, color: Color(0xFFFF7A00), size: 14),
                         const SizedBox(width: 4),
                         Expanded(
                           child: Text(
@@ -559,9 +567,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         }
       },
       backgroundColor: const Color(0xFF1E1E1E),
-      selectedColor: const Color(0xFFC8A97E),
+      selectedColor: const Color(0xFFFF7A00),
       labelStyle: TextStyle(
-        color: isSelected ? Colors.black : Colors.white70,
+        color: isSelected ? Colors.white : Colors.white70,
         fontSize: 11,
         fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
       ),
@@ -569,7 +577,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(8),
         side: BorderSide(
-          color: isSelected ? const Color(0xFFC8A97E) : Colors.white.withValues(alpha: 0.1),
+          color: isSelected ? const Color(0xFFFF7A00) : Colors.white.withValues(alpha: 0.1),
         ),
       ),
     );

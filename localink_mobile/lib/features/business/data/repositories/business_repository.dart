@@ -244,4 +244,27 @@ class BusinessRepository {
     }
     return '';
   }
+
+  // ─── TEMPORARY CLOSURE ───
+  Future<bool> requestTemporaryClosure(int businessId, String reason, int days) async {
+    final options = await _getAuthOptions();
+    final response = await _dio.post(
+      'business/$businessId/temporary-closure',
+      data: {
+        'reason': reason,
+        'days': days,
+      },
+      options: options,
+    );
+    return response.data['success'] == true;
+  }
+
+  Future<bool> cancelTemporaryClosure(int businessId) async {
+    final options = await _getAuthOptions();
+    final response = await _dio.post(
+      'business/$businessId/cancel-temporary-closure',
+      options: options,
+    );
+    return response.data['success'] == true;
+  }
 }

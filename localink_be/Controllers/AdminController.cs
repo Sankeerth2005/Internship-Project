@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.SignalR;
 
 [Authorize(Roles = "admin")]
 [ApiController]
@@ -36,5 +37,66 @@ public class AdminController : ControllerBase
         return File(file, 
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             $"{status}-businesses.xlsx");
+    }
+
+    [HttpPut("business/{id}/temporary-closure/approve")]
+    public async Task<IActionResult> ApproveTemporaryClosure(
+        long id,
+        [FromServices] localink_be.Data.AppDbContext db,
+        [FromServices] Microsoft.AspNetCore.SignalR.IHubContext<localink_be.Hubs.NotificationHub> hubContext)
+    {
+        var business = await db.Businesses.FindAsync(id);
+        if (business == null) return NotFound(new { message = "Business not found" });
+
+        if (business.TemporaryClosureStatus != "Pending")
+            return BadRequest(new { message = "No pending closure request found" });
+
+        business.TemporaryClosureStatus = "Approved";
+        business.TemporaryClosureReopenDate = DateTime.UtcNow.AddDays(business.TemporaryClosureDays ?? 1);
+
+        await db.SaveChangesAsync();
+
+        // Notify owner
+        await hubContext.Clients.Group($"client_{business.UserId}").SendAsync("ReceiveNotification", $"Your business '{business.BusinessName}' temporary closure request has been APPROVED by the admin.");
+
+        return Ok(new { success = true, message = "Temporary closure approved" });
+    }
+
+    [HttpPut("business/{id}/temporary-closure/reject")]
+    public async Task<IActionResult> RejectTemporaryClosure(
+        long id,
+        [FromServices] localink_be.Data.AppDbContext db,
+        [FromServices] Microsoft.AspNetCore.SignalR.IHubContext<localink_be.Hubs.NotificationHub> hubContext)
+    {
+        var business = await db.Businesses.FindAsync(id);
+        if (business == null) return NotFound(new { message = "Business not found" });
+
+        if (business.TemporaryClosureStatus != "Pending")
+            return BadRequest(new { message = "No pending closure request found" });
+
+        business.TemporaryClosureReason = null;
+        business.TemporaryClosureDays = null;
+        business.TemporaryClosureStatus = "Rejected";
+
+        await db.SaveChangesAsync();
+
+        // Notify owner
+        await hubContext.Clients.Group($"client_{business.UserId}").SendAsync("ReceiveNotification", $"Your business '{business.BusinessName}' temporary closure request has been REJECTED by the admin.");
+
+        return Ok(new { success = true, message = "Temporary closure rejected" });
+    }
+
+    [HttpGet("users")]
+    public async Task<IActionResult> GetAllUsers()
+    {
+        var data = await _service.GetUsersAsync();
+        return Ok(data);
+    }
+
+    [HttpGet("stats")]
+    public async Task<IActionResult> GetStats()
+    {
+        var data = await _service.GetStatsAsync();
+        return Ok(data);
     }
 }

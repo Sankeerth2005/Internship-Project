@@ -99,10 +99,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final profileAsync = ref.watch(userProfileProvider);
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0F0F0F),
+      backgroundColor: const Color(0xFF0C0C0C),
       body: SafeArea(
         child: profileAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFFC8A97E))),
+          loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFFFF7A00))),
           error: (err, st) => Center(
             child: Padding(
               padding: const EdgeInsets.all(30),
@@ -115,7 +115,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       style: const TextStyle(color: Colors.white70), textAlign: TextAlign.center),
                   const SizedBox(height: 20),
                   ElevatedButton(
-                    style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFC8A97E), foregroundColor: Colors.black),
+                    style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFFF7A00), foregroundColor: Colors.black),
                     onPressed: () => ref.invalidate(userProfileProvider),
                     child: const Text('Retry'),
                   ),
@@ -126,7 +126,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           data: (profile) {
             // Populate fields on first load or when not editing
             if (!_isEditMode) {
-              _populateFields(profile);
+               _populateFields(profile);
             }
 
             return SingleChildScrollView(
@@ -138,10 +138,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       const Text('My Profile',
-                          style: TextStyle(color: Color(0xFFC8A97E), fontSize: 22, fontWeight: FontWeight.bold)),
+                          style: TextStyle(color: Color(0xFFFF7A00), fontSize: 22, fontWeight: FontWeight.bold)),
                       if (!_isEditMode)
                         IconButton(
-                          icon: const Icon(Icons.edit, color: Color(0xFFC8A97E)),
+                          icon: const Icon(Icons.edit, color: Color(0xFFFF7A00)),
                           onPressed: () {
                             _populateFields(profile);
                             setState(() => _isEditMode = true);
@@ -154,7 +154,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   // Avatar
                   CircleAvatar(
                     radius: 40,
-                    backgroundColor: const Color(0xFFC8A97E),
+                    backgroundColor: const Color(0xFFFF7A00),
                     child: Text(
                       profile.fullName.isNotEmpty ? profile.fullName[0].toUpperCase() : 'U',
                       style: const TextStyle(fontSize: 30, fontWeight: FontWeight.bold, color: Colors.black),
@@ -171,9 +171,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   Container(
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF1E1E1E),
+                      color: const Color(0xFF161616),
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
                     ),
                     child: Column(
                       children: [
@@ -183,7 +183,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         const SizedBox(height: 15),
                         const Align(
                           alignment: Alignment.centerLeft,
-                          child: Text('Address', style: TextStyle(color: Color(0xFFC8A97E), fontSize: 14, fontWeight: FontWeight.bold)),
+                          child: Text('Address', style: TextStyle(color: Color(0xFFFF7A00), fontSize: 14, fontWeight: FontWeight.bold)),
                         ),
                         const SizedBox(height: 10),
                         _buildField('Street', _streetCtrl, Icons.home),
@@ -203,7 +203,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         Expanded(
                           child: ElevatedButton(
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFFC8A97E),
+                              backgroundColor: const Color(0xFFFF7A00),
                               foregroundColor: Colors.black,
                               padding: const EdgeInsets.symmetric(vertical: 14),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -269,7 +269,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               decoration: InputDecoration(
                 labelText: label,
                 labelStyle: const TextStyle(color: Colors.white38, fontSize: 13),
-                prefixIcon: Icon(icon, color: const Color(0xFFC8A97E), size: 18),
+                prefixIcon: Icon(icon, color: const Color(0xFFFF7A00), size: 18),
                 filled: true,
                 fillColor: Colors.black38,
                 border: OutlineInputBorder(
@@ -281,7 +281,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             )
           : Row(
               children: [
-                Icon(icon, color: const Color(0xFFC8A97E), size: 18),
+                Icon(icon, color: const Color(0xFFFF7A00), size: 18),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(

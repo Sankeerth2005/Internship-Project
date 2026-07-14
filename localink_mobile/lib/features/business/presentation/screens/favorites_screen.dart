@@ -14,7 +14,7 @@ class FavoritesScreen extends ConsumerWidget {
     final allBusinessesAsync = ref.watch(searchResultsProvider);
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0F0F0F),
+      backgroundColor: const Color(0xFF0C0C0C),
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -24,11 +24,11 @@ class FavoritesScreen extends ConsumerWidget {
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
               child: Row(
                 children: [
-                  const Icon(Icons.favorite, color: Color(0xFFC8A97E), size: 24),
+                  const Icon(Icons.favorite, color: Color(0xFFFF7A00), size: 24),
                   const SizedBox(width: 10),
                   const Text(
                     'My Favorites',
-                    style: TextStyle(color: Color(0xFFC8A97E), fontSize: 22, fontWeight: FontWeight.bold),
+                    style: TextStyle(color: Color(0xFFFF7A00), fontSize: 22, fontWeight: FontWeight.bold),
                   ),
                   const Spacer(),
                   if (favorites.isNotEmpty)
@@ -43,7 +43,7 @@ class FavoritesScreen extends ConsumerWidget {
             // Content
             Expanded(
               child: allBusinessesAsync.when(
-                loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFFC8A97E))),
+                loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFFFF7A00))),
                 error: (err, st) => Center(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
@@ -105,8 +105,8 @@ class FavoritesScreen extends ConsumerWidget {
       child: Container(
         margin: const EdgeInsets.only(bottom: 15),
         decoration: BoxDecoration(
-          color: const Color(0xFF1E1E1E).withValues(alpha: 0.8),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+          color: const Color(0xFF161616),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
           borderRadius: BorderRadius.circular(16),
         ),
         child: ClipRRect(
@@ -123,12 +123,12 @@ class FavoritesScreen extends ConsumerWidget {
                         fit: BoxFit.cover,
                         errorBuilder: (context, error, st) => Container(
                           color: const Color(0xFF2A2A2A),
-                          child: const Icon(Icons.store, color: Color(0xFFC8A97E), size: 30),
+                          child: const Icon(Icons.store, color: Color(0xFFFF7A00), size: 30),
                         ),
                       )
                     : Container(
                         color: const Color(0xFF2A2A2A),
-                        child: const Icon(Icons.store, color: Color(0xFFC8A97E), size: 30),
+                        child: const Icon(Icons.store, color: Color(0xFFFF7A00), size: 30),
                       ),
               ),
 
@@ -149,7 +149,7 @@ class FavoritesScreen extends ConsumerWidget {
                         const SizedBox(height: 3),
                         Text(
                           business.categoryName!,
-                          style: const TextStyle(color: Color(0xFFC8A97E), fontSize: 11, fontWeight: FontWeight.w500),
+                          style: const TextStyle(color: Color(0xFFFF7A00), fontSize: 11, fontWeight: FontWeight.w500),
                         ),
                       ],
                       const SizedBox(height: 4),
@@ -162,7 +162,7 @@ class FavoritesScreen extends ConsumerWidget {
                       const SizedBox(height: 6),
                       Row(
                         children: [
-                          const Icon(Icons.star, color: Color(0xFFC8A97E), size: 14),
+                          const Icon(Icons.star, color: Color(0xFFFF7A00), size: 14),
                           const SizedBox(width: 3),
                           Text(
                             business.averageRating.toStringAsFixed(1),
@@ -171,7 +171,7 @@ class FavoritesScreen extends ConsumerWidget {
                           const Spacer(),
                           Row(
                             children: [
-                              const Icon(Icons.location_on, color: Color(0xFFC8A97E), size: 12),
+                              const Icon(Icons.location_on, color: Color(0xFFFF7A00), size: 12),
                               const SizedBox(width: 2),
                               Text(
                                 business.city,

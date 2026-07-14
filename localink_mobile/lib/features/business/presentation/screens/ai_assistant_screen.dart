@@ -104,7 +104,7 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
             ),
             Text(
               'Llama Powered',
-              style: TextStyle(color: Color(0xFFC8A97E), fontSize: 11, fontWeight: FontWeight.w500),
+              style: TextStyle(color: Color(0xFFFF7A00), fontSize: 11, fontWeight: FontWeight.w500),
             ),
           ],
         ),
@@ -130,10 +130,10 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
                         Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFC8A97E).withValues(alpha: 0.15),
+                            color: const Color(0xFFFF7A00).withValues(alpha: 0.15),
                             shape: BoxShape.circle,
                           ),
-                          child: const Icon(Icons.auto_awesome, color: Color(0xFFC8A97E), size: 16),
+                          child: const Icon(Icons.auto_awesome, color: Color(0xFFFF7A00), size: 16),
                         ),
                         const SizedBox(width: 10),
                       ],
@@ -141,7 +141,7 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                           decoration: BoxDecoration(
-                            color: isUser ? const Color(0xFFC8A97E) : const Color(0xFF1E1E1E),
+                            color: isUser ? const Color(0xFFFF7A00) : const Color(0xFF1E1E1E),
                             borderRadius: BorderRadius.only(
                               topLeft: const Radius.circular(16),
                               topRight: const Radius.circular(16),
@@ -190,7 +190,7 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
                     const SizedBox(
                       width: 12,
                       height: 12,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFFC8A97E)),
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFFFF7A00)),
                     ),
                     const SizedBox(width: 10),
                     Text(
@@ -233,7 +233,7 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
                     child: Container(
                       padding: const EdgeInsets.all(12),
                       decoration: const BoxDecoration(
-                        color: Color(0xFFC8A97E),
+                        color: Color(0xFFFF7A00),
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(Icons.send, color: Colors.black, size: 18),

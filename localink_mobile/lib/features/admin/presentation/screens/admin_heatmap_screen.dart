@@ -78,7 +78,7 @@ class _AdminHeatmapScreenState extends ConsumerState<AdminHeatmapScreen> {
           iconSize: 1.2,
           textField: b['businessName'] ?? '',
           textOffset: const Offset(0, 2),
-          textColor: "#C8A97E",
+          textColor: "#FF7A00",
           textSize: 10,
         ),
       );
@@ -122,19 +122,19 @@ class _AdminHeatmapScreenState extends ConsumerState<AdminHeatmapScreen> {
             ),
             Text(
               'Operations Center',
-              style: TextStyle(color: Color(0xFFC8A97E), fontSize: 11),
+              style: TextStyle(color: Color(0xFFFF7A00), fontSize: 11),
             ),
           ],
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh, color: Color(0xFFC8A97E)),
+            icon: const Icon(Icons.refresh, color: Color(0xFFFF7A00)),
             onPressed: _loadHeatmapData,
           ),
         ],
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator(color: Color(0xFFC8A97E)))
+          ? const Center(child: CircularProgressIndicator(color: Color(0xFFFF7A00)))
           : _errorMessage.isNotEmpty
               ? Center(
                   child: Text(_errorMessage, style: const TextStyle(color: Colors.white54, fontSize: 14)),
@@ -171,7 +171,7 @@ class _AdminHeatmapScreenState extends ConsumerState<AdminHeatmapScreen> {
                           children: [
                             const Text(
                               'OPERATIONAL LEGEND',
-                              style: TextStyle(color: Color(0xFFC8A97E), fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1.5),
+                              style: TextStyle(color: Color(0xFFFF7A00), fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1.5),
                             ),
                             const SizedBox(height: 10),
                             Row(
@@ -179,7 +179,7 @@ class _AdminHeatmapScreenState extends ConsumerState<AdminHeatmapScreen> {
                                 Container(
                                   width: 12,
                                   height: 12,
-                                  decoration: const BoxDecoration(color: Color(0xFFC8A97E), shape: BoxShape.circle),
+                                  decoration: const BoxDecoration(color: Color(0xFFFF7A00), shape: BoxShape.circle),
                                 ),
                                 const SizedBox(width: 10),
                                 Text(

@@ -9,6 +9,11 @@ class AdminBusinessDto {
   final String status;
   final String? rejectionComment;
 
+  final bool isTemporaryClosurePending;
+  final String? temporaryClosureReason;
+  final int? temporaryClosureDays;
+  final String? ownerName;
+
   AdminBusinessDto({
     required this.id,
     required this.name,
@@ -19,6 +24,10 @@ class AdminBusinessDto {
     this.address,
     required this.status,
     this.rejectionComment,
+    this.isTemporaryClosurePending = false,
+    this.temporaryClosureReason,
+    this.temporaryClosureDays,
+    this.ownerName,
   });
 
   factory AdminBusinessDto.fromJson(Map<String, dynamic> json) {
@@ -32,6 +41,10 @@ class AdminBusinessDto {
       address: json['address'],
       status: json['status'] ?? 'Pending',
       rejectionComment: json['rejectionComment'],
+      isTemporaryClosurePending: json['isTemporaryClosurePending'] ?? json['is_temporary_closure_pending'] ?? false,
+      temporaryClosureReason: json['temporaryClosureReason'] ?? json['temporary_closure_reason'],
+      temporaryClosureDays: json['temporaryClosureDays'] ?? json['temporary_closure_days'],
+      ownerName: json['ownerName'] ?? json['owner_name'],
     );
   }
 }

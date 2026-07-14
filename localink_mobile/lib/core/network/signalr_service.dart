@@ -37,7 +37,7 @@ class SignalRService {
           SnackBar(
             content: Row(
               children: [
-                const Icon(Icons.notifications_active, color: Color(0xFFC8A97E)),
+                const Icon(Icons.notifications_active, color: Color(0xFFFF7A00)),
                 const SizedBox(width: 10),
                 Expanded(child: Text(message, style: const TextStyle(color: Colors.white, fontSize: 13))),
               ],

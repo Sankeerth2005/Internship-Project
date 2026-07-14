@@ -421,7 +421,7 @@ namespace localink_be.Services.Implementations
                     CategoryName = b.Category != null ? b.Category.CategoryName : "",
                     SubcategoryName = b.Subcategory != null ? b.Subcategory.SubcategoryName : "",
                     SubcategoryId = b.SubcategoryId,
-
+                    CategoryId = b.CategoryId,
                     PhoneCode = _db.BusinessContacts
                         .Where(c => c.BusinessId == b.BusinessId)
                         .Select(c => c.PhoneCode)
@@ -477,7 +477,12 @@ namespace localink_be.Services.Implementations
                     PrimaryImage = _db.BusinessPhotos
                         .Where(p => p.BusinessId == b.BusinessId && p.IsPrimary)
                         .Select(p => p.ImageUrl)
-                        .FirstOrDefault()
+                        .FirstOrDefault(),
+                    IsTemporarilyClosed = b.TemporaryClosureStatus == "Approved" && b.TemporaryClosureReopenDate > DateTime.UtcNow,
+                    TemporaryClosureReason = b.TemporaryClosureReason,
+                    TemporaryClosureStatus = b.TemporaryClosureStatus,
+                    TemporaryClosureDays = b.TemporaryClosureDays,
+                    TemporaryClosureReopenDate = b.TemporaryClosureReopenDate
                 })
                 .OrderBy(b => b.Name)
                 .ToListAsync();
@@ -495,6 +500,7 @@ namespace localink_be.Services.Implementations
                     CategoryName = b.Category != null ? b.Category.CategoryName : "",
                     SubcategoryName = b.Subcategory != null ? b.Subcategory.SubcategoryName : "",
                     SubcategoryId = b.SubcategoryId,
+                    CategoryId = b.CategoryId,
                     PhoneNumber = _db.BusinessContacts
                         .Where(c => c.BusinessId == b.BusinessId)
                         .Select(c => (c.PhoneCode ?? "") + " " + (c.PhoneNumber ?? ""))
@@ -538,29 +544,82 @@ namespace localink_be.Services.Implementations
                     Name = b.BusinessName,
                     Description = b.Description,
                     CategoryName = b.Category != null ? b.Category.CategoryName : "",
-                    SubcategoryName = b.Subcategory != null ? b.Subcategory.SubcategoryName : ""
+                    SubcategoryName = b.Subcategory != null ? b.Subcategory.SubcategoryName : "",
+                    CategoryId = b.CategoryId,
+                    SubcategoryId = b.SubcategoryId,
+                    PhoneNumber = _db.BusinessContacts
+                        .Where(c => c.BusinessId == b.BusinessId)
+                        .Select(c => c.PhoneNumber)
+                        .FirstOrDefault(),
+                    PhoneCode = _db.BusinessContacts
+                        .Where(c => c.BusinessId == b.BusinessId)
+                        .Select(c => c.PhoneCode)
+                        .FirstOrDefault(),
+                    Email = _db.BusinessContacts
+                        .Where(c => c.BusinessId == b.BusinessId)
+                        .Select(c => c.Email)
+                        .FirstOrDefault(),
+                    City = _db.BusinessContacts
+                        .Where(c => c.BusinessId == b.BusinessId)
+                        .Select(c => c.City)
+                        .FirstOrDefault(),
+                    State = _db.BusinessContacts
+                        .Where(c => c.BusinessId == b.BusinessId)
+                        .Select(c => c.State)
+                        .FirstOrDefault(),
+                    Country = _db.BusinessContacts
+                        .Where(c => c.BusinessId == b.BusinessId)
+                        .Select(c => c.Country)
+                        .FirstOrDefault(),
+                    Pincode = _db.BusinessContacts
+                        .Where(c => c.BusinessId == b.BusinessId)
+                        .Select(c => c.Pincode)
+                        .FirstOrDefault(),
+                    StreetAddress = _db.BusinessContacts
+                        .Where(c => c.BusinessId == b.BusinessId)
+                        .Select(c => c.StreetAddress)
+                        .FirstOrDefault(),
+                    Latitude = _db.BusinessContacts
+                        .Where(c => c.BusinessId == b.BusinessId)
+                        .Select(c => c.Latitude)
+                        .FirstOrDefault(),
+                    Longitude = _db.BusinessContacts
+                        .Where(c => c.BusinessId == b.BusinessId)
+                        .Select(c => c.Longitude)
+                        .FirstOrDefault(),
+                    Status = _db.AdminDashboards
+                        .Where(a => a.BusinessId == b.BusinessId)
+                        .Select(a => a.Status.ToString())
+                        .FirstOrDefault(),
+                    PrimaryImage = _db.BusinessPhotos
+                        .Where(p => p.BusinessId == b.BusinessId && p.IsPrimary)
+                        .Select(p => p.ImageUrl)
+                        .FirstOrDefault(),
+                    IsTemporarilyClosed = b.TemporaryClosureStatus == "Approved" && b.TemporaryClosureReopenDate > DateTime.UtcNow,
+                    TemporaryClosureReason = b.TemporaryClosureReason,
+                    TemporaryClosureStatus = b.TemporaryClosureStatus,
+                    TemporaryClosureDays = b.TemporaryClosureDays,
+                    TemporaryClosureReopenDate = b.TemporaryClosureReopenDate
                 })
                 .FirstOrDefaultAsync();
         }
 
         public async Task<List<BusinessDto>> SearchBusinessesAsync(string query, double? userLat = null, double? userLng = null, string? sortBy = "distance", string? userPincode = "")
         {
-            if (string.IsNullOrWhiteSpace(query))
-                return new List<BusinessDto>();
-
-            query = query.Trim();
-
             var businessesQuery = _db.Businesses
                 .AsNoTracking()
-                .Where(b =>
-                    _db.AdminDashboards.Any(a => a.BusinessId == b.BusinessId && a.Status == BusinessStatus.Approved) &&
-                    (
-                         EF.Functions.Like(b.BusinessName, $"%{query}%") ||
-                        (b.Description != null && EF.Functions.Like(b.Description, $"%{query}%")) ||
-                        (b.Category != null && EF.Functions.Like(b.Category.CategoryName, $"%{query}%")) ||
-                        (b.Subcategory != null && EF.Functions.Like(b.Subcategory.SubcategoryName, $"%{query}%"))
-                    )
+                .Where(b => _db.AdminDashboards.Any(a => a.BusinessId == b.BusinessId && a.Status == BusinessStatus.Approved));
+
+            if (!string.IsNullOrWhiteSpace(query))
+            {
+                query = query.Trim().ToLower();
+                businessesQuery = businessesQuery.Where(b =>
+                     EF.Functions.Like(b.BusinessName, $"%{query}%") ||
+                    (b.Description != null && EF.Functions.Like(b.Description, $"%{query}%")) ||
+                    (b.Category != null && EF.Functions.Like(b.Category.CategoryName, $"%{query}%")) ||
+                    (b.Subcategory != null && EF.Functions.Like(b.Subcategory.SubcategoryName, $"%{query}%"))
                 );
+            }
 
             // Project to DTO
             var projectedQuery = businessesQuery.Select(b => new BusinessDto
@@ -571,6 +630,7 @@ namespace localink_be.Services.Implementations
                 CategoryName = b.Category != null ? b.Category.CategoryName : "",
                 SubcategoryName = b.Subcategory != null ? b.Subcategory.SubcategoryName : "",
                 SubcategoryId = b.SubcategoryId,
+                CategoryId = b.CategoryId,
                 PhoneNumber = _db.BusinessContacts
                     .Where(c => c.BusinessId == b.BusinessId)
                     .Select(c => c.PhoneNumber)
@@ -617,6 +677,11 @@ namespace localink_be.Services.Implementations
                     .Average() ?? 0.0,
                 TotalReviews = _db.BusinessReviews
                     .Count(r => r.BusinessId == b.BusinessId),
+                IsTemporarilyClosed = b.TemporaryClosureStatus == "Approved" && b.TemporaryClosureReopenDate > DateTime.UtcNow,
+                TemporaryClosureReason = b.TemporaryClosureReason,
+                TemporaryClosureStatus = b.TemporaryClosureStatus,
+                TemporaryClosureDays = b.TemporaryClosureDays,
+                TemporaryClosureReopenDate = b.TemporaryClosureReopenDate,
                 // Calculate distance using Haversine formula approximation
                 Distance = userLat.HasValue && userLng.HasValue
                     ? _db.BusinessContacts
@@ -757,6 +822,7 @@ namespace localink_be.Services.Implementations
                     CategoryName = b.Category != null ? b.Category.CategoryName : "",
                     SubcategoryName = b.Subcategory != null ? b.Subcategory.SubcategoryName : "",
                     SubcategoryId = b.SubcategoryId,
+                    CategoryId = b.CategoryId,
                     PhoneNumber = _db.BusinessContacts
                         .Where(c => c.BusinessId == b.BusinessId)
                         .Select(c => c.PhoneNumber)

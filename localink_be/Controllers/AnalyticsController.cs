@@ -126,18 +126,25 @@ namespace localink_be.Controllers
             var businesses = await _db.Businesses
                 .Include(b => b.AdminDashboard)
                 .Where(b => b.AdminDashboard != null && b.AdminDashboard.Status == BusinessStatus.Approved)
+                .Select(b => new
+                {
+                    b.BusinessName,
+                    Latitude = _db.BusinessContacts
+                        .Where(c => c.BusinessId == b.BusinessId)
+                        .Select(c => c.Latitude)
+                        .FirstOrDefault(),
+                    Longitude = _db.BusinessContacts
+                        .Where(c => c.BusinessId == b.BusinessId)
+                        .Select(c => c.Longitude)
+                        .FirstOrDefault()
+                })
                 .ToListAsync();
 
-            var mappedBusinesses = businesses.Select(b => {
-                var addr = _db.Addresses.FirstOrDefault(a => a.UserId == b.UserId);
-                // Extract coordinates from coordinates mock logic or addresses pincode geocoding mapping
-                double lat = 19.0760; // Mumbai fallback coordinates if address is not geocoded
-                double lng = 72.8777;
-                return new {
-                    businessName = b.BusinessName,
-                    latitude = lat,
-                    longitude = lng
-                };
+            var mappedBusinesses = businesses.Select(b => new
+            {
+                businessName = b.BusinessName,
+                latitude = b.Latitude ?? 19.0760,
+                longitude = b.Longitude ?? 72.8777
             }).ToList();
 
             var searchLogs = await _db.SearchQueryLogs
@@ -157,5 +164,6 @@ namespace localink_be.Controllers
                 searches = searchLogs
             });
         }
+
     }
 }

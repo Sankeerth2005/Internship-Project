@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 
 class AppTheme {
-  static const Color backgroundColor = Color(0xFF050505);
-  static const Color surfaceColor = Color(0xFF1C1C1C);
-  static const Color inputFieldColor = Color(0xFF343434);
-  static const Color accentColor = Color(0xFFC8A97E);
-  static const Color textColor = Color(0xFFF8F4F0);
-  static const Color mutedTextColor = Color(0xFFB19F91);
-  static const Color borderColor = Color(0xFF484948);
-  static const Color errorColor = Color(0xFFCF6679);
+  static const Color backgroundColor = Color(0xFF0C0C0C);
+  static const Color surfaceColor = Color(0xFF1A1A1A);
+  static const Color inputFieldColor = Color(0xFF1E1E1E);
+  static const Color accentColor = Color(0xFFFF7A00);
+  static const Color textColor = Color(0xFFFFFFFF);
+  static const Color mutedTextColor = Color(0xFF9E9E9E);
+  static const Color borderColor = Color(0xFF2E2E2E);
+  static const Color errorColor = Color(0xFFFF4D4F);
 
   static ThemeData get darkTheme {
     return ThemeData(

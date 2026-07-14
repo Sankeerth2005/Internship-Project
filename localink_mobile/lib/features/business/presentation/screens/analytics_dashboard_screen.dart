@@ -103,7 +103,7 @@ class _AnalyticsDashboardScreenState extends ConsumerState<AnalyticsDashboardScr
         ),
         child: Column(
           children: [
-            Icon(icon, color: const Color(0xFFC8A97E), size: 24),
+            Icon(icon, color: const Color(0xFFFF7A00), size: 24),
             const SizedBox(height: 10),
             Text(
               value,
@@ -137,7 +137,7 @@ class _AnalyticsDashboardScreenState extends ConsumerState<AnalyticsDashboardScr
         ),
       ),
       body: _loadingMetrics
-          ? const Center(child: CircularProgressIndicator(color: Color(0xFFC8A97E)))
+          ? const Center(child: CircularProgressIndicator(color: Color(0xFFFF7A00)))
           : _errorMessage.isNotEmpty
               ? Center(
                   child: Text(_errorMessage, style: const TextStyle(color: Colors.white54, fontSize: 14)),
@@ -151,7 +151,7 @@ class _AnalyticsDashboardScreenState extends ConsumerState<AnalyticsDashboardScr
                       const Text(
                         'Weekly Performance Metrics',
                         style: TextStyle(
-                          color: Color(0xFFC8A97E),
+                          color: Color(0xFFFF7A00),
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
                         ),
@@ -173,12 +173,12 @@ class _AnalyticsDashboardScreenState extends ConsumerState<AnalyticsDashboardScr
                       // AI Smart Insights Section
                       const Row(
                         children: [
-                          Icon(Icons.auto_awesome, color: Color(0xFFC8A97E), size: 18),
+                          Icon(Icons.auto_awesome, color: Color(0xFFFF7A00), size: 18),
                           SizedBox(width: 8),
                           Text(
                             'AI Smart Action Insights',
                             style: TextStyle(
-                              color: Color(0xFFC8A97E),
+                              color: Color(0xFFFF7A00),
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
                             ),
@@ -191,18 +191,18 @@ class _AnalyticsDashboardScreenState extends ConsumerState<AnalyticsDashboardScr
                         padding: const EdgeInsets.all(20),
                         decoration: BoxDecoration(
                           gradient: const LinearGradient(
-                            colors: [Color(0xFF2E2416), Color(0xFF1C1812)],
+                            colors: [Color(0xFF1A1200), Color(0xFF120D00)],
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
                           ),
                           borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: const Color(0xFFC8A97E).withValues(alpha: 0.2)),
+                          border: Border.all(color: const Color(0xFFFF7A00).withValues(alpha: 0.2)),
                         ),
                         child: _loadingInsights
                             ? const Center(
                                 child: Padding(
                                   padding: EdgeInsets.symmetric(vertical: 20),
-                                  child: CircularProgressIndicator(color: Color(0xFFC8A97E)),
+                                  child: CircularProgressIndicator(color: Color(0xFFFF7A00)),
                                 ),
                               )
                             : Column(
@@ -222,10 +222,10 @@ class _AnalyticsDashboardScreenState extends ConsumerState<AnalyticsDashboardScr
                                     alignment: Alignment.centerRight,
                                     child: TextButton.icon(
                                       onPressed: _loadAiInsights,
-                                      icon: const Icon(Icons.refresh, color: Color(0xFFC8A97E), size: 14),
+                                      icon: const Icon(Icons.refresh, color: Color(0xFFFF7A00), size: 14),
                                       label: const Text(
                                         'Re-Generate Recommendations',
-                                        style: TextStyle(color: Color(0xFFC8A97E), fontSize: 11, fontWeight: FontWeight.bold),
+                                        style: TextStyle(color: Color(0xFFFF7A00), fontSize: 11, fontWeight: FontWeight.bold),
                                       ),
                                     ),
                                   ),
@@ -238,7 +238,7 @@ class _AnalyticsDashboardScreenState extends ConsumerState<AnalyticsDashboardScr
                       const Text(
                         'Storefront Marketing Material',
                         style: TextStyle(
-                          color: Color(0xFFC8A97E),
+                          color: Color(0xFFFF7A00),
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
                         ),

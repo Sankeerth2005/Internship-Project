@@ -38,6 +38,18 @@ namespace localink_be.Models.Entities
         [Column("updated_at")]
         public DateTime UpdatedAt { get; set; }
 
+        [Column("temporary_closure_reason")]
+        public string? TemporaryClosureReason { get; set; }
+
+        [Column("temporary_closure_days")]
+        public int? TemporaryClosureDays { get; set; }
+
+        [Column("temporary_closure_status")]
+        public string? TemporaryClosureStatus { get; set; }
+
+        [Column("temporary_closure_reopen_date")]
+        public DateTime? TemporaryClosureReopenDate { get; set; }
+
         public AdminDashboard? AdminDashboard { get; set; }
         public User User { get; set; } = null!;
         public Category Category { get; set; } = null!;

@@ -190,7 +190,7 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
             children: [
               const Row(
                 children: [
-                  Icon(Icons.auto_awesome, color: Color(0xFFC8A97E)),
+                  Icon(Icons.auto_awesome, color: Color(0xFFFF7A00)),
                   SizedBox(width: 8),
                   Text('AI Enhanced Reviews', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
                 ],
@@ -288,12 +288,12 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
                           fit: BoxFit.cover,
                           errorBuilder: (context, err, st) => Container(
                             color: const Color(0xFF2E2E2E),
-                            child: const Icon(Icons.store, color: Color(0xFFC8A97E), size: 60),
+                            child: const Icon(Icons.store, color: Color(0xFFFF7A00), size: 60),
                           ),
                         )
                       : Container(
                           color: const Color(0xFF2E2E2E),
-                          child: const Icon(Icons.store, color: Color(0xFFC8A97E), size: 60),
+                          child: const Icon(Icons.store, color: Color(0xFFFF7A00), size: 60),
                         ),
                 ),
               ),
@@ -327,7 +327,7 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
                                     const SizedBox(height: 4),
                                     Text(
                                       business.categoryName!,
-                                      style: const TextStyle(color: Color(0xFFC8A97E), fontSize: 13, fontWeight: FontWeight.w500),
+                                      style: const TextStyle(color: Color(0xFFFF7A00), fontSize: 13, fontWeight: FontWeight.w500),
                                     ),
                                   ],
                                 ],
@@ -336,7 +336,7 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
                             const SizedBox(width: 10),
                             Row(
                               children: [
-                                const Icon(Icons.star, color: Color(0xFFC8A97E), size: 20),
+                                const Icon(Icons.star, color: Color(0xFFFF7A00), size: 20),
                                 const SizedBox(width: 4),
                                 Text(
                                   business.averageRating.toStringAsFixed(1),
@@ -351,6 +351,52 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
                           ],
                         ),
                         const SizedBox(height: 20),
+
+                        if (business.isTemporarilyClosed) ...[
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(15),
+                            margin: const EdgeInsets.only(bottom: 20),
+                            decoration: BoxDecoration(
+                              color: Colors.redAccent.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: Colors.redAccent.withValues(alpha: 0.3)),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    const Icon(Icons.error_outline, color: Colors.redAccent, size: 20),
+                                    const SizedBox(width: 8),
+                                    const Text(
+                                      'Temporarily Closed',
+                                      style: TextStyle(
+                                        color: Colors.redAccent,
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                if (business.temporaryClosureReason != null && business.temporaryClosureReason!.isNotEmpty) ...[
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'Reason: ${business.temporaryClosureReason}',
+                                    style: const TextStyle(color: Colors.white70, fontSize: 13),
+                                  ),
+                                ],
+                                if (business.temporaryClosureReopenDate != null) ...[
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Expected Reopening: ${_formatReopenDate(business.temporaryClosureReopenDate!)}',
+                                    style: const TextStyle(color: Colors.white54, fontSize: 12, fontStyle: FontStyle.italic),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                        ],
 
                         // Action Buttons
                         Row(
@@ -435,7 +481,7 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
 
                         const Text(
                           'About',
-                          style: TextStyle(color: Color(0xFFC8A97E), fontSize: 15, fontWeight: FontWeight.bold),
+                          style: TextStyle(color: Color(0xFFFF7A00), fontSize: 15, fontWeight: FontWeight.bold),
                         ),
                         const SizedBox(height: 8),
                         Text(
@@ -446,13 +492,13 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
 
                         const Text(
                           'Location',
-                          style: TextStyle(color: Color(0xFFC8A97E), fontSize: 15, fontWeight: FontWeight.bold),
+                          style: TextStyle(color: Color(0xFFFF7A00), fontSize: 15, fontWeight: FontWeight.bold),
                         ),
                         const SizedBox(height: 10),
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Icon(Icons.location_on, color: Color(0xFFC8A97E), size: 18),
+                            const Icon(Icons.location_on, color: Color(0xFFFF7A00), size: 18),
                             const SizedBox(width: 10),
                             Expanded(
                               child: Column(
@@ -477,7 +523,7 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
                         // Hours Accordion
                         const Text(
                           'Operating Hours',
-                          style: TextStyle(color: Color(0xFFC8A97E), fontSize: 15, fontWeight: FontWeight.bold),
+                          style: TextStyle(color: Color(0xFFFF7A00), fontSize: 15, fontWeight: FontWeight.bold),
                         ),
                         const SizedBox(height: 10),
                         business.hours.isEmpty
@@ -503,7 +549,7 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
                                         children: [
                                           Row(
                                             children: [
-                                              const Icon(Icons.calendar_month, color: Color(0xFFC8A97E), size: 16),
+                                              const Icon(Icons.calendar_month, color: Color(0xFFFF7A00), size: 16),
                                               const SizedBox(width: 8),
                                               Expanded(
                                                 child: Text(
@@ -547,7 +593,7 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
                           // Add Review Form
                           const Text(
                             'Write a Review',
-                            style: TextStyle(color: Color(0xFFC8A97E), fontSize: 15, fontWeight: FontWeight.bold),
+                            style: TextStyle(color: Color(0xFFFF7A00), fontSize: 15, fontWeight: FontWeight.bold),
                           ),
                           const SizedBox(height: 12),
                           Container(
@@ -573,7 +619,7 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
                                           value: val,
                                           child: Row(
                                             children: [
-                                              const Icon(Icons.star, color: Color(0xFFC8A97E), size: 16),
+                                              const Icon(Icons.star, color: Color(0xFFFF7A00), size: 16),
                                               const SizedBox(width: 4),
                                               Text(val.toStringAsFixed(0), style: const TextStyle(color: Colors.white)),
                                             ],
@@ -607,10 +653,10 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
                                   children: [
                                     OutlinedButton.icon(
                                       onPressed: _pickImage,
-                                      icon: const Icon(Icons.add_photo_alternate, color: Color(0xFFC8A97E), size: 16),
-                                      label: const Text('Add Image', style: TextStyle(color: Color(0xFFC8A97E), fontSize: 12)),
+                                      icon: const Icon(Icons.add_photo_alternate, color: Color(0xFFFF7A00), size: 16),
+                                      label: const Text('Add Image', style: TextStyle(color: Color(0xFFFF7A00), fontSize: 12)),
                                       style: OutlinedButton.styleFrom(
-                                        side: const BorderSide(color: Color(0xFFC8A97E)),
+                                        side: const BorderSide(color: Color(0xFFFF7A00)),
                                         shape: RoundedRectangleBorder(
                                           borderRadius: BorderRadius.circular(8),
                                         ),
@@ -660,14 +706,14 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
                                             height: 20,
                                             child: CircularProgressIndicator(
                                                 strokeWidth: 2,
-                                                color: Color(0xFFC8A97E)),
+                                                color: Color(0xFFFF7A00)),
                                           )
                                         : TextButton.icon(
                                             icon: const Icon(Icons.auto_awesome,
-                                                color: Color(0xFFC8A97E), size: 16),
+                                                color: Color(0xFFFF7A00), size: 16),
                                             label: const Text('AI Enhance',
                                                 style: TextStyle(
-                                                    color: Color(0xFFC8A97E),
+                                                    color: Color(0xFFFF7A00),
                                                     fontSize: 12,
                                                     fontWeight: FontWeight.bold)),
                                             onPressed: () =>
@@ -677,7 +723,7 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
                                       height: 35,
                                       child: ElevatedButton(
                                         style: ElevatedButton.styleFrom(
-                                          backgroundColor: const Color(0xFFC8A97E),
+                                          backgroundColor: const Color(0xFFFF7A00),
                                           foregroundColor: Colors.black,
                                           padding: const EdgeInsets.symmetric(horizontal: 24),
                                         ),
@@ -715,7 +761,7 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
                         if (_loadingSummary) ...[
                           const Center(
                             child: CircularProgressIndicator(
-                                color: Color(0xFFC8A97E)),
+                                color: Color(0xFFFF7A00)),
                           ),
                           const SizedBox(height: 20),
                         ] else if (_aiSummary.isNotEmpty) ...[
@@ -725,7 +771,7 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
                               color: const Color(0xFF1E1E1E),
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
-                                  color: const Color(0xFFC8A97E).withValues(alpha: 0.2)),
+                                  color: const Color(0xFFFF7A00).withValues(alpha: 0.2)),
                             ),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -733,7 +779,7 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
                                 const Row(
                                   children: [
                                     Icon(Icons.auto_awesome,
-                                        color: Color(0xFFC8A97E), size: 18),
+                                        color: Color(0xFFFF7A00), size: 18),
                                     SizedBox(width: 8),
                                     Text(
                                       'AI Reviews Summary',
@@ -761,7 +807,7 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
                         // Reviews List header
                         const Text(
                           'User Reviews',
-                          style: TextStyle(color: Color(0xFFC8A97E), fontSize: 15, fontWeight: FontWeight.bold),
+                          style: TextStyle(color: Color(0xFFFF7A00), fontSize: 15, fontWeight: FontWeight.bold),
                         ),
                         const SizedBox(height: 15),
 
@@ -778,7 +824,7 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
                               children: reviews.map((r) => _buildReviewCard(r)).toList(),
                             );
                           },
-                          loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFFC8A97E))),
+                          loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFFFF7A00))),
                           error: (err, st) => Text('Error loading reviews: $err', style: const TextStyle(color: Colors.redAccent)),
                         ),
                         const SizedBox(height: 40),
@@ -790,7 +836,7 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
             ],
           );
         },
-        loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFFC8A97E))),
+        loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFFFF7A00))),
         error: (err, st) => Center(child: Text('Error: $err', style: const TextStyle(color: Colors.redAccent))),
       ),
     );
@@ -808,7 +854,7 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
               shape: BoxShape.circle,
               border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
             ),
-            child: Icon(icon, color: const Color(0xFFC8A97E), size: 20),
+            child: Icon(icon, color: const Color(0xFFFF7A00), size: 20),
           ),
         ),
         const SizedBox(height: 6),
@@ -840,7 +886,7 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
                 children: List.generate(5, (index) {
                   return Icon(
                     Icons.star,
-                    color: index < review.rating ? const Color(0xFFC8A97E) : Colors.white12,
+                    color: index < review.rating ? const Color(0xFFFF7A00) : Colors.white12,
                     size: 14,
                   );
                 }),
@@ -910,5 +956,11 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
       }
     } catch (_) {}
     return timeStr;
+  }
+
+  String _formatReopenDate(DateTime date) {
+    final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    final local = date.toLocal();
+    return '${local.day} ${months[local.month - 1]} ${local.year}';
   }
 }

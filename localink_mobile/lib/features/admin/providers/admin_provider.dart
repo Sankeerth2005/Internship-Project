@@ -45,6 +45,34 @@ class AdminNotifier extends AsyncNotifier<List<AdminBusinessDto>> {
       return false;
     }
   }
+
+  // Approve Temporary Closure
+  Future<bool> approveTemporaryClosure(int id) async {
+    final repo = ref.read(adminRepositoryProvider);
+    try {
+      final success = await repo.approveTemporaryClosure(id);
+      if (success) {
+        await refresh();
+      }
+      return success;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  // Reject Temporary Closure
+  Future<bool> rejectTemporaryClosure(int id) async {
+    final repo = ref.read(adminRepositoryProvider);
+    try {
+      final success = await repo.rejectTemporaryClosure(id);
+      if (success) {
+        await refresh();
+      }
+      return success;
+    } catch (e) {
+      return false;
+    }
+  }
 }
 
 final adminBusinessesProvider = AsyncNotifierProvider<AdminNotifier, List<AdminBusinessDto>>(

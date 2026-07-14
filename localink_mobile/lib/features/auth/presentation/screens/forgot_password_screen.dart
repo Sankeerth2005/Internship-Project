@@ -85,7 +85,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Color(0xFFC8A97E)),
+          icon: const Icon(Icons.arrow_back, color: Color(0xFFFF7A00)),
           onPressed: () => context.pop(),
         ),
       ),
@@ -166,7 +166,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10),
-                        borderSide: const BorderSide(color: Color(0xFFC8A97E)),
+                        borderSide: const BorderSide(color: Color(0xFFFF7A00)),
                       ),
                       errorBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10),
@@ -190,11 +190,11 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(12),
                       gradient: const LinearGradient(
-                        colors: [Color(0xFFC8A97E), Color(0xFFE6C89F)],
+                        colors: [Color(0xFFFF7A00), Color(0xFFFF9A3C)],
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFFC8A97E).withValues(alpha: 0.3),
+                          color: const Color(0xFFFF7A00).withValues(alpha: 0.3),
                           blurRadius: 15,
                           offset: const Offset(0, 4),
                         ),

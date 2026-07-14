@@ -49,7 +49,8 @@ CREATE TABLE [users] (
     [email] nvarchar(max) NOT NULL,
     [phone_number] nvarchar(450) NULL,
     [country_code] nvarchar(max) NOT NULL,
-    [password_hash] nvarchar(max) NOT NULL,
+    [password_hash] nvarchar(max) NULL,
+    [google_id] nvarchar(450) NULL,
     [otp_attempts] int NULL,
     [password_reset_otp] nvarchar(max) NULL,
     [otp_expiry] datetime2 NULL,
@@ -89,6 +90,7 @@ CREATE TABLE [business_reviews] (
     [comment] nvarchar(max) NULL,
     [created_at] datetime2 NOT NULL,
     [updated_at] datetime2 NULL,
+    [image_url] nvarchar(max) NULL,
     CONSTRAINT [PK_business_reviews] PRIMARY KEY ([review_id]),
     CONSTRAINT [FK_business_reviews_users_user_id] FOREIGN KEY ([user_id]) REFERENCES [users] ([user_id])
 );
@@ -104,6 +106,10 @@ CREATE TABLE [business] (
     [subcategory_id] int NOT NULL,
     [created_at] datetime2 NOT NULL,
     [updated_at] datetime2 NOT NULL,
+    [temporary_closure_reason] nvarchar(max) NULL,
+    [temporary_closure_days] int NULL,
+    [temporary_closure_status] nvarchar(max) NULL,
+    [temporary_closure_reopen_date] datetime2 NULL,
     CONSTRAINT [PK_business] PRIMARY KEY ([business_id]),
     CONSTRAINT [FK_business_category_category_id] FOREIGN KEY ([category_id]) REFERENCES [category] ([category_id]) ON DELETE NO ACTION,
     CONSTRAINT [FK_business_subcategory_subcategory_id] FOREIGN KEY ([subcategory_id]) REFERENCES [subcategory] ([subcategory_id]) ON DELETE NO ACTION,

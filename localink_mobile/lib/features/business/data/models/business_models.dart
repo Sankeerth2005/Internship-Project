@@ -136,6 +136,12 @@ class BusinessDto {
   final List<String> photos;
   final String? photo;
 
+  final bool isTemporarilyClosed;
+  final String? temporaryClosureReason;
+  final String? temporaryClosureStatus;
+  final int? temporaryClosureDays;
+  final DateTime? temporaryClosureReopenDate;
+
   BusinessDto({
     required this.businessId,
     required this.businessName,
@@ -161,6 +167,11 @@ class BusinessDto {
     required this.hours,
     required this.photos,
     this.photo,
+    this.isTemporarilyClosed = false,
+    this.temporaryClosureReason,
+    this.temporaryClosureStatus,
+    this.temporaryClosureDays,
+    this.temporaryClosureReopenDate,
   });
 
   factory BusinessDto.fromJson(Map<String, dynamic> json) {
@@ -188,6 +199,8 @@ class BusinessDto {
 
     final contactJson = json['contact'] as Map<String, dynamic>?;
 
+    final reopenDateStr = json['temporaryClosureReopenDate'] ?? json['temporary_closure_reopen_date'];
+
     return BusinessDto(
       businessId: json['businessId'] ?? json['business_id'] ?? json['id'] ?? 0,
       businessName: json['businessName'] ?? json['business_name'] ?? json['name'] ?? '',
@@ -208,11 +221,16 @@ class BusinessDto {
       latitude: (json['latitude'] as num?)?.toDouble() ?? (contactJson?['latitude'] as num?)?.toDouble(),
       longitude: (json['longitude'] as num?)?.toDouble() ?? (contactJson?['longitude'] as num?)?.toDouble(),
       averageRating: ((json['averageRating'] ?? json['average_rating'] ?? 0.0) as num).toDouble(),
-      reviewCount: json['reviewCount'] ?? json['review_count'] ?? 0,
+      reviewCount: json['reviewCount'] ?? json['review_count'] ?? json['totalReviews'] ?? json['total_reviews'] ?? 0,
       status: json['status'],
       hours: hoursJson.map((e) => DayHoursDto.fromJson(e)).toList(),
       photos: parsedPhotos,
       photo: json['photo'],
+      isTemporarilyClosed: json['isTemporarilyClosed'] ?? json['is_temporarily_closed'] ?? false,
+      temporaryClosureReason: json['temporaryClosureReason'] ?? json['temporary_closure_reason'],
+      temporaryClosureStatus: json['temporaryClosureStatus'] ?? json['temporary_closure_status'],
+      temporaryClosureDays: json['temporaryClosureDays'] ?? json['temporary_closure_days'],
+      temporaryClosureReopenDate: reopenDateStr != null ? DateTime.parse(reopenDateStr) : null,
     );
   }
 

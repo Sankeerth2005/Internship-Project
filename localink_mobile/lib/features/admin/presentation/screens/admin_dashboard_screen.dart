@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:math' as math;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -8,6 +9,7 @@ import '../../providers/admin_provider.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/network/signalr_service.dart';
 import '../../../auth/providers/auth_state.dart';
+import '../../../../core/storage/secure_storage_service.dart';
 
 class AdminDashboardScreen extends ConsumerStatefulWidget {
   const AdminDashboardScreen({super.key});
@@ -20,6 +22,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
   String _selectedFilter = 'Pending'; // Pending, Approved, Rejected, All
   final _searchController = TextEditingController();
   String _searchQuery = '';
+  int _currentTab = 0; // 0 = Businesses, 1 = Categories, 2 = Reports, 3 = Users, 4 = Settings
 
   @override
   void dispose() {
@@ -63,7 +66,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
         context: context,
         barrierDismissible: false,
         builder: (context) => const Center(
-          child: CircularProgressIndicator(color: Color(0xFFC8A97E)),
+          child: CircularProgressIndicator(color: Color(0xFFFF7A00)),
         ),
       );
 
@@ -125,7 +128,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: Color(0xFFC8A97E)),
+                    borderSide: const BorderSide(color: Color(0xFFFF7A00)),
                   ),
                 ),
                 validator: (val) {
@@ -169,7 +172,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
         context: context,
         barrierDismissible: false,
         builder: (context) => const Center(
-          child: CircularProgressIndicator(color: Color(0xFFC8A97E)),
+          child: CircularProgressIndicator(color: Color(0xFFFF7A00)),
         ),
       );
 
@@ -200,10 +203,57 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
   }
 
   Future<void> _handleExport() async {
-    final status = _selectedFilter == 'All' ? 'Pending' : _selectedFilter;
+    final statusChoice = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: const Color(0xFF1E1E1E),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: Text(
+                'Select Report Type to Export',
+                style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.list, color: Color(0xFFFF7A00)),
+              title: const Text('All Businesses', style: TextStyle(color: Colors.white)),
+              onTap: () => Navigator.pop(context, 'All'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.check_circle_outline, color: Colors.green),
+              title: const Text('Approved Businesses Only', style: TextStyle(color: Colors.white)),
+              onTap: () => Navigator.pop(context, 'Approved'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.pending_actions, color: Colors.amber),
+              title: const Text('Pending Businesses Only', style: TextStyle(color: Colors.white)),
+              onTap: () => Navigator.pop(context, 'Pending'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.cancel_outlined, color: Colors.redAccent),
+              title: const Text('Rejected Businesses Only', style: TextStyle(color: Colors.white)),
+              onTap: () => Navigator.pop(context, 'Rejected'),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+
+    if (statusChoice == null) return;
+
+    final token = await SecureStorageService.getToken();
     final baseUrl = DioClient().dio.options.baseUrl;
     final originUrl = Uri.parse(baseUrl).origin;
-    final exportUrl = '$originUrl/api/v1/admin/export?status=$status';
+    // Pass JWT as query string parameter for authentication
+    final exportUrl = '$originUrl/api/v1/admin/export?status=$statusChoice&access_token=$token';
     
     try {
       final messenger = ScaffoldMessenger.of(context);
@@ -222,6 +272,130 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     }
   }
 
+  Future<void> _handleApproveClosure(AdminBusinessDto business) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF1E1E1E),
+        title: const Text('Approve Closure Request', style: TextStyle(color: Colors.white)),
+        content: Text(
+          'Are you sure you want to approve temporary closure for "${business.name}" for ${business.temporaryClosureDays ?? 0} days?\n\nReason: "${business.temporaryClosureReason ?? "No reason specified"}"',
+          style: const TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Approve'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      if (!mounted) return;
+      final messenger = ScaffoldMessenger.of(context);
+      
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(color: Color(0xFFFF7A00)),
+        ),
+      );
+
+      final success = await ref.read(adminBusinessesProvider.notifier).approveTemporaryClosure(business.id);
+      
+      if (mounted) {
+        Navigator.pop(context); // Pop loading
+        if (success) {
+          messenger.showSnackBar(
+            SnackBar(
+              content: Text('Temporary closure approved for "${business.name}"!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        } else {
+          messenger.showSnackBar(
+            const SnackBar(
+              content: Text('Failed to approve closure. Please try again.'),
+              backgroundColor: Color(0xFFFF4D4F),
+            ),
+          );
+        }
+      }
+    }
+  }
+
+  Future<void> _handleRejectClosure(AdminBusinessDto business) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF1E1E1E),
+        title: const Text('Reject Closure Request', style: TextStyle(color: Colors.white)),
+        content: Text(
+          'Are you sure you want to reject the temporary closure request for "${business.name}"?',
+          style: const TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFFF4D4F),
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Reject'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      if (!mounted) return;
+      final messenger = ScaffoldMessenger.of(context);
+      
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(color: Color(0xFFFF7A00)),
+        ),
+      );
+
+      final success = await ref.read(adminBusinessesProvider.notifier).rejectTemporaryClosure(business.id);
+      
+      if (mounted) {
+        Navigator.pop(context); // Pop loading
+        if (success) {
+          messenger.showSnackBar(
+            SnackBar(
+              content: Text('Temporary closure request rejected for "${business.name}".'),
+              backgroundColor: const Color(0xFFFF4D4F),
+            ),
+          );
+        } else {
+          messenger.showSnackBar(
+            const SnackBar(
+              content: Text('Failed to reject closure. Please try again.'),
+              backgroundColor: Color(0xFFFF4D4F),
+            ),
+          );
+        }
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final businessesAsync = ref.watch(adminBusinessesProvider);
@@ -234,189 +408,717 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0F0F0F),
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF1E1E1E),
-        elevation: 0,
-        title: const Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+      backgroundColor: const Color(0xFF0C0C0C),
+      body: SafeArea(
+        child: Column(
           children: [
-            Text(
-              'Vocal for Sanatan',
-              style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-            Text(
-              'Admin Control Panel',
-              style: TextStyle(color: Color(0xFFC8A97E), fontSize: 11, fontWeight: FontWeight.w500),
-            ),
-          ],
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.download, color: Color(0xFFC8A97E)),
-            tooltip: 'Export Excel Report',
-            onPressed: _handleExport,
-          ),
-          IconButton(
-            icon: const Icon(Icons.map, color: Color(0xFFC8A97E)),
-            tooltip: 'Operational Heatmap',
-            onPressed: () => context.push('/admin-heatmap'),
-          ),
-          IconButton(
-            icon: const Icon(Icons.logout, color: Colors.white70),
-            tooltip: 'Logout',
-            onPressed: () {
-              if (authState is AuthAuthenticated) {
-                SignalRService().disconnect(authState.userId);
-              }
-              ref.read(authProvider.notifier).logout();
-            },
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
-          // Filter Tabs row
-          businessesAsync.when(
-            data: (list) {
-              final pendingCount = list.where((b) => b.status.toLowerCase() == 'pending').length;
-              final approvedCount = list.where((b) => b.status.toLowerCase() == 'approved').length;
-              final rejectedCount = list.where((b) => b.status.toLowerCase() == 'rejected').length;
-              final totalCount = list.length;
-
-              return Container(
-                color: const Color(0xFF1E1E1E),
-                padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 15),
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
+            // Custom Saffron Sunrise Temple skyline header
+            Container(
+              height: 125,
+              width: double.infinity,
+              child: CustomPaint(
+                painter: TempleHeaderPainter(),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
                   child: Row(
                     children: [
-                      _buildFilterChip('Pending', pendingCount),
-                      const SizedBox(width: 8),
-                      _buildFilterChip('Approved', approvedCount),
-                      const SizedBox(width: 8),
-                      _buildFilterChip('Rejected', rejectedCount),
-                      const SizedBox(width: 8),
-                      _buildFilterChip('All', totalCount),
+                      // Circular emblem with rays and flag vector
+                      Container(
+                        width: 50,
+                        height: 50,
+                        child: CustomPaint(
+                          painter: EmblemPainter(),
+                        ),
+                      ),
+                      const SizedBox(width: 15),
+                      // App titles
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              'Vocal for Sanatan',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                            SizedBox(height: 3),
+                            Text(
+                              'Admin Control Panel',
+                              style: TextStyle(
+                                color: Color(0xFFFF7A00),
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      // Top action icons
+                      Row(
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.download, color: Color(0xFFFF7A00), size: 22),
+                            tooltip: 'Export Excel Report',
+                            onPressed: _handleExport,
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.map, color: Color(0xFFFF7A00), size: 22),
+                            tooltip: 'Operational Heatmap',
+                            onPressed: () => context.push('/admin-heatmap'),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.logout, color: Colors.white70, size: 20),
+                            tooltip: 'Logout',
+                            onPressed: () {
+                              if (authState is AuthAuthenticated) {
+                                SignalRService().disconnect(authState.userId);
+                              }
+                              ref.read(authProvider.notifier).logout();
+                            },
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 ),
-              );
-            },
-            loading: () => const SizedBox(height: 50),
-            error: (err, stack) => const SizedBox(height: 50),
-          ),
-
-          // Search Bar
-          Padding(
-            padding: const EdgeInsets.all(15),
-            child: TextField(
-              controller: _searchController,
-              style: const TextStyle(color: Colors.white),
-              decoration: InputDecoration(
-                hintText: 'Search business name, category, location...',
-                hintStyle: const TextStyle(color: Colors.white30, fontSize: 13),
-                prefixIcon: const Icon(Icons.search, color: Color(0xFFC8A97E), size: 20),
-                suffixIcon: _searchQuery.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear, color: Colors.white70, size: 18),
-                        onPressed: () {
-                          _searchController.clear();
-                          setState(() {
-                            _searchQuery = '';
-                          });
-                        },
-                      )
-                    : null,
-                filled: true,
-                fillColor: const Color(0xFF1E1E1E),
-                contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 15),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: BorderSide.none,
-                ),
               ),
-              onChanged: (val) {
-                setState(() {
-                  _searchQuery = val.trim().toLowerCase();
-                });
-              },
             ),
-          ),
+            // Tab View Body Panel
+            Expanded(
+              child: _buildTabContent(businessesAsync),
+            ),
+          ],
+        ),
+      ),
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          color: const Color(0xFF161616),
+          border: Border(top: BorderSide(color: Colors.white.withValues(alpha: 0.06), width: 1)),
+        ),
+        child: BottomNavigationBar(
+          currentIndex: _currentTab,
+          onTap: (index) {
+            setState(() {
+              _currentTab = index;
+            });
+          },
+          backgroundColor: Colors.transparent,
+          type: BottomNavigationBarType.fixed,
+          selectedItemColor: const Color(0xFFFF7A00),
+          unselectedItemColor: Colors.white38,
+          selectedFontSize: 11,
+          unselectedFontSize: 11,
+          elevation: 0,
+          items: const [
+            BottomNavigationBarItem(
+              icon: Icon(Icons.storefront),
+              label: 'Businesses',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.grid_view),
+              label: 'Categories',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.bar_chart),
+              label: 'Reports',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.people_outline),
+              label: 'Users',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.settings),
+              label: 'Settings',
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
-          // Businesses List
-          Expanded(
-            child: RefreshIndicator(
-              color: const Color(0xFFC8A97E),
-              onRefresh: () async {
-                ref.invalidate(adminBusinessesProvider);
-              },
-              child: businessesAsync.when(
-                data: (list) {
-                  // Filter list by Tab Selection
-                  var filtered = list;
-                  if (_selectedFilter != 'All') {
-                    filtered = list.where((b) => b.status.toLowerCase() == _selectedFilter.toLowerCase()).toList();
-                  }
+  Widget _buildTabContent(AsyncValue<List<AdminBusinessDto>> businessesAsync) {
+    switch (_currentTab) {
+      case 0:
+        return _buildBusinessesTab(businessesAsync);
+      case 1:
+        return _buildCategoriesTab();
+      case 2:
+        return _buildReportsTab();
+      case 3:
+        return _buildUsersTab();
+      case 4:
+        return _buildSettingsTab();
+      default:
+        return _buildBusinessesTab(businessesAsync);
+    }
+  }
 
-                  // Filter by Search Query
-                  if (_searchQuery.isNotEmpty) {
-                    filtered = filtered.where((b) {
-                      return b.name.toLowerCase().contains(_searchQuery) ||
-                          b.category.toLowerCase().contains(_searchQuery) ||
-                          (b.address?.toLowerCase().contains(_searchQuery) ?? false);
-                    }).toList();
-                  }
+  Widget _buildBusinessesTab(AsyncValue<List<AdminBusinessDto>> businessesAsync) {
+    return Column(
+      children: [
+        // Filter Tabs row
+        businessesAsync.when(
+          data: (list) {
+            final pendingCount = list.where((b) => b.status.toLowerCase() == 'pending').length;
+            final approvedCount = list.where((b) => b.status.toLowerCase() == 'approved').length;
+            final rejectedCount = list.where((b) => b.status.toLowerCase() == 'rejected').length;
+            final closurePendingCount = list.where((b) => b.isTemporaryClosurePending).length;
+            final totalCount = list.length;
 
-                  if (filtered.isEmpty) {
-                    return ListView(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      children: [
-                        SizedBox(height: MediaQuery.of(context).size.height * 0.25),
-                        const Center(
-                          child: Column(
-                            children: [
-                              Icon(Icons.storefront, color: Colors.white24, size: 60),
-                              SizedBox(height: 10),
-                              Text(
-                                'No businesses found',
-                                style: TextStyle(color: Colors.white38, fontSize: 14),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    );
-                  }
-
-                  return ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 15),
-                    itemCount: filtered.length,
-                    itemBuilder: (context, index) {
-                      return _buildBusinessCard(filtered[index]);
-                    },
-                  );
-                },
-                loading: () => const Center(
-                  child: CircularProgressIndicator(color: Color(0xFFC8A97E)),
-                ),
-                error: (err, st) => ListView(
-                  physics: const AlwaysScrollableScrollPhysics(),
+            return Container(
+              color: const Color(0xFF161616),
+              padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 15),
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
                   children: [
-                    SizedBox(height: MediaQuery.of(context).size.height * 0.25),
-                    Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(20),
-                        child: Text(
-                          'Failed to load businesses: $err',
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(color: Colors.redAccent),
-                        ),
-                      ),
-                    ),
+                    _buildFilterChip('Pending', pendingCount),
+                    const SizedBox(width: 8),
+                    _buildFilterChip('Closure Requests', closurePendingCount),
+                    const SizedBox(width: 8),
+                    _buildFilterChip('Approved', approvedCount),
+                    const SizedBox(width: 8),
+                    _buildFilterChip('Rejected', rejectedCount),
+                    const SizedBox(width: 8),
+                    _buildFilterChip('All', totalCount),
                   ],
                 ),
               ),
+            );
+          },
+          loading: () => const SizedBox(height: 50),
+          error: (err, stack) => const SizedBox(height: 50),
+        ),
+
+        // Search Bar
+        Padding(
+          padding: const EdgeInsets.all(15),
+          child: TextField(
+            controller: _searchController,
+            style: const TextStyle(color: Colors.white),
+            decoration: InputDecoration(
+              hintText: 'Search business name, category, location...',
+              hintStyle: const TextStyle(color: Colors.white30, fontSize: 13),
+              prefixIcon: const Icon(Icons.search, color: Color(0xFFFF7A00), size: 20),
+              suffixIcon: _searchQuery.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.clear, color: Colors.white70, size: 18),
+                      onPressed: () {
+                        _searchController.clear();
+                        setState(() {
+                          _searchQuery = '';
+                        });
+                      },
+                    )
+                  : null,
+              filled: true,
+              fillColor: const Color(0xFF1E1E1E),
+              contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 15),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: BorderSide.none,
+              ),
+            ),
+            onChanged: (val) {
+              setState(() {
+                _searchQuery = val.trim().toLowerCase();
+              });
+            },
+          ),
+        ),
+
+        // Businesses List
+        Expanded(
+          child: RefreshIndicator(
+            color: const Color(0xFFFF7A00),
+            onRefresh: () async {
+              ref.invalidate(adminBusinessesProvider);
+            },
+            child: businessesAsync.when(
+              data: (list) {
+                // Filter list by Tab Selection
+                var filtered = list;
+                if (_selectedFilter == 'Closure Requests') {
+                  filtered = list.where((b) => b.isTemporaryClosurePending).toList();
+                } else if (_selectedFilter != 'All') {
+                  filtered = list.where((b) => b.status.toLowerCase() == _selectedFilter.toLowerCase()).toList();
+                }
+
+                // Filter by Search Query
+                if (_searchQuery.isNotEmpty) {
+                  filtered = filtered.where((b) {
+                    return b.name.toLowerCase().contains(_searchQuery) ||
+                        b.category.toLowerCase().contains(_searchQuery) ||
+                        (b.address?.toLowerCase().contains(_searchQuery) ?? false);
+                  }).toList();
+                }
+
+                if (filtered.isEmpty) {
+                  return ListView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    children: [
+                      SizedBox(height: MediaQuery.of(context).size.height * 0.25),
+                      const Center(
+                        child: Column(
+                          children: [
+                            Icon(Icons.storefront, color: Colors.white24, size: 60),
+                            SizedBox(height: 10),
+                            Text(
+                              'No businesses found',
+                              style: TextStyle(color: Colors.white38, fontSize: 14),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  );
+                }
+
+                return ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 15),
+                  itemCount: filtered.length,
+                  itemBuilder: (context, index) {
+                    return _buildBusinessCard(filtered[index]);
+                  },
+                );
+              },
+              loading: () => const Center(
+                child: CircularProgressIndicator(color: Color(0xFFFF7A00)),
+              ),
+              error: (err, st) => ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                children: [
+                  SizedBox(height: MediaQuery.of(context).size.height * 0.25),
+                  Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Text(
+                        'Failed to load businesses: $err',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: Colors.redAccent),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCategoriesTab() {
+    return FutureBuilder(
+      future: DioClient().dio.get('categories'),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator(color: Color(0xFFFF7A00)));
+        }
+        if (snapshot.hasError || !snapshot.hasData) {
+          return const Center(child: Text('Failed to load categories', style: TextStyle(color: Colors.white54)));
+        }
+        final data = snapshot.data!.data as List? ?? [];
+
+        final iconMap = <String, IconData>{
+          'restaurant': Icons.restaurant, 'food': Icons.restaurant, 'cafe': Icons.local_cafe,
+          'health': Icons.health_and_safety, 'wellness': Icons.spa, 'beauty': Icons.spa,
+          'service': Icons.build, 'auto': Icons.directions_car, 'car': Icons.directions_car,
+          'shop': Icons.shopping_bag, 'retail': Icons.shopping_bag, 'store': Icons.store,
+          'education': Icons.school, 'travel': Icons.flight, 'real estate': Icons.home,
+          'legal': Icons.gavel, 'it': Icons.computer, 'tech': Icons.computer,
+          'market': Icons.campaign, 'entertainment': Icons.movie, 'religious': Icons.temple_hindu,
+          'finance': Icons.account_balance, 'pet': Icons.pets, 'security': Icons.security,
+          'gym': Icons.fitness_center, 'medical': Icons.medical_services,
+        };
+
+        IconData getIconForCategory(String name) {
+          final lowerName = name.toLowerCase();
+          for (final key in iconMap.keys) {
+            if (lowerName.contains(key)) return iconMap[key]!;
+          }
+          return Icons.category;
+        }
+
+        return GridView.builder(
+          padding: const EdgeInsets.all(15),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+            childAspectRatio: 1.3,
+          ),
+          itemCount: data.length,
+          itemBuilder: (context, index) {
+            final cat = data[index];
+            final name = cat['name'] ?? cat['categoryName'] ?? 'Category';
+            return Container(
+              decoration: BoxDecoration(
+                color: const Color(0xFF1A1A1A),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(getIconForCategory(name), color: const Color(0xFFFF7A00), size: 28),
+                  const SizedBox(height: 10),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                    child: Text(
+                      name,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildReportsTab() {
+    return FutureBuilder(
+      future: DioClient().dio.get('admin/stats'),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator(color: Color(0xFFFF7A00)));
+        }
+
+        Map<String, dynamic> stats = {};
+        if (snapshot.hasData) {
+          final raw = snapshot.data?.data;
+          if (raw is Map<String, dynamic>) stats = raw;
+        }
+
+        final totalClicks = stats['totalClicks']?.toString() ?? '0';
+        final totalViews = stats['totalViews']?.toString() ?? '0';
+        final totalReviews = stats['totalReviews']?.toString() ?? '0';
+        final avgRating = stats['averageRating'] != null
+            ? '${stats['averageRating']} ★'
+            : '— ★';
+        final totalUsers = stats['totalUsers']?.toString() ?? '0';
+        final totalBusinesses = stats['totalBusinesses']?.toString() ?? '0';
+        final approvedBusinesses = stats['approvedBusinesses']?.toString() ?? '0';
+        final pendingBusinesses = stats['pendingBusinesses']?.toString() ?? '0';
+
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(20.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'System Analytics',
+                style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 15),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildStatCard('Total Clicks', totalClicks, Icons.ads_click, Colors.blueAccent),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _buildStatCard('Business Views', totalViews, Icons.remove_red_eye, Colors.green),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildStatCard('Total Users', totalUsers, Icons.people, Colors.purpleAccent),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _buildStatCard('Total Businesses', totalBusinesses, Icons.storefront, const Color(0xFFFF7A00)),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildStatCard('Approved', approvedBusinesses, Icons.check_circle_outline, Colors.green),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _buildStatCard('Pending', pendingBusinesses, Icons.access_time, Colors.amber),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 15),
+              _buildExportOptionCard(),
+              const SizedBox(height: 25),
+              const Text(
+                 'Platform Feedback Summary',
+                 style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 15),
+              Container(
+                 padding: const EdgeInsets.all(15),
+                 decoration: BoxDecoration(
+                   color: const Color(0xFF1A1A1A),
+                   borderRadius: BorderRadius.circular(12),
+                   border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+                 ),
+                 child: Column(
+                   children: [
+                     Row(
+                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                       children: [
+                         const Text('Average Rating', style: TextStyle(color: Colors.white70, fontSize: 13)),
+                         Text(avgRating, style: const TextStyle(color: Color(0xFFFF7A00), fontSize: 14, fontWeight: FontWeight.bold)),
+                       ],
+                     ),
+                     const Divider(color: Colors.white10, height: 20),
+                     Row(
+                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                       children: [
+                         const Text('Review Count', style: TextStyle(color: Colors.white70, fontSize: 13)),
+                         Text('$totalReviews reviews', style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
+                       ],
+                     ),
+                   ],
+                 ),
+               ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildStatCard(String label, String value, IconData icon, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(15),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1A1A1A),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: color, size: 22),
+          const SizedBox(height: 10),
+          Text(value, style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 3),
+          Text(label, style: const TextStyle(color: Colors.white38, fontSize: 12)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildExportOptionCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(15),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1A1A1A),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFFF7A00).withValues(alpha: 0.15)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.description, color: Color(0xFFFF7A00), size: 32),
+          const SizedBox(width: 15),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Export Database Report', style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 2),
+                Text('Download Microsoft Excel spreadsheet reports.', style: TextStyle(color: Colors.white38, fontSize: 11)),
+              ],
+            ),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFFF7A00),
+              foregroundColor: Colors.black,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+            ),
+            onPressed: _handleExport,
+            child: const Text('Export', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildUsersTab() {
+    return FutureBuilder(
+      future: DioClient().dio.get('admin/users'),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator(color: Color(0xFFFF7A00)));
+        }
+        if (snapshot.hasError || !snapshot.hasData) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.people_outline, color: Colors.white24, size: 48),
+                const SizedBox(height: 12),
+                Text(
+                  'Failed to load users: ${snapshot.error}',
+                  style: const TextStyle(color: Colors.white38, fontSize: 13),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          );
+        }
+        final users = snapshot.data!.data as List? ?? [];
+        if (users.isEmpty) {
+          return const Center(
+            child: Text('No users found', style: TextStyle(color: Colors.white54)),
+          );
+        }
+
+        return ListView.builder(
+          padding: const EdgeInsets.all(15),
+          itemCount: users.length,
+          itemBuilder: (context, index) {
+            final user = users[index] as Map<String, dynamic>;
+            final name = user['fullName']?.toString() ?? 'Unknown';
+            final email = user['email']?.toString() ?? '';
+            final accountType = user['accountType']?.toString() ?? 'client';
+            final phone = user['phoneNumber']?.toString();
+
+            String roleLabel = 'Regular User';
+            Color roleColor = Colors.blueAccent;
+            if (accountType.toLowerCase() == 'admin') {
+              roleLabel = 'Administrator';
+              roleColor = const Color(0xFFFF7A00);
+            } else if (accountType.toLowerCase() == 'businessowner') {
+              roleLabel = 'Business Owner';
+              roleColor = Colors.green;
+            }
+
+            return Container(
+              margin: const EdgeInsets.only(bottom: 10),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1A1A1A),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+              ),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    backgroundColor: const Color(0xFFFF7A00).withValues(alpha: 0.1),
+                    child: Text(
+                      name.isNotEmpty ? name[0].toUpperCase() : '?',
+                      style: const TextStyle(color: Color(0xFFFF7A00), fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                  const SizedBox(width: 15),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+                        const SizedBox(height: 2),
+                        Text(email, style: const TextStyle(color: Colors.white38, fontSize: 11)),
+                        if (phone != null && phone.isNotEmpty) ...
+                          [const SizedBox(height: 2), Text(phone, style: const TextStyle(color: Colors.white24, fontSize: 10))],
+                      ],
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: roleColor.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: roleColor.withValues(alpha: 0.4)),
+                    ),
+                    child: Text(
+                      roleLabel,
+                      style: TextStyle(color: roleColor, fontSize: 9, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildSettingsTab() {
+    return Padding(
+      padding: const EdgeInsets.all(20.0),
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(15),
+            decoration: BoxDecoration(
+              color: const Color(0xFF1A1A1A),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+            ),
+            child: const Row(
+              children: [
+                CircleAvatar(
+                  backgroundColor: Color(0xFFFF7A00),
+                  foregroundColor: Colors.black,
+                  child: Icon(Icons.admin_panel_settings),
+                ),
+                SizedBox(width: 15),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Admin Account', style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
+                      SizedBox(height: 2),
+                      Text('sankeerth559@gmail.com', style: TextStyle(color: Colors.white38, fontSize: 12)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+          _buildSettingsOptionTile('Operational Hub Connection', 'Connected', Icons.wifi, Colors.green),
+          const SizedBox(height: 10),
+          _buildSettingsOptionTile('System Version', 'v1.4.2-stable', Icons.info_outline, Colors.blue),
+          const SizedBox(height: 20),
+          const Divider(color: Colors.white10),
+          const SizedBox(height: 20),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.redAccent,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              icon: const Icon(Icons.logout),
+              label: const Text('Logout', style: TextStyle(fontWeight: FontWeight.bold)),
+              onPressed: () {
+                final authState = ref.read(authProvider);
+                if (authState is AuthAuthenticated) {
+                  SignalRService().disconnect(authState.userId);
+                }
+                ref.read(authProvider.notifier).logout();
+              },
             ),
           ),
         ],
@@ -424,8 +1126,43 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     );
   }
 
+  Widget _buildSettingsOptionTile(String label, String value, IconData icon, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1A1A1A),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: color, size: 20),
+          const SizedBox(width: 15),
+          Expanded(
+            child: Text(label, style: const TextStyle(color: Colors.white, fontSize: 13)),
+          ),
+          Text(value, style: const TextStyle(color: Colors.white54, fontSize: 13, fontWeight: FontWeight.bold)),
+        ],
+      ),
+    );
+  }
+
   Widget _buildFilterChip(String label, int count) {
     final isSelected = _selectedFilter == label;
+    
+    IconData chipIcon = Icons.list;
+    if (label == 'Pending') {
+      chipIcon = Icons.access_time;
+    } else if (label == 'Closure Requests') {
+      chipIcon = Icons.timer_off_outlined;
+    } else if (label == 'Approved') {
+      chipIcon = Icons.check_circle_outline;
+    } else if (label == 'Rejected') {
+      chipIcon = Icons.cancel_outlined;
+    }
+
+    final activeColor = const Color(0xFFFF7A00);
+
     return GestureDetector(
       onTap: () {
         setState(() {
@@ -433,22 +1170,31 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
         });
       },
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFFC8A97E) : const Color(0xFF2A2A2A),
+          color: isSelected ? activeColor : const Color(0xFF1E1E1E),
           borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected ? activeColor : Colors.white.withValues(alpha: 0.04),
+          ),
         ),
         child: Row(
           children: [
+            Icon(
+              chipIcon,
+              size: 14,
+              color: isSelected ? Colors.white : activeColor,
+            ),
+            const SizedBox(width: 6),
             Text(
               label,
               style: TextStyle(
-                color: isSelected ? Colors.black : Colors.white70,
+                color: isSelected ? Colors.white : Colors.white70,
                 fontSize: 12,
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
               ),
             ),
-            const SizedBox(width: 6),
+            const SizedBox(width: 8),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(
@@ -458,7 +1204,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
               child: Text(
                 count.toString(),
                 style: TextStyle(
-                  color: isSelected ? Colors.black87 : Colors.white54,
+                  color: isSelected ? Colors.white : Colors.white54,
                   fontSize: 10,
                   fontWeight: FontWeight.bold,
                 ),
@@ -471,22 +1217,34 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
   }
 
   Widget _buildBusinessCard(AdminBusinessDto business) {
-    Color badgeColor = Colors.amber;
-    if (business.status.toLowerCase() == 'approved') {
-      badgeColor = Colors.green;
+    Color statusColor = const Color(0xFFFF7A00);
+    IconData statusIcon = Icons.check_circle_outline;
+    String badgeText = business.status;
+
+    if (business.isTemporaryClosurePending) {
+      statusColor = Colors.orangeAccent;
+      statusIcon = Icons.timer_off_outlined;
+      badgeText = 'Closure Request';
+    } else if (business.status.toLowerCase() == 'approved') {
+      statusColor = const Color(0xFFFF7A00);
+      statusIcon = Icons.check_circle_outline;
     } else if (business.status.toLowerCase() == 'rejected') {
-      badgeColor = Colors.redAccent;
+      statusColor = Colors.redAccent;
+      statusIcon = Icons.cancel_outlined;
+    } else {
+      statusColor = Colors.amber;
+      statusIcon = Icons.access_time;
     }
 
-    final isPending = business.status.toLowerCase() == 'pending';
+    final isPending = business.status.toLowerCase() == 'pending' && !business.isTemporaryClosurePending;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 15),
-      padding: const EdgeInsets.all(15),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E1E1E),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+        color: const Color(0xFF161616),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -494,92 +1252,241 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
           GestureDetector(
             behavior: HitTestBehavior.opaque,
             onTap: () => context.push('/business-detail/${business.id}'),
-            child: Column(
+            child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Header: Name & Status
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        business.name,
-                        style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                // Circular avatar logo with saffron border
+                Container(
+                  width: 52,
+                  height: 52,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: const Color(0xFFFF7A00).withValues(alpha: 0.6), width: 1.5),
+                    color: Colors.black26,
+                  ),
+                  child: Center(
+                    child: Text(
+                      business.name.isNotEmpty ? business.name[0].toUpperCase() : 'B',
+                      style: const TextStyle(
+                        fontFamily: 'serif',
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFFFF7A00),
+                        fontStyle: FontStyle.italic,
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: badgeColor.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: badgeColor.withValues(alpha: 0.4)),
-                      ),
-                      child: Text(
-                        business.status,
-                        style: TextStyle(color: badgeColor, fontSize: 10, fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                // Category
-                Text(
-                  business.category,
-                  style: const TextStyle(color: Color(0xFFC8A97E), fontSize: 12, fontWeight: FontWeight.w500),
-                ),
-                const SizedBox(height: 10),
-                // Description
-                Text(
-                  business.description,
-                  style: const TextStyle(color: Colors.white70, fontSize: 13, height: 1.4),
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 12),
-                const Divider(color: Colors.white10),
-                const SizedBox(height: 10),
-                // Contact Information
-                if (business.phone != null && business.phone!.isNotEmpty)
-                  _buildContactRow(Icons.phone, business.phone!),
-                if (business.email != null && business.email!.isNotEmpty)
-                  _buildContactRow(Icons.email, business.email!),
-                if (business.address != null && business.address!.isNotEmpty)
-                  _buildContactRow(Icons.location_on, business.address!),
-
-                // Rejection Comments
-                if (business.rejectionComment != null && business.rejectionComment!.isNotEmpty) ...[
-                  const SizedBox(height: 12),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: Colors.redAccent.withValues(alpha: 0.05),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.redAccent.withValues(alpha: 0.15)),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Rejection Reason:',
-                          style: TextStyle(color: Colors.redAccent, fontSize: 11, fontWeight: FontWeight.bold),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          business.rejectionComment!,
-                          style: const TextStyle(color: Colors.white70, fontSize: 12),
-                        ),
-                      ],
                     ),
                   ),
-                ],
+                ),
+                const SizedBox(width: 15),
+                // Right details side
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Upper row: Title & status badge
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              business.name,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          // Premium Status badge outline
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: statusColor.withValues(alpha: 0.05),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(color: statusColor.withValues(alpha: 0.8), width: 1),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  badgeText,
+                                  style: TextStyle(
+                                    color: statusColor,
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                Icon(
+                                  statusIcon,
+                                  color: statusColor,
+                                  size: 11,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 5),
+                      // Category with Lotus/flower icon on left
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.spa, // Lotus/spa style icon
+                            color: Color(0xFFFF7A00),
+                            size: 13,
+                          ),
+                          const SizedBox(width: 5),
+                          Text(
+                            business.category,
+                            style: const TextStyle(
+                              color: Color(0xFFFF7A00),
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      // Short Description
+                      Text(
+                        business.description,
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 12,
+                          height: 1.4,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 12),
+                      const Divider(color: Colors.white10, height: 1),
+                      const SizedBox(height: 12),
+                      
+                      // Horizontal Row for Phone | Email
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: [
+                            if (business.phone != null && business.phone!.isNotEmpty) ...[
+                              const Icon(Icons.phone, color: Color(0xFFFF7A00), size: 12),
+                              const SizedBox(width: 6),
+                              Text(
+                                business.phone!,
+                                style: const TextStyle(color: Colors.white70, fontSize: 11),
+                              ),
+                            ],
+                            if (business.phone != null && business.phone!.isNotEmpty &&
+                                business.email != null && business.email!.isNotEmpty) ...[
+                              const Padding(
+                                padding: EdgeInsets.symmetric(horizontal: 10),
+                                child: Text('|', style: TextStyle(color: Colors.white24)),
+                              ),
+                            ],
+                            if (business.email != null && business.email!.isNotEmpty) ...[
+                              const Icon(Icons.email, color: Color(0xFFFF7A00), size: 12),
+                              const SizedBox(width: 6),
+                              Text(
+                                business.email!,
+                                style: const TextStyle(color: Colors.white70, fontSize: 11),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                      
+                      // Location Pin below
+                      if (business.address != null && business.address!.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            const Icon(Icons.location_on, color: Color(0xFFFF7A00), size: 13),
+                            const SizedBox(width: 5),
+                            Expanded(
+                              child: Text(
+                                business.address!,
+                                style: const TextStyle(color: Colors.white70, fontSize: 11),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
+          
+          // Rejection Comments
+          if (business.rejectionComment != null && business.rejectionComment!.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.redAccent.withValues(alpha: 0.05),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.redAccent.withValues(alpha: 0.15)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Rejection Reason:',
+                    style: TextStyle(color: Colors.redAccent, fontSize: 11, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    business.rejectionComment!,
+                    style: const TextStyle(color: Colors.white70, fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
+          ],
 
-          // Approval Action Buttons (Only for Pending)
+          // Temporary Closure Request Info
+          if (business.isTemporaryClosurePending) ...[
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.orangeAccent.withValues(alpha: 0.05),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.orangeAccent.withValues(alpha: 0.2)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.timer_off_outlined, color: Colors.orangeAccent, size: 16),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Temporary Closure Request (${business.temporaryClosureDays} Days)',
+                          style: const TextStyle(color: Colors.orangeAccent, fontSize: 12, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Reason: ${business.temporaryClosureReason ?? "No reason provided"}',
+                    style: const TextStyle(color: Colors.white70, fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
+          ],
+
+          // Action Buttons
           if (isPending) ...[
             const SizedBox(height: 15),
             Row(
@@ -589,12 +1496,47 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                     style: OutlinedButton.styleFrom(
                       foregroundColor: const Color(0xFFFF4D4F),
                       side: const BorderSide(color: Color(0xFFFF4D4F)),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      padding: const EdgeInsets.symmetric(vertical: 10),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     ),
-                    icon: const Icon(Icons.close, size: 18),
-                    label: const Text('Reject', style: TextStyle(fontWeight: FontWeight.bold)),
+                    icon: const Icon(Icons.close, size: 16),
+                    label: const Text('Reject', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                     onPressed: () => _handleReject(business),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFFF7A00),
+                      foregroundColor: Colors.black,
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    icon: const Icon(Icons.check, size: 16),
+                    label: const Text('Approve', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                    onPressed: () => _handleApprove(business),
+                  ),
+                ),
+              ],
+            ),
+          ],
+
+          if (business.isTemporaryClosurePending) ...[
+            const SizedBox(height: 15),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFFFF4D4F),
+                      side: const BorderSide(color: Color(0xFFFF4D4F)),
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    icon: const Icon(Icons.close, size: 16),
+                    label: const Text('Reject Request', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                    onPressed: () => _handleRejectClosure(business),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -603,12 +1545,12 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.green,
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      padding: const EdgeInsets.symmetric(vertical: 10),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     ),
-                    icon: const Icon(Icons.check, size: 18),
-                    label: const Text('Approve', style: TextStyle(fontWeight: FontWeight.bold)),
-                    onPressed: () => _handleApprove(business),
+                    icon: const Icon(Icons.check, size: 16),
+                    label: const Text('Approve Closure', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                    onPressed: () => _handleApproveClosure(business),
                   ),
                 ),
               ],
@@ -618,22 +1560,185 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
       ),
     );
   }
+}
 
-  Widget _buildContactRow(IconData icon, String text) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
-      child: Row(
-        children: [
-          Icon(icon, color: const Color(0xFFC8A97E), size: 14),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              text,
-              style: const TextStyle(color: Colors.white54, fontSize: 12),
-            ),
-          ),
-        ],
+class EmblemPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = size.width * 0.35;
+
+    final paint = Paint()
+      ..color = const Color(0xFFFF7A00)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5;
+    canvas.drawCircle(center, radius, paint);
+
+    // 24 rays
+    for (int i = 0; i < 24; i++) {
+      double angle = (i * 360 / 24) * 3.14159 / 180;
+      Offset p1 = Offset(center.dx + radius * math.cos(angle), center.dy + radius * math.sin(angle));
+      Offset p2 = Offset(center.dx + (radius + 3) * math.cos(angle), center.dy + (radius + 3) * math.sin(angle));
+      canvas.drawLine(p1, p2, paint);
+    }
+
+    // Draw flag (Dhwaja) inside
+    final flagPaint = Paint()
+      ..color = const Color(0xFFFF7A00)
+      ..style = PaintingStyle.fill;
+
+    final flagPath = Path();
+    // Flag pole
+    double poleX = center.dx - 4;
+    flagPath.moveTo(poleX, center.dy - radius + 4);
+    flagPath.lineTo(poleX, center.dy + radius - 4);
+
+    // Flag cloth (triangular)
+    flagPath.moveTo(poleX, center.dy - radius + 6);
+    flagPath.lineTo(center.dx + radius - 4, center.dy - 2);
+    flagPath.lineTo(poleX, center.dy + 2);
+    flagPath.close();
+
+    canvas.drawPath(flagPath, flagPaint);
+
+    // Draw a tiny black pole line to separate
+    final poleLinePaint = Paint()
+      ..color = const Color(0xFF0C0C0C)
+      ..strokeWidth = 1.5;
+    canvas.drawLine(Offset(poleX, center.dy - radius + 4), Offset(poleX, center.dy + radius - 4), poleLinePaint);
+
+    // Draw a tiny Om symbol text in black on the flag
+    final textPainter = TextPainter(
+      text: const TextSpan(
+        text: 'ॐ',
+        style: TextStyle(color: Colors.black, fontSize: 8, fontWeight: FontWeight.bold),
       ),
+      textDirection: TextDirection.ltr,
     );
+    textPainter.layout();
+    textPainter.paint(canvas, Offset(poleX + 3, center.dy - radius + 6));
   }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+class TempleHeaderPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    // 1. Draw glowing saffron sunset background
+    final bgPaint = Paint()
+      ..shader = RadialGradient(
+        center: const Alignment(0.65, -0.3),
+        radius: 1.5,
+        colors: [
+          const Color(0xFFFF6600).withValues(alpha: 0.9), // bright saffron
+          const Color(0xFFE65100).withValues(alpha: 0.8),
+          const Color(0xFF0C0C0C), // merges to body background
+        ],
+        stops: const [0.0, 0.5, 1.0],
+      ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
+    canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), bgPaint);
+
+    // 2. Draw temple silhouettes in dark color (0xFF0C0C0C)
+    final silPaint = Paint()
+      ..color = const Color(0xFF0C0C0C)
+      ..style = PaintingStyle.fill;
+
+    final path = Path();
+    double bottomY = size.height;
+    double w = size.width;
+
+    // Base/Ground curve
+    path.moveTo(0, bottomY);
+    path.lineTo(0, bottomY - 10);
+    path.quadraticBezierTo(w * 0.3, bottomY - 5, w * 0.5, bottomY - 8);
+    path.quadraticBezierTo(w * 0.75, bottomY - 12, w, bottomY - 5);
+    path.lineTo(w, bottomY);
+    canvas.drawPath(path, silPaint);
+
+    // Spire 1 (Left Spire)
+    final pathLeft = Path();
+    drawShikhara(pathLeft, w * 0.62, bottomY, w * 0.18, size.height * 0.5);
+    canvas.drawPath(pathLeft, silPaint);
+
+    // Spire 2 (Center Main Spire)
+    final pathCenter = Path();
+    drawShikhara(pathCenter, w * 0.76, bottomY, w * 0.28, size.height * 0.72);
+    canvas.drawPath(pathCenter, silPaint);
+
+    // Spire 3 (Right Spire)
+    final pathRight = Path();
+    drawShikhara(pathRight, w * 0.90, bottomY, w * 0.16, size.height * 0.42);
+    canvas.drawPath(pathRight, silPaint);
+
+    // Draw Dhwaja (flag) on main spire 2 peak
+    double mainSpirePeakX = w * 0.76;
+    double mainSpirePeakY = bottomY - (size.height * 0.72);
+
+    final flagpolePaint = Paint()
+      ..color = const Color(0xFFFF7A00)
+      ..strokeWidth = 1.8;
+    canvas.drawLine(
+      Offset(mainSpirePeakX, mainSpirePeakY),
+      Offset(mainSpirePeakX, mainSpirePeakY - 26),
+      flagpolePaint,
+    );
+
+    // Flag cloth
+    final flagPath = Path();
+    flagPath.moveTo(mainSpirePeakX, mainSpirePeakY - 26);
+    flagPath.lineTo(mainSpirePeakX + 18, mainSpirePeakY - 20);
+    flagPath.lineTo(mainSpirePeakX, mainSpirePeakY - 14);
+    flagPath.close();
+
+    final flagPaint = Paint()
+      ..color = const Color(0xFFFF7A00)
+      ..style = PaintingStyle.fill;
+    canvas.drawPath(flagPath, flagPaint);
+
+    // Draw Om ॐ text inside flag cloth
+    final textPainter = TextPainter(
+      text: const TextSpan(
+        text: 'ॐ',
+        style: TextStyle(color: Colors.black, fontSize: 6, fontWeight: FontWeight.bold),
+      ),
+      textDirection: TextDirection.ltr,
+    );
+    textPainter.layout();
+    textPainter.paint(canvas, Offset(mainSpirePeakX + 2, mainSpirePeakY - 22));
+  }
+
+  void drawShikhara(Path path, double centerX, double bottomY, double width, double height) {
+    double topY = bottomY - height;
+    double halfW = width / 2;
+    path.moveTo(centerX - halfW, bottomY);
+    int tiers = 7;
+    for (int i = 0; i < tiers; i++) {
+      double pct = i / tiers;
+      double nextPct = (i + 1) / tiers;
+      double curW = halfW * (1.0 - pct * 0.85);
+      double curY = bottomY - (height * pct);
+      double nextY = bottomY - (height * nextPct);
+      path.lineTo(centerX - curW, curY);
+      path.lineTo(centerX - curW, nextY);
+    }
+    // Kalasha base
+    path.lineTo(centerX - 2, topY - 4);
+    path.lineTo(centerX + 2, topY - 4);
+    for (int i = tiers - 1; i >= 0; i--) {
+      double pct = i / tiers;
+      double nextPct = (i + 1) / tiers;
+      double curW = halfW * (1.0 - pct * 0.85);
+      double curY = bottomY - (height * pct);
+      double nextY = bottomY - (height * nextPct);
+      path.lineTo(centerX + curW, nextY);
+      path.lineTo(centerX + curW, curY);
+    }
+    path.lineTo(centerX + halfW, bottomY);
+    path.close();
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

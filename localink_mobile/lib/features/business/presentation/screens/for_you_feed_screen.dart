@@ -99,19 +99,19 @@ class _ForYouFeedScreenState extends ConsumerState<ForYouFeedScreen> {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh, color: Color(0xFFC8A97E)),
+            icon: const Icon(Icons.refresh, color: Color(0xFFFF7A00)),
             onPressed: _loadPersonalizedFeed,
           ),
         ],
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator(color: Color(0xFFC8A97E)))
+          ? const Center(child: CircularProgressIndicator(color: Color(0xFFFF7A00)))
           : _errorMessage.isNotEmpty
               ? Center(
                   child: Text(_errorMessage, style: const TextStyle(color: Colors.white54, fontSize: 14)),
                 )
               : RefreshIndicator(
-                  color: const Color(0xFFC8A97E),
+                  color: const Color(0xFFFF7A00),
                   onRefresh: _loadPersonalizedFeed,
                   child: SingleChildScrollView(
                     physics: const AlwaysScrollableScrollPhysics(),
@@ -130,19 +130,19 @@ class _ForYouFeedScreenState extends ConsumerState<ForYouFeedScreen> {
                               end: Alignment.bottomRight,
                             ),
                             borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: const Color(0xFFC8A97E).withValues(alpha: 0.3)),
+                            border: Border.all(color: const Color(0xFFFF7A00).withValues(alpha: 0.3)),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Row(
                                 children: [
-                                  const Icon(Icons.auto_awesome, color: Color(0xFFC8A97E), size: 18),
+                                  const Icon(Icons.auto_awesome, color: Color(0xFFFF7A00), size: 18),
                                   const SizedBox(width: 8),
                                   Text(
                                     '${_timeOfDay.toUpperCase()} GUIDE',
                                     style: const TextStyle(
-                                      color: Color(0xFFC8A97E),
+                                      color: Color(0xFFFF7A00),
                                       fontSize: 11,
                                       fontWeight: FontWeight.bold,
                                       letterSpacing: 1.5,
@@ -168,12 +168,12 @@ class _ForYouFeedScreenState extends ConsumerState<ForYouFeedScreen> {
                         // Preferred Category Section Title
                         Row(
                           children: [
-                            const Icon(Icons.star, color: Color(0xFFC8A97E), size: 18),
+                            const Icon(Icons.star, color: Color(0xFFFF7A00), size: 18),
                             const SizedBox(width: 8),
                             Text(
                               'Suggested Category: $_preferredCategory',
                               style: const TextStyle(
-                                color: Color(0xFFC8A97E),
+                                color: Color(0xFFFF7A00),
                                 fontSize: 15,
                                 fontWeight: FontWeight.bold,
                               ),
@@ -259,7 +259,7 @@ class _ForYouFeedScreenState extends ConsumerState<ForYouFeedScreen> {
                                           const SizedBox(height: 12),
                                           Row(
                                             children: [
-                                              const Icon(Icons.location_on, color: Color(0xFFC8A97E), size: 12),
+                                              const Icon(Icons.location_on, color: Color(0xFFFF7A00), size: 12),
                                               const SizedBox(width: 4),
                                               Text(
                                                 item['city'] ?? '',
@@ -268,7 +268,7 @@ class _ForYouFeedScreenState extends ConsumerState<ForYouFeedScreen> {
                                               const Spacer(),
                                               Text(
                                                 '${item['categoryName']} • ${item['subcategoryName']}',
-                                                style: const TextStyle(color: Color(0xFFC8A97E), fontSize: 11, fontWeight: FontWeight.w500),
+                                                style: const TextStyle(color: Color(0xFFFF7A00), fontSize: 11, fontWeight: FontWeight.w500),
                                               ),
                                             ],
                                           ),

@@ -163,7 +163,7 @@ class _VoiceSearchDialogState extends ConsumerState<VoiceSearchDialog>
         decoration: BoxDecoration(
           color: const Color(0xFF1E1E1E),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: const Color(0xFFC8A97E).withValues(alpha: 0.2)),
+          border: Border.all(color: const Color(0xFFFF7A00).withValues(alpha: 0.2)),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.5),
@@ -181,7 +181,7 @@ class _VoiceSearchDialogState extends ConsumerState<VoiceSearchDialog>
               children: [
                 const Row(
                   children: [
-                    Icon(Icons.auto_awesome, color: Color(0xFFC8A97E), size: 18),
+                    Icon(Icons.auto_awesome, color: Color(0xFFFF7A00), size: 18),
                     SizedBox(width: 8),
                     Text(
                       'AI Voice Search',
@@ -222,7 +222,7 @@ class _VoiceSearchDialogState extends ConsumerState<VoiceSearchDialog>
                           height: 80 * _pulseAnimation.value,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: const Color(0xFFC8A97E).withValues(alpha: 
+                            color: const Color(0xFFFF7A00).withValues(alpha: 
                               (1.8 - _pulseAnimation.value).clamp(0.0, 1.0),
                             ),
                           ),
@@ -235,16 +235,16 @@ class _VoiceSearchDialogState extends ConsumerState<VoiceSearchDialog>
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             color: _isListening
-                                ? const Color(0xFFC8A97E)
+                                ? const Color(0xFFFF7A00)
                                 : const Color(0xFF2E2E2E),
                             border: Border.all(
-                              color: const Color(0xFFC8A97E).withValues(alpha: 0.3),
+                              color: const Color(0xFFFF7A00).withValues(alpha: 0.3),
                               width: 2,
                             ),
                           ),
                           child: Icon(
                             _isListening ? Icons.mic : Icons.mic_none,
-                            color: _isListening ? Colors.black : const Color(0xFFC8A97E),
+                            color: _isListening ? Colors.black : const Color(0xFFFF7A00),
                             size: 32,
                           ),
                         ),
@@ -260,7 +260,7 @@ class _VoiceSearchDialogState extends ConsumerState<VoiceSearchDialog>
             Text(
               _statusText,
               style: TextStyle(
-                color: _isListening ? const Color(0xFFC8A97E) : Colors.white70,
+                color: _isListening ? const Color(0xFFFF7A00) : Colors.white70,
                 fontSize: 14,
                 fontWeight: FontWeight.w500,
               ),
@@ -321,7 +321,7 @@ class _VoiceSearchDialogState extends ConsumerState<VoiceSearchDialog>
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.subdirectory_arrow_right, color: Color(0xFFC8A97E), size: 12),
+                        const Icon(Icons.subdirectory_arrow_right, color: Color(0xFFFF7A00), size: 12),
                         const SizedBox(width: 4),
                         Text(
                           shortcut,

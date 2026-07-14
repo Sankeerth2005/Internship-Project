@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.SignalR;
 using System.Threading.Tasks;
 using localink_be.Models.DTOs;
 using localink_be.Services.Interfaces;
@@ -167,6 +168,67 @@ namespace localink_be.Controllers
             var content = await response.Content.ReadAsStringAsync();
 
             return Content(content, "application/json");
+        }
+
+        public class TemporaryClosureRequestDto
+        {
+            public string Reason { get; set; } = null!;
+            public int Days { get; set; }
+        }
+
+        [Authorize(Roles = "client,businessowner")]
+        [HttpPost("{id}/temporary-closure")]
+        public async Task<IActionResult> RequestTemporaryClosure(
+            long id, 
+            [FromBody] TemporaryClosureRequestDto dto,
+            [FromServices] localink_be.Data.AppDbContext db,
+            [FromServices] Microsoft.AspNetCore.SignalR.IHubContext<localink_be.Hubs.NotificationHub> hubContext)
+        {
+            var userIdVal = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userIdVal)) return Unauthorized();
+            var userId = long.Parse(userIdVal);
+
+            var business = await db.Businesses.FindAsync(id);
+            if (business == null) return NotFound(new { message = "Business not found" });
+
+            if (business.UserId != userId) return Forbid();
+
+            business.TemporaryClosureReason = dto.Reason;
+            business.TemporaryClosureDays = dto.Days;
+            business.TemporaryClosureStatus = "Pending";
+            business.TemporaryClosureReopenDate = null;
+
+            await db.SaveChangesAsync();
+
+            // Notify admin
+            await hubContext.Clients.Group("admin").SendAsync("ReceiveNotification", $"Business '{business.BusinessName}' has requested temporary closure for {dto.Days} days. Reason: {dto.Reason}");
+
+            return Ok(new { success = true, message = "Closure request submitted for admin approval" });
+        }
+
+        [Authorize(Roles = "client,businessowner")]
+        [HttpPost("{id}/cancel-temporary-closure")]
+        public async Task<IActionResult> CancelTemporaryClosure(
+            long id,
+            [FromServices] localink_be.Data.AppDbContext db)
+        {
+            var userIdVal = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userIdVal)) return Unauthorized();
+            var userId = long.Parse(userIdVal);
+
+            var business = await db.Businesses.FindAsync(id);
+            if (business == null) return NotFound(new { message = "Business not found" });
+
+            if (business.UserId != userId) return Forbid();
+
+            business.TemporaryClosureReason = null;
+            business.TemporaryClosureDays = null;
+            business.TemporaryClosureStatus = null;
+            business.TemporaryClosureReopenDate = null;
+
+            await db.SaveChangesAsync();
+
+            return Ok(new { success = true, message = "Business is now open / temporary closure cancelled" });
         }
     }
 }

@@ -455,7 +455,7 @@ class _BusinessRegistrationScreenState
         geometry: pos,
         iconImage: 'marker-15',
         iconSize: 2.0,
-        iconColor: '#C8A97E',
+        iconColor: '#FF7A00',
       ));
     } catch (e) {
       debugPrint('Skipping map symbol draw: $e');
@@ -647,13 +647,13 @@ class _BusinessRegistrationScreenState
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
         decoration: BoxDecoration(
-          color: const Color(0xFFC8A97E).withValues(alpha: 0.1),
-          border: Border.all(color: const Color(0xFFC8A97E).withValues(alpha: 0.3)),
+          color: const Color(0xFFFF7A00).withValues(alpha: 0.1),
+          border: Border.all(color: const Color(0xFFFF7A00).withValues(alpha: 0.3)),
           borderRadius: BorderRadius.circular(20),
         ),
         child: Text(
           label,
-          style: const TextStyle(color: Color(0xFFC8A97E), fontSize: 11, fontWeight: FontWeight.bold),
+          style: const TextStyle(color: Color(0xFFFF7A00), fontSize: 11, fontWeight: FontWeight.bold),
         ),
       ),
     );
@@ -684,7 +684,7 @@ class _BusinessRegistrationScreenState
       ),
       body: _isLoading
           ? const Center(
-              child: CircularProgressIndicator(color: Color(0xFFC8A97E)))
+              child: CircularProgressIndicator(color: Color(0xFFFF7A00)))
           : Form(
               key: _formKey,
               child: Column(
@@ -728,7 +728,7 @@ class _BusinessRegistrationScreenState
       children: [
         CircleAvatar(
           radius: 16,
-          backgroundColor: isActive ? const Color(0xFFC8A97E) : Colors.grey[800],
+          backgroundColor: isActive ? const Color(0xFFFF7A00) : Colors.grey[800],
           child: Text(
             step.toString(),
             style: TextStyle(
@@ -740,7 +740,7 @@ class _BusinessRegistrationScreenState
         Text(
           label,
           style: TextStyle(
-              color: isActive ? const Color(0xFFC8A97E) : Colors.white54,
+              color: isActive ? const Color(0xFFFF7A00) : Colors.white54,
               fontSize: 10),
         ),
       ],
@@ -778,7 +778,7 @@ class _BusinessRegistrationScreenState
       children: [
         const Text('Basic Information',
             style: TextStyle(
-                color: Color(0xFFC8A97E),
+                color: Color(0xFFFF7A00),
                 fontSize: 18,
                 fontWeight: FontWeight.bold)),
         const SizedBox(height: 20),
@@ -801,7 +801,7 @@ class _BusinessRegistrationScreenState
               });
             },
           ),
-          loading: () => const LinearProgressIndicator(color: Color(0xFFC8A97E)),
+          loading: () => const LinearProgressIndicator(color: Color(0xFFFF7A00)),
           error: (err, st) => const Text('Error loading categories',
               style: TextStyle(color: Colors.redAccent)),
         ),
@@ -827,7 +827,7 @@ class _BusinessRegistrationScreenState
                   },
                 ),
                 loading: () =>
-                    const LinearProgressIndicator(color: Color(0xFFC8A97E)),
+                    const LinearProgressIndicator(color: Color(0xFFFF7A00)),
                 error: (err, st) => const Text('Error loading subcategories',
                     style: TextStyle(color: Colors.redAccent)),
               ),
@@ -864,10 +864,10 @@ class _BusinessRegistrationScreenState
           alignment: Alignment.centerRight,
           child: TextButton.icon(
             onPressed: _generateAIDescription,
-            icon: const Icon(Icons.auto_awesome, color: Color(0xFFC8A97E), size: 16),
+            icon: const Icon(Icons.auto_awesome, color: Color(0xFFFF7A00), size: 16),
             label: const Text(
               'AI Generate Description',
-              style: TextStyle(color: Color(0xFFC8A97E), fontSize: 12, fontWeight: FontWeight.bold),
+              style: TextStyle(color: Color(0xFFFF7A00), fontSize: 12, fontWeight: FontWeight.bold),
             ),
           ),
         ),
@@ -885,7 +885,7 @@ class _BusinessRegistrationScreenState
         backgroundColor: const Color(0xFF1E1E1E),
         title: const Row(
           children: [
-            Icon(Icons.auto_awesome, color: Color(0xFFC8A97E)),
+            Icon(Icons.auto_awesome, color: Color(0xFFFF7A00)),
             SizedBox(width: 10),
             Text('AI Description Generator', style: TextStyle(color: Colors.white, fontSize: 16)),
           ],
@@ -927,7 +927,7 @@ class _BusinessRegistrationScreenState
             child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFC8A97E)),
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFFF7A00)),
             onPressed: () async {
               if (formKey.currentState?.validate() == true) {
                 // Show local loading spinner
@@ -935,7 +935,7 @@ class _BusinessRegistrationScreenState
                   context: context,
                   barrierDismissible: false,
                   builder: (context) => const Center(
-                    child: CircularProgressIndicator(color: Color(0xFFC8A97E)),
+                    child: CircularProgressIndicator(color: Color(0xFFFF7A00)),
                   ),
                 );
                 
@@ -1024,7 +1024,7 @@ class _BusinessRegistrationScreenState
       children: [
         const Text('Contact & Location Details',
             style: TextStyle(
-                color: Color(0xFFC8A97E),
+                color: Color(0xFFFF7A00),
                 fontSize: 18,
                 fontWeight: FontWeight.bold)),
         const SizedBox(height: 20),
@@ -1121,7 +1121,7 @@ class _BusinessRegistrationScreenState
         const Text(
           'Search Location',
           style: TextStyle(
-            color: Color(0xFFC8A97E),
+            color: Color(0xFFFF7A00),
             fontSize: 16,
             fontWeight: FontWeight.bold,
           ),
@@ -1246,7 +1246,7 @@ class _BusinessRegistrationScreenState
 
         // 5. Country
         _loadingCountries
-            ? const LinearProgressIndicator(color: Color(0xFFC8A97E))
+            ? const LinearProgressIndicator(color: Color(0xFFFF7A00))
             : DropdownButtonFormField<Country>(
                 dropdownColor: const Color(0xFF1E1E1E),
                 value: _selectedCountry,
@@ -1272,7 +1272,7 @@ class _BusinessRegistrationScreenState
         // 6. State
         if (_selectedCountry != null)
           _loadingStates
-              ? const LinearProgressIndicator(color: Color(0xFFC8A97E))
+              ? const LinearProgressIndicator(color: Color(0xFFFF7A00))
               : DropdownButtonFormField<StateModel>(
                   dropdownColor: const Color(0xFF1E1E1E),
                   value: _selectedState,
@@ -1298,7 +1298,7 @@ class _BusinessRegistrationScreenState
         // 7. City
         if (_selectedState != null)
           _loadingCities
-              ? const LinearProgressIndicator(color: Color(0xFFC8A97E))
+              ? const LinearProgressIndicator(color: Color(0xFFFF7A00))
               : DropdownButtonFormField<CityModel>(
                   dropdownColor: const Color(0xFF1E1E1E),
                   value: _selectedCity,
@@ -1357,17 +1357,17 @@ class _BusinessRegistrationScreenState
             const Text(
               'Pin Location on Map',
               style: TextStyle(
-                color: Color(0xFFC8A97E),
+                color: Color(0xFFFF7A00),
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
               ),
             ),
             TextButton.icon(
               onPressed: _getCurrentLocation,
-              icon: const Icon(Icons.my_location, color: Color(0xFFC8A97E), size: 18),
+              icon: const Icon(Icons.my_location, color: Color(0xFFFF7A00), size: 18),
               label: const Text(
                 'Use GPS',
-                style: TextStyle(color: Color(0xFFC8A97E), fontSize: 13, fontWeight: FontWeight.bold),
+                style: TextStyle(color: Color(0xFFFF7A00), fontSize: 13, fontWeight: FontWeight.bold),
               ),
               style: TextButton.styleFrom(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -1418,7 +1418,7 @@ class _BusinessRegistrationScreenState
                     margin: const EdgeInsets.only(bottom: 30), // Account for pin base point alignment
                     child: const Icon(
                       Icons.location_pin,
-                      color: Color(0xFFC8A97E),
+                      color: Color(0xFFFF7A00),
                       size: 40,
                     ),
                   ),
@@ -1437,7 +1437,7 @@ class _BusinessRegistrationScreenState
       children: [
         const Text('Additional Information',
             style: TextStyle(
-                color: Color(0xFFC8A97E),
+                color: Color(0xFFFF7A00),
                 fontSize: 18,
                 fontWeight: FontWeight.bold)),
         const SizedBox(height: 20),
@@ -1473,7 +1473,7 @@ class _BusinessRegistrationScreenState
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.add_photo_alternate, color: Color(0xFFC8A97E), size: 28),
+                    icon: const Icon(Icons.add_photo_alternate, color: Color(0xFFFF7A00), size: 28),
                     onPressed: _pickImage,
                     tooltip: 'Upload Photo from Library',
                   ),
@@ -1486,7 +1486,7 @@ class _BusinessRegistrationScreenState
                   width: double.infinity,
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: const Color(0xFFC8A97E).withValues(alpha: 0.3)),
+                    border: Border.all(color: const Color(0xFFFF7A00).withValues(alpha: 0.3)),
                     image: DecorationImage(
                       image: MemoryImage(base64Decode(_photoBase64!)),
                       fit: BoxFit.cover,
@@ -1600,7 +1600,7 @@ class _BusinessRegistrationScreenState
                           },
                           child: Text(
                             day.slots.isNotEmpty ? day.slots.first.open : '09:00',
-                            style: const TextStyle(color: Color(0xFFC8A97E), fontSize: 13, fontWeight: FontWeight.bold),
+                            style: const TextStyle(color: Color(0xFFFF7A00), fontSize: 13, fontWeight: FontWeight.bold),
                           ),
                         ),
                         const Text('to', style: TextStyle(color: Colors.white30, fontSize: 12)),
@@ -1632,7 +1632,7 @@ class _BusinessRegistrationScreenState
                           },
                           child: Text(
                             day.slots.isNotEmpty ? day.slots.first.close : '18:00',
-                            style: const TextStyle(color: Color(0xFFC8A97E), fontSize: 13, fontWeight: FontWeight.bold),
+                            style: const TextStyle(color: Color(0xFFFF7A00), fontSize: 13, fontWeight: FontWeight.bold),
                           ),
                         ),
                         const SizedBox(width: 8),
@@ -1642,8 +1642,8 @@ class _BusinessRegistrationScreenState
                       ],
                       Switch(
                         value: day.mode == 'Open',
-                        activeTrackColor: const Color(0xFFC8A97E).withValues(alpha: 0.3),
-                        activeThumbColor: const Color(0xFFC8A97E),
+                        activeTrackColor: const Color(0xFFFF7A00).withValues(alpha: 0.3),
+                        activeThumbColor: const Color(0xFFFF7A00),
                         onChanged: (val) {
                           setState(() {
                             _businessHours[index] = DayHoursDto(
@@ -1671,7 +1671,7 @@ class _BusinessRegistrationScreenState
       children: [
         const Text('Review & Submit',
             style: TextStyle(
-                color: Color(0xFFC8A97E),
+                color: Color(0xFFFF7A00),
                 fontSize: 18,
                 fontWeight: FontWeight.bold)),
         const SizedBox(height: 20),
@@ -1722,7 +1722,7 @@ class _BusinessRegistrationScreenState
             const SizedBox(width: 80),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFC8A97E),
+              backgroundColor: const Color(0xFFFF7A00),
               foregroundColor: Colors.black,
               padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 12),
               shape: RoundedRectangleBorder(
@@ -1743,14 +1743,14 @@ class _BusinessRegistrationScreenState
     return InputDecoration(
       labelText: label,
       labelStyle: const TextStyle(color: Colors.white38, fontSize: 13),
-      prefixIcon: Icon(icon, color: const Color(0xFFC8A97E), size: 20),
+      prefixIcon: Icon(icon, color: const Color(0xFFFF7A00), size: 20),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
         borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Color(0xFFC8A97E)),
+        borderSide: const BorderSide(color: Color(0xFFFF7A00)),
       ),
       filled: true,
       fillColor: const Color(0xFF1E1E1E),

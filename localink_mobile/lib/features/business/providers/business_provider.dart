@@ -136,13 +136,6 @@ final searchResultsProvider = FutureProvider<List<BusinessDto>>((ref) async {
     } catch (_) {}
   }
 
-  if (queryState.query.isEmpty && queryState.selectedCategoryId == null) {
-    // Bring all and sort alphabetically by default if no filters/query
-    final all = await repo.getAllBusinesses();
-    all.sort((a, b) => a.businessName.toLowerCase().compareTo(b.businessName.toLowerCase()));
-    return all;
-  }
-
   if (queryState.isVoiceSearch && queryState.query.isNotEmpty) {
     return await repo.voiceSearchText(
       queryState.query,
@@ -151,15 +144,7 @@ final searchResultsProvider = FutureProvider<List<BusinessDto>>((ref) async {
     );
   }
 
-  // If query is empty but category is selected, load all businesses and filter locally
-  if (queryState.query.isEmpty && queryState.selectedCategoryId != null) {
-    final all = await repo.getAllBusinesses();
-    final filtered = all.where((b) => b.categoryId == queryState.selectedCategoryId).toList();
-    filtered.sort((a, b) => a.businessName.toLowerCase().compareTo(b.businessName.toLowerCase()));
-    return filtered;
-  }
-
-  // Filter or search normally
+  // Use backend search endpoint (handles sorting dynamically for both empty and text queries)
   final results = await repo.searchBusinesses(
     queryState.query,
     latitude: queryState.latitude,

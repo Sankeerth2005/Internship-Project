@@ -33,11 +33,11 @@ class BusinessDashboardScreen extends ConsumerWidget {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.person, color: Color(0xFFC8A97E)),
+            icon: const Icon(Icons.person, color: Color(0xFFFF7A00)),
             onPressed: () => context.push('/owner-profile'),
           ),
           IconButton(
-            icon: const Icon(Icons.refresh, color: Color(0xFFC8A97E)),
+            icon: const Icon(Icons.refresh, color: Color(0xFFFF7A00)),
             onPressed: () => ref.read(myBusinessesProvider.notifier).refresh(),
           ),
           IconButton(
@@ -65,9 +65,9 @@ class BusinessDashboardScreen extends ConsumerWidget {
                       decoration: BoxDecoration(
                         color: const Color(0xFF1E1E1E),
                         shape: BoxShape.circle,
-                        border: Border.all(color: const Color(0xFFC8A97E).withValues(alpha: 0.2)),
+                        border: Border.all(color: const Color(0xFFFF7A00).withValues(alpha: 0.2)),
                       ),
-                      child: const Icon(Icons.storefront, color: Color(0xFFC8A97E), size: 50),
+                      child: const Icon(Icons.storefront, color: Color(0xFFFF7A00), size: 50),
                     ),
                     const SizedBox(height: 20),
                     const Text(
@@ -83,7 +83,7 @@ class BusinessDashboardScreen extends ConsumerWidget {
                     const SizedBox(height: 24),
                     ElevatedButton.icon(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFC8A97E),
+                        backgroundColor: const Color(0xFFFF7A00),
                         foregroundColor: Colors.black,
                         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -102,31 +102,36 @@ class BusinessDashboardScreen extends ConsumerWidget {
             padding: const EdgeInsets.all(15),
             itemCount: businesses.length,
             itemBuilder: (context, index) {
-              return _buildDashboardCard(context, businesses[index]);
+              return _buildDashboardCard(context, ref, businesses[index]);
             },
           );
         },
-        loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFFC8A97E))),
-        error: (err, st) => Center(
-          child: Text(
-            'Error: $err',
-            style: const TextStyle(color: Colors.redAccent),
-          ),
+        loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFFFF7A00))),
+        error: (err, stack) => Center(
+          child: Text('Error: $err', style: const TextStyle(color: Colors.redAccent)),
         ),
       ),
       floatingActionButton: FloatingActionButton(
-        backgroundColor: const Color(0xFFC8A97E),
-        foregroundColor: Colors.black,
-        child: const Icon(Icons.add),
+        backgroundColor: const Color(0xFFFF7A00),
+        child: const Icon(Icons.add, color: Colors.black),
         onPressed: () => context.push('/register-business'),
       ),
     );
   }
 
-  Widget _buildDashboardCard(BuildContext context, BusinessDto business) {
+  Widget _buildDashboardCard(BuildContext context, WidgetRef ref, BusinessDto business) {
     // Determine status color
     final isApproved = business.status?.toLowerCase() == 'approved';
-    final statusColor = isApproved ? Colors.green : Colors.amber;
+    Color statusColor = isApproved ? Colors.green : Colors.amber;
+    var statusText = business.status ?? 'Pending';
+
+    if (business.isTemporarilyClosed) {
+      statusColor = Colors.redAccent;
+      statusText = 'Temp Closed';
+    } else if (business.temporaryClosureStatus?.toLowerCase() == 'pending') {
+      statusColor = Colors.orangeAccent;
+      statusText = 'Closure Pending';
+    }
 
     return Container(
       margin: const EdgeInsets.only(bottom: 15),
@@ -146,7 +151,7 @@ class BusinessDashboardScreen extends ConsumerWidget {
             decoration: BoxDecoration(
               color: Colors.black38,
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: const Color(0xFFC8A97E).withValues(alpha: 0.1)),
+              border: Border.all(color: const Color(0xFFFF7A00).withValues(alpha: 0.1)),
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(8),
@@ -156,13 +161,13 @@ class BusinessDashboardScreen extends ConsumerWidget {
                       fit: BoxFit.cover,
                       errorBuilder: (context, error, stackTrace) => const Icon(
                         Icons.store,
-                        color: Color(0xFFC8A97E),
+                        color: Color(0xFFFF7A00),
                         size: 24,
                       ),
                     )
                   : const Icon(
                       Icons.store,
-                      color: Color(0xFFC8A97E),
+                      color: Color(0xFFFF7A00),
                       size: 24,
                     ),
             ),
@@ -199,7 +204,7 @@ class BusinessDashboardScreen extends ConsumerWidget {
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Text(
-                        business.status ?? 'Pending',
+                        statusText,
                         style: TextStyle(
                           color: statusColor,
                           fontSize: 10,
@@ -219,7 +224,7 @@ class BusinessDashboardScreen extends ConsumerWidget {
                 const SizedBox(height: 12),
                 Row(
                   children: [
-                    const Icon(Icons.location_on, color: Color(0xFFC8A97E), size: 14),
+                    const Icon(Icons.location_on, color: Color(0xFFFF7A00), size: 14),
                     const SizedBox(width: 4),
                     Expanded(
                       child: Text(
@@ -257,9 +262,31 @@ class BusinessDashboardScreen extends ConsumerWidget {
                       ),
                       onPressed: () => context.push('/business-detail/${business.businessId}'),
                     ),
+                    if (isApproved && !business.isTemporarilyClosed && business.temporaryClosureStatus?.toLowerCase() != 'pending')
+                      TextButton.icon(
+                        icon: const Icon(Icons.timer_off_outlined, size: 14, color: Colors.orangeAccent),
+                        label: const Text('Temp Close', style: TextStyle(fontSize: 12, color: Colors.orangeAccent)),
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        onPressed: () => _showTemporaryClosureDialog(context, ref, business),
+                      ),
+                    if (business.isTemporarilyClosed || business.temporaryClosureStatus?.toLowerCase() == 'pending')
+                      TextButton.icon(
+                        icon: const Icon(Icons.play_circle_outline, size: 14, color: Colors.green),
+                        label: const Text('Reopen', style: TextStyle(fontSize: 12, color: Colors.green)),
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        onPressed: () => _handleCancelTemporaryClosure(context, ref, business),
+                      ),
                     ElevatedButton.icon(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFC8A97E),
+                        backgroundColor: const Color(0xFFFF7A00),
                         foregroundColor: Colors.black,
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                         minimumSize: Size.zero,
@@ -279,5 +306,200 @@ class BusinessDashboardScreen extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  Future<void> _showTemporaryClosureDialog(BuildContext context, WidgetRef ref, BusinessDto business) async {
+    final reasonController = TextEditingController();
+    final daysController = TextEditingController(text: '7');
+    final formKey = GlobalKey<FormState>();
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF1E1E1E),
+        title: const Text('Request Temporary Closure', style: TextStyle(color: Colors.white)),
+        content: Form(
+          key: formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Specify the reason and duration in days for temporarily closing your business. This will be sent to the admin for approval.',
+                style: TextStyle(color: Colors.white70, fontSize: 13),
+              ),
+              const SizedBox(height: 15),
+              const Text('Closure Reason *', style: TextStyle(color: Color(0xFFFF7A00), fontSize: 12)),
+              const SizedBox(height: 6),
+              TextFormField(
+                controller: reasonController,
+                style: const TextStyle(color: Colors.white, fontSize: 14),
+                decoration: InputDecoration(
+                  hintText: 'e.g., Renovation, personal emergency...',
+                  hintStyle: const TextStyle(color: Colors.white24, fontSize: 13),
+                  filled: true,
+                  fillColor: Colors.black26,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+                validator: (v) => v == null || v.trim().isEmpty ? 'Reason is required' : null,
+              ),
+              const SizedBox(height: 15),
+              const Text('Duration (in days) *', style: TextStyle(color: Color(0xFFFF7A00), fontSize: 12)),
+              const SizedBox(height: 6),
+              TextFormField(
+                controller: daysController,
+                style: const TextStyle(color: Colors.white, fontSize: 14),
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  hintText: 'e.g., 7',
+                  hintStyle: const TextStyle(color: Colors.white24, fontSize: 13),
+                  filled: true,
+                  fillColor: Colors.black26,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+                validator: (v) {
+                  if (v == null || v.trim().isEmpty) return 'Duration is required';
+                  final val = int.tryParse(v);
+                  if (val == null || val <= 0) return 'Enter a valid positive number of days';
+                  return null;
+                },
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFFF7A00),
+              foregroundColor: Colors.black,
+            ),
+            onPressed: () {
+              if (formKey.currentState?.validate() == true) {
+                Navigator.pop(context, true);
+              }
+            },
+            child: const Text('Submit Request'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(child: CircularProgressIndicator(color: Color(0xFFFF7A00))),
+      );
+
+      try {
+        final repo = ref.read(businessRepositoryProvider);
+        final success = await repo.requestTemporaryClosure(
+          business.businessId,
+          reasonController.text.trim(),
+          int.parse(daysController.text.trim()),
+        );
+
+        if (context.mounted) {
+          Navigator.pop(context); // Pop loading
+          if (success) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Temporary closure request submitted successfully for approval!'),
+                backgroundColor: Colors.green,
+              ),
+            );
+            ref.read(myBusinessesProvider.notifier).refresh();
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Failed to submit request. Please try again.'),
+                backgroundColor: Color(0xFFFF4D4F),
+              ),
+            );
+          }
+        }
+      } catch (e) {
+        if (context.mounted) {
+          Navigator.pop(context); // Pop loading
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error submitting request: $e'), backgroundColor: const Color(0xFFFF4D4F)),
+          );
+        }
+      }
+    }
+  }
+
+  Future<void> _handleCancelTemporaryClosure(BuildContext context, WidgetRef ref, BusinessDto business) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF1E1E1E),
+        title: const Text('Cancel Temporary Closure', style: TextStyle(color: Colors.white)),
+        content: Text(
+          business.temporaryClosureStatus?.toLowerCase() == 'pending'
+              ? 'Are you sure you want to cancel your pending temporary closure request?'
+              : 'Are you sure you want to reopen your business now?',
+          style: const TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('No', style: TextStyle(color: Colors.white54)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFFF7A00),
+              foregroundColor: Colors.black,
+            ),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Yes, Reopen'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(child: CircularProgressIndicator(color: Color(0xFFFF7A00))),
+      );
+
+      try {
+        final repo = ref.read(businessRepositoryProvider);
+        final success = await repo.cancelTemporaryClosure(business.businessId);
+
+        if (context.mounted) {
+          Navigator.pop(context); // Pop loading
+          if (success) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Business reopened successfully!'),
+                backgroundColor: Colors.green,
+              ),
+            );
+            ref.read(myBusinessesProvider.notifier).refresh();
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Failed to reopen business. Please try again.'),
+                backgroundColor: Color(0xFFFF4D4F),
+              ),
+            );
+          }
+        }
+      } catch (e) {
+        if (context.mounted) {
+          Navigator.pop(context); // Pop loading
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error reopening business: $e'), backgroundColor: const Color(0xFFFF4D4F)),
+          );
+        }
+      }
+    }
   }
 }
