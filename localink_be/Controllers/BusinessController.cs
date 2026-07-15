@@ -123,6 +123,7 @@ namespace localink_be.Controllers
             // Get user location from headers if available
             double? userLat = null;
             double? userLng = null;
+            string? userCity = null;
 
             if (Request.Headers.ContainsKey("X-User-Latitude") && 
                 Request.Headers.ContainsKey("X-User-Longitude"))
@@ -133,6 +134,11 @@ namespace localink_be.Controllers
                     userLat = lat;
                     userLng = lng;
                 }
+            }
+
+            if (Request.Headers.ContainsKey("X-User-City"))
+            {
+                userCity = Request.Headers["X-User-City"].ToString();
             }
 
             if (db != null && !string.IsNullOrEmpty(query))
@@ -152,7 +158,7 @@ namespace localink_be.Controllers
                 catch { /* Suppress DB logging errors */ }
             }
 
-            return Ok(await _service.SearchBusinessesAsync(query, userLat, userLng, sortBy, userPincode));
+            return Ok(await _service.SearchBusinessesAsync(query, userLat, userLng, sortBy, userPincode, userCity));
         }
 
         [HttpGet("validate-pincode/{pincode}")]

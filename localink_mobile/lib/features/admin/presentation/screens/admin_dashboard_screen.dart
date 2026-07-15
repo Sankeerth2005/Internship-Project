@@ -955,19 +955,24 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
   }
 
   Widget _buildReportsTab() {
-    return FutureBuilder(
-      future: _fetchAdminStats(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator(color: Color(0xFFFF7A00)));
-        }
-
-        Map<String, dynamic> stats = {};
-        if (snapshot.hasData) {
-          final raw = snapshot.data?.data;
-          if (raw is Map<String, dynamic>) stats = raw;
-        }
-
+    final statsAsync = ref.watch(adminStatsProvider);
+    return statsAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFFFF7A00))),
+      error: (err, stack) => Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.error_outline, color: Colors.white24, size: 48),
+            const SizedBox(height: 12),
+            Text(
+              'Failed to load analytics: $err',
+              style: const TextStyle(color: Colors.white38, fontSize: 13),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+      data: (stats) {
         final totalClicks = stats['totalClicks']?.toString() ?? '0';
         final totalViews = stats['totalViews']?.toString() ?? '0';
         final totalReviews = stats['totalReviews']?.toString() ?? '0';
@@ -979,9 +984,13 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
         final approvedBusinesses = stats['approvedBusinesses']?.toString() ?? '0';
         final pendingBusinesses = stats['pendingBusinesses']?.toString() ?? '0';
 
-        return SingleChildScrollView(
-          padding: const EdgeInsets.all(20.0),
-          child: Column(
+        return RefreshIndicator(
+          color: const Color(0xFFFF7A00),
+          onRefresh: () => ref.refresh(adminStatsProvider.future),
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.all(20.0),
+            child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
@@ -1061,10 +1070,11 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                ),
             ],
           ),
-        );
-      },
-    );
-  }
+        ),
+      );
+  },
+);
+}
 
   Widget _buildStatCard(String label, String value, IconData icon, Color color) {
     return Container(
@@ -1128,39 +1138,39 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
   }
 
   Widget _buildUsersTab() {
-    return FutureBuilder(
-      future: _fetchAdminUsers(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator(color: Color(0xFFFF7A00)));
-        }
-        if (snapshot.hasError || !snapshot.hasData) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.people_outline, color: Colors.white24, size: 48),
-                const SizedBox(height: 12),
-                Text(
-                  'Failed to load users: ${snapshot.error}',
-                  style: const TextStyle(color: Colors.white38, fontSize: 13),
-                  textAlign: TextAlign.center,
-                ),
-              ],
+    final usersAsync = ref.watch(adminUsersProvider);
+    return usersAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFFFF7A00))),
+      error: (err, stack) => Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.people_outline, color: Colors.white24, size: 48),
+            const SizedBox(height: 12),
+            Text(
+              'Failed to load users: $err',
+              style: const TextStyle(color: Colors.white38, fontSize: 13),
+              textAlign: TextAlign.center,
             ),
-          );
-        }
-        final users = snapshot.data!.data as List? ?? [];
+          ],
+        ),
+      ),
+      data: (usersList) {
+        final users = usersList as List? ?? [];
         if (users.isEmpty) {
           return const Center(
             child: Text('No users found', style: TextStyle(color: Colors.white54)),
           );
         }
 
-        return ListView.builder(
-          padding: const EdgeInsets.all(15),
-          itemCount: users.length,
-          itemBuilder: (context, index) {
+        return RefreshIndicator(
+          color: const Color(0xFFFF7A00),
+          onRefresh: () => ref.refresh(adminUsersProvider.future),
+          child: ListView.builder(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.all(15),
+            itemCount: users.length,
+            itemBuilder: (context, index) {
             final user = users[index] as Map<String, dynamic>;
             final name = user['fullName']?.toString() ?? 'Unknown';
             final email = user['email']?.toString() ?? '';
@@ -1223,10 +1233,11 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
               ),
             );
           },
-        );
-      },
-    );
-  }
+        ),
+      );
+  },
+);
+}
 
   Widget _buildSettingsTab() {
     return Padding(

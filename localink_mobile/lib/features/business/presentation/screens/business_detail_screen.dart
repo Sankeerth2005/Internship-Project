@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:ui';
 import '../../providers/business_provider.dart';
 import '../../data/models/business_models.dart';
 import '../../../../core/network/dio_client.dart';
@@ -263,38 +264,78 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
     final isClient = authState is AuthAuthenticated && authState.userType.toLowerCase().trim() == 'user';
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0F0F0F),
+      backgroundColor: const Color(0xFF0F0E0D),
       body: businessAsync.when(
         data: (business) {
-
           return CustomScrollView(
+            physics: const BouncingScrollPhysics(),
             slivers: [
-              // Header Image Banner
+              // Parallax Header Image Banner
               SliverAppBar(
-                expandedHeight: 220,
+                expandedHeight: 250,
                 pinned: true,
-                backgroundColor: const Color(0xFF1E1E1E),
-                leading: CircleAvatar(
-                  backgroundColor: Colors.black45,
-                  child: IconButton(
-                    icon: const Icon(Icons.arrow_back, color: Colors.white),
-                    onPressed: () => context.pop(),
+                stretch: true,
+                backgroundColor: const Color(0xFF0F0E0D),
+                leadingWidth: 56,
+                leading: Padding(
+                  padding: const EdgeInsets.only(left: 14, top: 4),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.4),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                        ),
+                        child: IconButton(
+                          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 16),
+                          onPressed: () => context.pop(),
+                        ),
+                      ),
+                    ),
                   ),
                 ),
                 flexibleSpace: FlexibleSpaceBar(
-                  background: business.photos.isNotEmpty
-                      ? Image.network(
-                          '${Uri.parse(DioClient().dio.options.baseUrl).origin}${business.photos.first}',
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, err, st) => Container(
-                            color: const Color(0xFF2E2E2E),
-                            child: const Icon(Icons.store, color: Color(0xFFFF7A00), size: 60),
+                  stretchModes: const [
+                    StretchMode.zoomBackground,
+                    StretchMode.blurBackground,
+                  ],
+                  background: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      business.photos.isNotEmpty
+                          ? Image.network(
+                              '${Uri.parse(DioClient().dio.options.baseUrl).origin}${business.photos.first}',
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, err, st) => Container(
+                                color: const Color(0xFF1E1C1A),
+                                child: const Icon(Icons.storefront_rounded, color: Color(0xFFFF6B00), size: 60),
+                              ),
+                            )
+                          : Container(
+                              color: const Color(0xFF1E1C1A),
+                              child: const Icon(Icons.storefront_rounded, color: Color(0xFFFF6B00), size: 60),
+                            ),
+                      // Top & Bottom gradient mask for text visibility
+                      Positioned.fill(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                Colors.black.withValues(alpha: 0.6),
+                                Colors.transparent,
+                                const Color(0xFF0F0E0D),
+                              ],
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                            ),
                           ),
-                        )
-                      : Container(
-                          color: const Color(0xFF2E2E2E),
-                          child: const Icon(Icons.store, color: Color(0xFFFF7A00), size: 60),
                         ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
 
@@ -302,14 +343,14 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
               SliverList(
                 delegate: SliverChildListDelegate([
                   Padding(
-                    padding: const EdgeInsets.all(20),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Title row
+                        // Title, Category & Star Row
                         Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Expanded(
                               child: Column(
@@ -320,60 +361,115 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
                                     style: const TextStyle(
                                       color: Colors.white,
                                       fontSize: 22,
-                                      fontWeight: FontWeight.bold,
+                                      fontWeight: FontWeight.w900,
+                                      letterSpacing: 0.3,
                                     ),
                                   ),
-                                  if (business.categoryName != null) ...[
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      business.categoryName!,
-                                      style: const TextStyle(color: Color(0xFFFF7A00), fontSize: 13, fontWeight: FontWeight.w500),
+                                  const SizedBox(height: 6),
+                                  Row(
+                                    children: [
+                                      if (business.categoryName != null) ...[
+                                        Text(
+                                          business.categoryName!,
+                                          style: const TextStyle(
+                                            color: Color(0xFFFF8C00),
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                      ],
+                                      // Ashok Chakra Tricolor Pill
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white.withValues(alpha: 0.05),
+                                          borderRadius: BorderRadius.circular(4),
+                                          border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Container(width: 5, height: 8, color: const Color(0xFFFF9933)),
+                                            Container(width: 5, height: 8, color: Colors.white),
+                                            Container(width: 5, height: 8, color: const Color(0xFF138808)),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  if (business.distance != null) ...[
+                                    const SizedBox(height: 6),
+                                    Row(
+                                      children: [
+                                        const Icon(Icons.location_on_rounded, color: Color(0xFFFF6B00), size: 14),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          '${business.distance!.toStringAsFixed(1)} km away',
+                                          style: const TextStyle(color: Colors.white60, fontSize: 12, fontWeight: FontWeight.bold),
+                                        ),
+                                      ],
                                     ),
                                   ],
                                 ],
                               ),
                             ),
-                            const SizedBox(width: 10),
-                            Row(
-                              children: [
-                                const Icon(Icons.star, color: Color(0xFFFF7A00), size: 20),
-                                const SizedBox(width: 4),
-                                Text(
-                                  business.averageRating.toStringAsFixed(1),
-                                  style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
-                                ),
-                                Text(
-                                  ' (${business.reviewCount})',
-                                  style: const TextStyle(color: Colors.white38, fontSize: 13),
-                                ),
-                              ],
+                            const SizedBox(width: 12),
+                            // Ratings Badge
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF1C1917),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: const Color(0xFFFF6B00).withValues(alpha: 0.15)),
+                              ),
+                              child: Column(
+                                children: [
+                                  Row(
+                                    children: [
+                                      const Icon(Icons.star_rounded, color: Color(0xFFFF8C00), size: 18),
+                                      const SizedBox(width: 2),
+                                      Text(
+                                        business.averageRating.toStringAsFixed(1),
+                                        style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    '${business.reviewCount} reviews',
+                                    style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 10),
+                                  ),
+                                ],
+                              ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 20),
+                        const SizedBox(height: 24),
 
+                        // Temporary Closure Warning
                         if (business.isTemporarilyClosed) ...[
                           Container(
                             width: double.infinity,
-                            padding: const EdgeInsets.all(15),
-                            margin: const EdgeInsets.only(bottom: 20),
+                            padding: const EdgeInsets.all(16),
+                            margin: const EdgeInsets.only(bottom: 24),
                             decoration: BoxDecoration(
-                              color: Colors.redAccent.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(color: Colors.redAccent.withValues(alpha: 0.3)),
+                              color: Colors.redAccent.withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(color: Colors.redAccent.withValues(alpha: 0.25)),
                             ),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Row(
                                   children: [
-                                    const Icon(Icons.error_outline, color: Colors.redAccent, size: 20),
+                                    const Icon(Icons.error_outline_rounded, color: Colors.redAccent, size: 20),
                                     const SizedBox(width: 8),
                                     const Text(
                                       'Temporarily Closed',
                                       style: TextStyle(
                                         color: Colors.redAccent,
-                                        fontSize: 15,
+                                        fontSize: 14,
                                         fontWeight: FontWeight.bold,
                                       ),
                                     ),
@@ -383,14 +479,14 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
                                   const SizedBox(height: 8),
                                   Text(
                                     'Reason: ${business.temporaryClosureReason}',
-                                    style: const TextStyle(color: Colors.white70, fontSize: 13),
+                                    style: const TextStyle(color: Colors.white70, fontSize: 13, height: 1.3),
                                   ),
                                 ],
                                 if (business.temporaryClosureReopenDate != null) ...[
-                                  const SizedBox(height: 4),
+                                  const SizedBox(height: 6),
                                   Text(
                                     'Expected Reopening: ${_formatReopenDate(business.temporaryClosureReopenDate!)}',
-                                    style: const TextStyle(color: Colors.white54, fontSize: 12, fontStyle: FontStyle.italic),
+                                    style: const TextStyle(color: Colors.white38, fontSize: 12, fontStyle: FontStyle.italic),
                                   ),
                                 ],
                               ],
@@ -398,352 +494,204 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
                           ),
                         ],
 
-                        // Action Buttons
+                        // Futuristic Glowing Action Buttons
                         Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceAround,
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children: [
-                            _buildActionBtn(Icons.phone, 'Call', () async {
-                              _incrementClickCount();
-                              final cleanCode = business.phoneCode.replaceAll('+', '').trim();
-                              final cleanNum = business.phoneNumber.trim();
-                              if (cleanNum.isEmpty) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Phone number not available.')),
-                                );
-                                return;
-                              }
-                              try {
-                                await launchUrl(Uri.parse('tel:+$cleanCode$cleanNum'));
-                              } catch (e) {
-                                if (context.mounted) {
+                            Expanded(
+                              child: _buildActionBtn(Icons.phone_rounded, 'Call', () async {
+                                _incrementClickCount();
+                                final cleanCode = business.phoneCode.replaceAll('+', '').trim();
+                                final cleanNum = business.phoneNumber.trim();
+                                if (cleanNum.isEmpty) {
                                   ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(content: Text('Could not start phone call.')),
+                                    const SnackBar(content: Text('Phone number not available.')),
+                                  );
+                                  return;
+                                }
+                                try {
+                                  await launchUrl(Uri.parse('tel:+$cleanCode$cleanNum'));
+                                } catch (e) {
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text('Could not start phone call.')),
+                                    );
+                                  }
+                                }
+                              }),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _buildActionBtn(Icons.directions_rounded, 'Directions', () async {
+                                _incrementClickCount();
+                                if (business.latitude != null && business.longitude != null) {
+                                  try {
+                                    final String url;
+                                    if (Platform.isIOS) {
+                                      url = 'https://maps.apple.com/?daddr=${business.latitude},${business.longitude}&dirflg=d';
+                                    } else {
+                                      url = 'https://www.google.com/maps/dir/?api=1&destination=${business.latitude},${business.longitude}&travelmode=driving';
+                                    }
+                                    final uri = Uri.parse(url);
+                                    await launchUrl(uri, mode: LaunchMode.externalApplication);
+                                  } catch (e) {
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(content: Text('Could not launch map directions.')),
+                                      );
+                                    }
+                                  }
+                                } else {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('Business coordinates not registered.')),
                                   );
                                 }
-                              }
-                            }),
-                            _buildActionBtn(Icons.directions, 'Directions', () async {
-                              _incrementClickCount();
-                              if (business.latitude != null && business.longitude != null) {
-                                try {
-                                  final String url;
-                                  if (Platform.isIOS) {
-                                    url = 'https://maps.apple.com/?daddr=${business.latitude},${business.longitude}&dirflg=d';
-                                  } else {
-                                    // Use Google Maps web URL - most reliable for correct navigation
-                                    url = 'https://www.google.com/maps/dir/?api=1&destination=${business.latitude},${business.longitude}&travelmode=driving';
+                              }),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _buildActionBtn(Icons.language_rounded, 'Website', () async {
+                                _incrementClickCount();
+                                if (business.website.trim().isNotEmpty) {
+                                  try {
+                                    var urlStr = business.website.trim();
+                                    if (!urlStr.startsWith('http://') && !urlStr.startsWith('https://')) {
+                                      urlStr = 'https://$urlStr';
+                                    }
+                                    await launchUrl(Uri.parse(urlStr), mode: LaunchMode.externalApplication);
+                                  } catch (e) {
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(content: Text('Could not open website.')),
+                                      );
+                                    }
                                   }
-                                  final uri = Uri.parse(url);
-                                  await launchUrl(uri, mode: LaunchMode.externalApplication);
-                                } catch (e) {
-                                  if (context.mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(content: Text('Could not launch map directions.')),
-                                    );
-                                  }
+                                } else {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Website not present'),
+                                      backgroundColor: Color(0xFFFF4D4F),
+                                    ),
+                                  );
                                 }
-
-                              } else {
-
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Business coordinates not registered.')),
-                                );
-                              }
-                            }),
-                            _buildActionBtn(Icons.language, 'Website', () async {
-                              _incrementClickCount();
-                              if (business.website.trim().isNotEmpty) {
-                                try {
-                                  var urlStr = business.website.trim();
-                                  if (!urlStr.startsWith('http://') && !urlStr.startsWith('https://')) {
-                                    urlStr = 'https://$urlStr';
-                                  }
-                                  await launchUrl(Uri.parse(urlStr), mode: LaunchMode.externalApplication);
-                                } catch (e) {
-                                  if (context.mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(content: Text('Could not open website.')),
-                                    );
-                                  }
-                                }
-                              } else {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Website not present'),
-                                    backgroundColor: Color(0xFFFF4D4F),
-                                  ),
-                                );
-                              }
-                            }),
+                              }),
+                            ),
                           ],
                         ),
-                        const SizedBox(height: 25),
+                        const SizedBox(height: 24),
 
-                        const Text(
-                          'About',
-                          style: TextStyle(color: Color(0xFFFF7A00), fontSize: 15, fontWeight: FontWeight.bold),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          business.description,
-                          style: const TextStyle(color: Colors.white70, fontSize: 14, height: 1.4),
-                        ),
-                        const SizedBox(height: 25),
-
-                        const Text(
-                          'Location',
-                          style: TextStyle(color: Color(0xFFFF7A00), fontSize: 15, fontWeight: FontWeight.bold),
-                        ),
-                        const SizedBox(height: 10),
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Icon(Icons.location_on, color: Color(0xFFFF7A00), size: 18),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                        // Master Detail Card
+                        Container(
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF141210),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: const Color(0xFFFF6B00).withValues(alpha: 0.08),
+                              width: 1.2,
+                            ),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // About Section
+                              const Row(
                                 children: [
+                                  Icon(Icons.info_outline_rounded, color: Color(0xFFFF6B00), size: 18),
+                                  SizedBox(width: 8),
                                   Text(
-                                    business.address,
-                                    style: const TextStyle(color: Colors.white70, fontSize: 13),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    '${business.city}, ${business.state}, ${business.country} - ${business.pincode}',
-                                    style: const TextStyle(color: Colors.white54, fontSize: 12),
+                                    'About',
+                                    style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold),
                                   ),
                                 ],
                               ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 25),
+                              const SizedBox(height: 8),
+                              Text(
+                                business.description,
+                                style: const TextStyle(color: Colors.white70, fontSize: 13, height: 1.4),
+                              ),
+                              const Divider(color: Colors.white10, height: 32),
 
-                        // Hours Accordion
-                        const Text(
-                          'Operating Hours',
-                          style: TextStyle(color: Color(0xFFFF7A00), fontSize: 15, fontWeight: FontWeight.bold),
-                        ),
-                        const SizedBox(height: 10),
-                        business.hours.isEmpty
-                            ? const Text('Hours not registered', style: TextStyle(color: Colors.white38, fontSize: 13))
-                            : Container(
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: Column(
-                                  children: business.hours.map((h) {
-                                    final slotsStr = h.slots.map((s) => '${s.open} - ${s.close}').join(', ');
-                                    final isClosed = h.mode.toLowerCase() == 'closed';
-                                    return Container(
-                                      margin: const EdgeInsets.symmetric(vertical: 6),
-                                      padding: const EdgeInsets.all(12),
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xFF1E1E1E),
-                                        borderRadius: BorderRadius.circular(10),
-                                        border: Border.all(color: Colors.white.withValues(alpha: 0.04)),
-                                      ),
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Row(
+                              // Location Section
+                              const Row(
+                                children: [
+                                  Icon(Icons.location_on_outlined, color: Color(0xFFFF6B00), size: 18),
+                                  SizedBox(width: 8),
+                                  Text(
+                                    'Location',
+                                    style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                business.address,
+                                style: const TextStyle(color: Colors.white70, fontSize: 13),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                '${business.city}, ${business.state}, ${business.country} - ${business.pincode}',
+                                style: const TextStyle(color: Colors.white38, fontSize: 12),
+                              ),
+                              const Divider(color: Colors.white10, height: 32),
+
+                              // Operating Hours Section
+                              const Row(
+                                children: [
+                                  Icon(Icons.access_time_rounded, color: Color(0xFFFF6B00), size: 18),
+                                  SizedBox(width: 8),
+                                  Text(
+                                    'Operating Hours',
+                                    style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              business.hours.isEmpty
+                                  ? const Text('Hours not registered', style: TextStyle(color: Colors.white38, fontSize: 13))
+                                  : Column(
+                                      children: business.hours.map((h) {
+                                        final slotsStr = h.slots.map((s) => '${s.open} - ${s.close}').join(', ');
+                                        final isClosed = h.mode.toLowerCase() == 'closed';
+                                        return Container(
+                                          margin: const EdgeInsets.symmetric(vertical: 4),
+                                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFF1E1A17).withValues(alpha: 0.4),
+                                            borderRadius: BorderRadius.circular(10),
+                                            border: Border.all(color: Colors.white.withValues(alpha: 0.03)),
+                                          ),
+                                          child: Row(
+                                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                             children: [
-                                              const Icon(Icons.calendar_month, color: Color(0xFFFF7A00), size: 16),
-                                              const SizedBox(width: 8),
                                               Expanded(
                                                 child: Text(
                                                   _formatDays(h.day),
-                                                  style: const TextStyle(
-                                                    color: Colors.white,
-                                                    fontSize: 13,
-                                                    fontWeight: FontWeight.bold,
-                                                  ),
+                                                  style: const TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.w600),
                                                 ),
                                               ),
-                                            ],
-                                          ),
-                                          const SizedBox(height: 8),
-                                          Row(
-                                            children: [
-                                              const Icon(Icons.access_time, color: Colors.white38, size: 16),
-                                              const SizedBox(width: 8),
                                               Text(
                                                 isClosed ? 'Closed' : (slotsStr.isNotEmpty ? _formatSlots(h.slots) : 'Open'),
                                                 style: TextStyle(
-                                                  color: isClosed ? Colors.redAccent : Colors.greenAccent,
-                                                  fontSize: 13,
-                                                  fontWeight: FontWeight.w500,
+                                                  color: isClosed ? Colors.redAccent : const Color(0xFF4ADE80),
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.bold,
                                                 ),
                                               ),
-                                            ],
-                                          ),
-                                        ],
-                                      ),
-                                    );
-                                  }).toList(),
-                                ),
-                              ),
-                        const SizedBox(height: 30),
-
-                        if (isClient) ...[
-                          const Divider(color: Colors.white10),
-                          const SizedBox(height: 20),
-
-                          // Add Review Form
-                          const Text(
-                            'Write a Review',
-                            style: TextStyle(color: Color(0xFFFF7A00), fontSize: 15, fontWeight: FontWeight.bold),
-                          ),
-                          const SizedBox(height: 12),
-                          Container(
-                            padding: const EdgeInsets.all(15),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF1E1E1E),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    const Text('Rating: ', style: TextStyle(color: Colors.white70, fontSize: 13)),
-                                    const SizedBox(width: 5),
-                                    // Star select popup
-                                    DropdownButton<double>(
-                                      dropdownColor: const Color(0xFF1E1E1E),
-                                      value: _userRating,
-                                      items: [5.0, 4.0, 3.0, 2.0, 1.0].map((val) {
-                                        return DropdownMenuItem<double>(
-                                          value: val,
-                                          child: Row(
-                                            children: [
-                                              const Icon(Icons.star, color: Color(0xFFFF7A00), size: 16),
-                                              const SizedBox(width: 4),
-                                              Text(val.toStringAsFixed(0), style: const TextStyle(color: Colors.white)),
                                             ],
                                           ),
                                         );
                                       }).toList(),
-                                      onChanged: (rating) {
-                                        if (rating != null) setState(() => _userRating = rating);
-                                      },
                                     ),
-                                  ],
-                                ),
-                                const SizedBox(height: 10),
-                                TextField(
-                                  controller: _commentController,
-                                  style: const TextStyle(color: Colors.white),
-                                  maxLines: 2,
-                                  decoration: InputDecoration(
-                                    hintText: 'Share details of your own experience at this place...',
-                                    hintStyle: const TextStyle(color: Colors.white24, fontSize: 13),
-                                    filled: true,
-                                    fillColor: Colors.black38,
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(8),
-                                      borderSide: BorderSide.none,
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(height: 10),
-                                Row(
-                                  children: [
-                                    OutlinedButton.icon(
-                                      onPressed: _pickImage,
-                                      icon: const Icon(Icons.add_photo_alternate, color: Color(0xFFFF7A00), size: 16),
-                                      label: const Text('Add Image', style: TextStyle(color: Color(0xFFFF7A00), fontSize: 12)),
-                                      style: OutlinedButton.styleFrom(
-                                        side: const BorderSide(color: Color(0xFFFF7A00)),
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(8),
-                                        ),
-                                      ),
-                                    ),
-                                    if (_pickedImage != null) ...[
-                                      const SizedBox(width: 12),
-                                      Stack(
-                                        clipBehavior: Clip.none,
-                                        children: [
-                                          ClipRRect(
-                                            borderRadius: BorderRadius.circular(8),
-                                            child: Image.file(
-                                              _pickedImage!,
-                                              width: 50,
-                                              height: 50,
-                                              fit: BoxFit.cover,
-                                            ),
-                                          ),
-                                          Positioned(
-                                            top: -6,
-                                            right: -6,
-                                            child: GestureDetector(
-                                              onTap: _clearImage,
-                                              child: Container(
-                                                padding: const EdgeInsets.all(2),
-                                                decoration: const BoxDecoration(
-                                                  color: Colors.redAccent,
-                                                  shape: BoxShape.circle,
-                                                ),
-                                                child: const Icon(Icons.close, color: Colors.white, size: 12),
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                  ],
-                                ),
-                                const SizedBox(height: 12),
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    _loadingAISuggestions
-                                        ? const SizedBox(
-                                            width: 20,
-                                            height: 20,
-                                            child: CircularProgressIndicator(
-                                                strokeWidth: 2,
-                                                color: Color(0xFFFF7A00)),
-                                          )
-                                        : TextButton.icon(
-                                            icon: const Icon(Icons.auto_awesome,
-                                                color: Color(0xFFFF7A00), size: 16),
-                                            label: const Text('AI Enhance',
-                                                style: TextStyle(
-                                                    color: Color(0xFFFF7A00),
-                                                    fontSize: 12,
-                                                    fontWeight: FontWeight.bold)),
-                                            onPressed: () =>
-                                                _getAISuggestions(business.businessName),
-                                          ),
-                                    SizedBox(
-                                      height: 35,
-                                      child: ElevatedButton(
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor: const Color(0xFFFF7A00),
-                                          foregroundColor: Colors.black,
-                                          padding: const EdgeInsets.symmetric(horizontal: 24),
-                                        ),
-                                        onPressed: _isSubmittingReview ? null : _submitReview,
-                                        child: _isSubmittingReview
-                                            ? const SizedBox(width: 15, height: 15, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
-                                            : const Text('Post', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black)),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
+                            ],
                           ),
-                          const SizedBox(height: 30),
-                        ],
+                        ),
+                        const SizedBox(height: 24),
 
+                        // AI Review Trigger & Display
                         reviewsAsync.when(
                           data: (reviews) {
-                            if (reviews.isNotEmpty && _aiSummary.isEmpty && !_loadingSummary) {
+                            if (reviews.isNotEmpty) {
                               WidgetsBinding.instance.addPostFrameCallback((_) {
                                 _fetchAISummary(
                                   reviews,
@@ -758,35 +706,52 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
                           loading: () => const SizedBox.shrink(),
                           error: (err, st) => const SizedBox.shrink(),
                         ),
+
                         if (_loadingSummary) ...[
-                          const Center(
-                            child: CircularProgressIndicator(
-                                color: Color(0xFFFF7A00)),
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(20),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF141210),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: const Color(0xFFFF6B00).withValues(alpha: 0.1)),
+                            ),
+                            child: const Center(
+                              child: CircularProgressIndicator(color: Color(0xFFFF6B00)),
+                            ),
                           ),
-                          const SizedBox(height: 20),
+                          const SizedBox(height: 24),
                         ] else if (_aiSummary.isNotEmpty) ...[
                           Container(
+                            width: double.infinity,
                             padding: const EdgeInsets.all(16),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF1E1E1E),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                  color: const Color(0xFFFF7A00).withValues(alpha: 0.2)),
+                              color: const Color(0xFF1E1A17).withValues(alpha: 0.6),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: const Color(0xFFFF6B00).withValues(alpha: 0.25)),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: const Color(0xFFFF6B00).withValues(alpha: 0.04),
+                                  blurRadius: 15,
+                                  spreadRadius: 1,
+                                ),
+                              ],
                             ),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Row(
+                                Row(
                                   children: [
-                                    Icon(Icons.auto_awesome,
-                                        color: Color(0xFFFF7A00), size: 18),
-                                    SizedBox(width: 8),
+                                    const Icon(Icons.auto_awesome_rounded, color: Color(0xFFFF8C00), size: 18),
+                                    const SizedBox(width: 8),
                                     Text(
                                       'AI Reviews Summary',
                                       style: TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.bold),
+                                        color: Colors.white.withValues(alpha: 0.95),
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.bold,
+                                        letterSpacing: 0.2,
+                                      ),
                                     ),
                                   ],
                                 ),
@@ -794,29 +759,165 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
                                 Text(
                                   _aiSummary,
                                   style: const TextStyle(
-                                      color: Colors.white70,
-                                      fontSize: 13,
-                                      height: 1.4),
+                                    color: Colors.white70,
+                                    fontSize: 13,
+                                    height: 1.45,
+                                  ),
                                 ),
                               ],
                             ),
                           ),
-                          const SizedBox(height: 20),
+                          const SizedBox(height: 24),
                         ],
 
-                        // Reviews List header
+                        // Write review form (For regular user login)
+                        if (isClient) ...[
+                          const Divider(color: Colors.white10, height: 32),
+                          const Text(
+                            'Write a Review',
+                            style: TextStyle(color: Color(0xFFFF7A00), fontSize: 16, fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 12),
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF141210),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: Colors.white.withValues(alpha: 0.04)),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    const Text('Rating', style: TextStyle(color: Colors.white70, fontSize: 13)),
+                                    DropdownButton<double>(
+                                      value: _userRating,
+                                      dropdownColor: const Color(0xFF1C1917),
+                                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                                      underline: const SizedBox.shrink(),
+                                      items: [5.0, 4.0, 3.0, 2.0, 1.0].map((val) {
+                                        return DropdownMenuItem<double>(
+                                          value: val,
+                                          child: Row(
+                                            children: [
+                                              Text(val.toStringAsFixed(0)),
+                                              const SizedBox(width: 4),
+                                              const Icon(Icons.star_rounded, color: Color(0xFFFF8C00), size: 16),
+                                            ],
+                                          ),
+                                        );
+                                      }).toList(),
+                                      onChanged: (val) {
+                                        if (val != null) setState(() => _userRating = val);
+                                      },
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 12),
+                                TextField(
+                                  controller: _commentController,
+                                  maxLines: 3,
+                                  style: const TextStyle(color: Colors.white, fontSize: 13),
+                                  decoration: InputDecoration(
+                                    hintText: 'Share your experience with this business...',
+                                    hintStyle: const TextStyle(color: Colors.white24, fontSize: 13),
+                                    filled: true,
+                                    fillColor: const Color(0xFF1E1C1A).withValues(alpha: 0.5),
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                      borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.05)),
+                                    ),
+                                    enabledBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                      borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.05)),
+                                    ),
+                                    focusedBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                      borderSide: const BorderSide(color: Color(0xFFFF6B00)),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+
+                                // Image picker for reviews
+                                if (_pickedImage != null) ...[
+                                  Stack(
+                                    children: [
+                                      ClipRRect(
+                                        borderRadius: BorderRadius.circular(10),
+                                        child: Image.file(_pickedImage!, width: double.infinity, height: 160, fit: BoxFit.cover),
+                                      ),
+                                      Positioned(
+                                        top: 8,
+                                        right: 8,
+                                        child: CircleAvatar(
+                                          backgroundColor: Colors.black54,
+                                          radius: 16,
+                                          child: IconButton(
+                                            icon: const Icon(Icons.close, size: 14, color: Colors.white),
+                                            onPressed: _clearImage,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 12),
+                                ],
+
+                                Row(
+                                  children: [
+                                    IconButton(
+                                      icon: const Icon(Icons.add_a_photo_rounded, color: Color(0xFFFF8C00)),
+                                      onPressed: _pickImage,
+                                      tooltip: 'Add Photo',
+                                    ),
+                                    const Spacer(),
+                                    TextButton.icon(
+                                      icon: const Icon(Icons.auto_awesome_rounded, size: 14),
+                                      label: const Text('Improve with AI', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                                      style: TextButton.styleFrom(
+                                        foregroundColor: const Color(0xFFFF8C00),
+                                      ),
+                                      onPressed: _loadingAISuggestions ? null : () => _getAISuggestions(business.businessName),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    ElevatedButton(
+                                      onPressed: _isSubmittingReview ? null : _submitReview,
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: const Color(0xFFFF6B00),
+                                        foregroundColor: Colors.white,
+                                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                      ),
+                                      child: _isSubmittingReview
+                                          ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                                          : const Text('Submit', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+
+                        // User Reviews List
+                        const Divider(color: Colors.white10, height: 32),
                         const Text(
                           'User Reviews',
-                          style: TextStyle(color: Color(0xFFFF7A00), fontSize: 15, fontWeight: FontWeight.bold),
+                          style: TextStyle(color: Color(0xFFFF7A00), fontSize: 16, fontWeight: FontWeight.bold),
                         ),
-                        const SizedBox(height: 15),
+                        const SizedBox(height: 16),
 
                         reviewsAsync.when(
                           data: (reviews) {
                             if (reviews.isEmpty) {
                               return const Padding(
-                                padding: EdgeInsets.symmetric(vertical: 20),
-                                child: Text('No reviews yet. Be the first to add one!', style: TextStyle(color: Colors.white38, fontSize: 13)),
+                                padding: EdgeInsets.symmetric(vertical: 24),
+                                child: Center(
+                                  child: Text('No reviews yet. Be the first to share your thoughts!', style: TextStyle(color: Colors.white38, fontSize: 13)),
+                                ),
                               );
                             }
 
@@ -843,23 +944,41 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
   }
 
   Widget _buildActionBtn(IconData icon, String label, VoidCallback onTap) {
-    return Column(
-      children: [
-        GestureDetector(
-          onTap: onTap,
-          child: Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: const Color(0xFF1E1E1E),
-              shape: BoxShape.circle,
-              border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-            ),
-            child: Icon(icon, color: const Color(0xFFFF7A00), size: 20),
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(
+          color: const Color(0xFF1E1A17).withValues(alpha: 0.6),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: const Color(0xFFFF6B00).withValues(alpha: 0.2),
+            width: 1,
           ),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFFFF6B00).withValues(alpha: 0.04),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
-        const SizedBox(height: 6),
-        Text(label, style: const TextStyle(color: Colors.white70, fontSize: 12)),
-      ],
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: const Color(0xFFFF8C00), size: 16),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 

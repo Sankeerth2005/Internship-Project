@@ -604,7 +604,7 @@ namespace localink_be.Services.Implementations
                 .FirstOrDefaultAsync();
         }
 
-        public async Task<List<BusinessDto>> SearchBusinessesAsync(string query, double? userLat = null, double? userLng = null, string? sortBy = "distance", string? userPincode = "")
+        public async Task<List<BusinessDto>> SearchBusinessesAsync(string query, double? userLat = null, double? userLng = null, string? sortBy = "distance", string? userPincode = "", string? userCity = "")
         {
             var businessesQuery = _db.Businesses
                 .AsNoTracking()
@@ -682,13 +682,13 @@ namespace localink_be.Services.Implementations
                 TemporaryClosureStatus = b.TemporaryClosureStatus,
                 TemporaryClosureDays = b.TemporaryClosureDays,
                 TemporaryClosureReopenDate = b.TemporaryClosureReopenDate,
-                // Calculate distance using Haversine formula approximation
+                // Calculate distance using Haversine formula approximation with Cosine squared fix
                 Distance = userLat.HasValue && userLng.HasValue
                     ? _db.BusinessContacts
                         .Where(c => c.BusinessId == b.BusinessId && c.Latitude.HasValue && c.Longitude.HasValue)
                         .Select(c => (double?)(111.0 * Math.Sqrt(
                             Math.Pow(c.Latitude.Value - userLat.Value, 2) +
-                            Math.Pow(c.Longitude.Value - userLng.Value, 2) * Math.Cos(userLat.Value * Math.PI / 180.0)
+                            Math.Pow(c.Longitude.Value - userLng.Value, 2) * Math.Pow(Math.Cos(userLat.Value * Math.PI / 180.0), 2)
                         )))
                         .FirstOrDefault()
                     : null
@@ -713,20 +713,24 @@ namespace localink_be.Services.Implementations
             }
             else // Default: Sort by distance
             {
+                var cleanPincode = userPincode?.Trim();
+                var cleanCity = userCity?.Trim().ToLower();
+
                 if (userLat.HasValue && userLng.HasValue)
                 {
-                    // If coordinates are available, sort purely by distance (closest first)
+                    // Sort purely by distance (closest first). If distance is null, fall back to pincode/city match, then name
                     sortedResults = allMatches.OrderBy(b => b.Distance ?? double.MaxValue)
+                                              .ThenBy(b => (!string.IsNullOrEmpty(cleanPincode) && b.Pincode != null && b.Pincode.Trim() == cleanPincode) ? 0 : 1)
+                                              .ThenBy(b => (!string.IsNullOrEmpty(cleanCity) && b.City != null && b.City.Trim().ToLower() == cleanCity) ? 0 : 1)
                                               .ThenBy(b => b.Name);
                 }
                 else
                 {
-                    // Fallback to pincode match if coordinates not available
-                    var cleanPincode = userPincode?.Trim();
-                    if (!string.IsNullOrEmpty(cleanPincode))
+                    // Fallback to pincode match first, then city match, then name
+                    if (!string.IsNullOrEmpty(cleanPincode) || !string.IsNullOrEmpty(cleanCity))
                     {
-                        sortedResults = allMatches.OrderBy(b => (b.Pincode != null && b.Pincode.Trim() == cleanPincode) ? 0 : 1)
-                                                  .ThenBy(b => b.Distance ?? double.MaxValue)
+                        sortedResults = allMatches.OrderBy(b => (!string.IsNullOrEmpty(cleanPincode) && b.Pincode != null && b.Pincode.Trim() == cleanPincode) ? 0 : 1)
+                                                  .ThenBy(b => (!string.IsNullOrEmpty(cleanCity) && b.City != null && b.City.Trim().ToLower() == cleanCity) ? 0 : 1)
                                                   .ThenBy(b => b.Name);
                     }
                     else

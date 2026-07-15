@@ -232,9 +232,24 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 // ROUTES
-app.MapGet("/", () => "Localink API is running");
+app.MapGet("/", () => "Vocal For Sanatan API is running");
 app.MapControllers();
 app.MapHub<NotificationHub>("/notifications");
+
+// SEED ADMIN PASSWORD RESET & EMAIL UPDATE
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<localink_be.Data.AppDbContext>();
+    var admin = db.Users.FirstOrDefault(u => u.Email == "admin@vocalforsanatan.com")
+                ?? db.Users.FirstOrDefault(u => u.Email == "admin@localink.com")
+                ?? db.Users.FirstOrDefault(u => u.AccountType.ToLower() == "admin");
+    if (admin != null)
+    {
+        admin.Email = "admin@vocalforsanatan.com";
+        admin.PasswordHash = BCrypt.Net.BCrypt.HashPassword("admin123", 12);
+        db.SaveChanges();
+    }
+}
 
 app.Run();
 

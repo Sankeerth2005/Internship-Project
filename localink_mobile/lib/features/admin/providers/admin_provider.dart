@@ -92,3 +92,13 @@ class AdminNotifier extends AsyncNotifier<List<AdminBusinessDto>> {
 final adminBusinessesProvider = AsyncNotifierProvider<AdminNotifier, List<AdminBusinessDto>>(
   AdminNotifier.new,
 );
+
+final adminStatsProvider = FutureProvider.autoDispose<Map<String, dynamic>>((ref) async {
+  final repo = ref.watch(adminRepositoryProvider);
+  return await repo.getAdminStats();
+});
+
+final adminUsersProvider = FutureProvider.autoDispose<List<dynamic>>((ref) async {
+  final repo = ref.watch(adminRepositoryProvider);
+  return await repo.getAdminUsers();
+});

@@ -129,6 +129,7 @@ class BusinessDto {
   final String pincode;
   final double? latitude;
   final double? longitude;
+  final double? distance;
   final double averageRating;
   final int reviewCount;
   final String? status;
@@ -172,6 +173,7 @@ class BusinessDto {
     this.temporaryClosureStatus,
     this.temporaryClosureDays,
     this.temporaryClosureReopenDate,
+    this.distance,
   });
 
   factory BusinessDto.fromJson(Map<String, dynamic> json) {
@@ -220,6 +222,7 @@ class BusinessDto {
       pincode: json['pincode'] ?? contactJson?['pincode'] ?? '',
       latitude: (json['latitude'] as num?)?.toDouble() ?? (contactJson?['latitude'] as num?)?.toDouble(),
       longitude: (json['longitude'] as num?)?.toDouble() ?? (contactJson?['longitude'] as num?)?.toDouble(),
+      distance: (json['distance'] as num?)?.toDouble(),
       averageRating: ((json['averageRating'] ?? json['average_rating'] ?? 0.0) as num).toDouble(),
       reviewCount: json['reviewCount'] ?? json['review_count'] ?? json['totalReviews'] ?? json['total_reviews'] ?? 0,
       status: json['status'],
@@ -251,6 +254,7 @@ class BusinessDto {
         'pincode': pincode,
         'latitude': latitude,
         'longitude': longitude,
+        'distance': distance,
         'hours': hours.map((e) => e.toJson()).toList(),
         'photo': photo,
       };

@@ -40,7 +40,7 @@ public class EmailService : IEmailService
 
             email.From.Add(new MailboxAddress(
                 _config["Email:AppName"] ?? "Vocal For Sanatan",
-                _config["Email:From"] ?? "noreply@localink.com"
+                _config["Email:From"] ?? "noreply@vocalforsanatan.com"
             ));
 
             email.To.Add(MailboxAddress.Parse(toEmail));

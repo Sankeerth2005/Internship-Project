@@ -126,15 +126,19 @@ final searchResultsProvider = FutureProvider<List<BusinessDto>>((ref) async {
   final repo = ref.watch(businessRepositoryProvider);
 
   String resolvedPincode = queryState.userPincode;
-  if (resolvedPincode.isEmpty) {
-    try {
-      final profileAsync = ref.watch(userProfileProvider);
-      final profile = profileAsync.value;
-      if (profile != null && profile.address.pincode != null) {
+  String resolvedCity = '';
+  try {
+    final profileAsync = ref.watch(userProfileProvider);
+    final profile = profileAsync.value;
+    if (profile != null) {
+      if (resolvedPincode.isEmpty && profile.address.pincode != null) {
         resolvedPincode = profile.address.pincode!;
       }
-    } catch (_) {}
-  }
+      if (profile.address.city != null) {
+        resolvedCity = profile.address.city!;
+      }
+    }
+  } catch (_) {}
 
   if (queryState.isVoiceSearch && queryState.query.isNotEmpty) {
     return await repo.voiceSearchText(
@@ -151,6 +155,7 @@ final searchResultsProvider = FutureProvider<List<BusinessDto>>((ref) async {
     longitude: queryState.longitude,
     sortBy: queryState.sortBy,
     userPincode: resolvedPincode,
+    userCity: resolvedCity,
   );
 
   if (queryState.selectedCategoryId != null) {

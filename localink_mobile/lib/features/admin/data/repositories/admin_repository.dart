@@ -73,6 +73,20 @@ class AdminRepository {
     );
     return response.statusCode == 200;
   }
+
+  // GET ADMIN STATS
+  Future<Map<String, dynamic>> getAdminStats() async {
+    final options = await _getAuthOptions();
+    final response = await dio.get('admin/stats', options: options);
+    return response.data as Map<String, dynamic>? ?? {};
+  }
+
+  // GET ADMIN USERS
+  Future<List<dynamic>> getAdminUsers() async {
+    final options = await _getAuthOptions();
+    final response = await dio.get('admin/users', options: options);
+    return response.data as List? ?? [];
+  }
 }
 
 final adminRepositoryProvider = Provider<AdminRepository>((ref) {

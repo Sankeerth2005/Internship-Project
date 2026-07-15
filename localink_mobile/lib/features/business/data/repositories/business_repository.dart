@@ -47,6 +47,7 @@ class BusinessRepository {
     double? longitude,
     String? sortBy,
     String? userPincode,
+    String? userCity,
   }) async {
     final response = await _dio.get(
       'business/search',
@@ -59,6 +60,7 @@ class BusinessRepository {
         headers: {
           if (latitude != null) 'X-User-Latitude': latitude.toString(),
           if (longitude != null) 'X-User-Longitude': longitude.toString(),
+          if (userCity != null && userCity.isNotEmpty) 'X-User-City': userCity,
         },
       ),
     );

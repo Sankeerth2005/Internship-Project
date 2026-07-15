@@ -87,8 +87,8 @@ class _BusinessRegistrationScreenState
   // MapLibre
   MapLibreMapController? _mapController;
   Symbol? _marker;
-  double _latitude = 19.0760;
-  double _longitude = 72.8777;
+  double _latitude = 17.3850;
+  double _longitude = 78.4867;
 
   // Step 3 Data
   String? _photoBase64;
@@ -156,8 +156,8 @@ class _BusinessRegistrationScreenState
       _websiteController.text = edit.website;
       _addressController.text = edit.address;
       _pincodeController.text = edit.pincode;
-      _latitude = edit.latitude ?? 19.0760;
-      _longitude = edit.longitude ?? 72.8777;
+      _latitude = edit.latitude ?? 17.3850;
+      _longitude = edit.longitude ?? 78.4867;
       _businessHours = List.from(edit.hours);
       _loadLocationForEdit();
     } else {
@@ -459,6 +459,50 @@ class _BusinessRegistrationScreenState
       ));
     } catch (e) {
       debugPrint('Skipping map symbol draw: $e');
+    }
+  }
+
+  Future<void> _geocodeSelectedCity() async {
+    if (_selectedCity == null) return;
+    try {
+      final cityStr = _selectedCity!.name;
+      final stateStr = _selectedState?.name ?? '';
+      final countryStr = _selectedCountry?.name ?? 'India';
+      final queryText = '$cityStr, $stateStr, $countryStr';
+
+      final dio = Dio();
+      final response = await dio.get(
+        'https://api.geoapify.com/v1/geocode/search',
+        queryParameters: {
+          'text': queryText,
+          'format': 'json',
+          'apiKey': 'b5574329b50a49f49fe3b9ebbaf7a837',
+        },
+      );
+
+      if (response.statusCode == 200 && response.data != null) {
+        final results = response.data['results'] as List?;
+        if (results != null && results.isNotEmpty) {
+          final result = results.first as Map<String, dynamic>;
+          final lat = result['lat'] as double?;
+          final lon = result['lon'] as double?;
+          if (lat != null && lon != null) {
+            setState(() {
+              _latitude = lat;
+              _longitude = lon;
+            });
+            if (_mapController != null) {
+              final pos = LatLng(lat, lon);
+              _mapController!.animateCamera(
+                CameraUpdate.newCameraPosition(CameraPosition(target: pos, zoom: 12)),
+              );
+              _addMarker(pos);
+            }
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Error geocoding selected city: $e');
     }
   }
 
@@ -1371,6 +1415,9 @@ class _BusinessRegistrationScreenState
                     setState(() {
                       _selectedCity = newValue;
                     });
+                    if (newValue != null) {
+                      _geocodeSelectedCity();
+                    }
                   },
                 ),
         const SizedBox(height: 15),
