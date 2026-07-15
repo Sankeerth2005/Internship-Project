@@ -468,11 +468,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
               ),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 14),
-
-            // Toggle pill
-            _buildTogglePill(),
-            const SizedBox(height: 14),
+            // Toggle pill removed as role is chosen on welcome screen
 
             // ========== BASIC DETAILS ==========
             _buildFieldLabel(
@@ -552,86 +548,6 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     );
   }
 
-  // ===================== TOGGLE PILL =====================
-
-  Widget _buildTogglePill() {
-    return Container(
-      height: 34,
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(30),
-      ),
-      child: Stack(
-        children: [
-          // Sliding indicator
-          AnimatedAlign(
-            alignment: _selectedType == 'user'
-                ? Alignment.centerLeft
-                : Alignment.centerRight,
-            duration: const Duration(milliseconds: 300),
-            curve: Curves.easeInOut,
-            child: FractionallySizedBox(
-              widthFactor: 0.5,
-              child: Container(
-                margin: const EdgeInsets.all(3),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(20),
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFFFF7A00), Color(0xFFFF9E40)],
-                  ),
-                ),
-              ),
-            ),
-          ),
-          // Labels
-          Row(
-            children: [
-              Expanded(
-                child: GestureDetector(
-                  onTap: () => setState(() => _selectedType = 'user'),
-                  child: Center(
-                    child: Text(
-                      'User',
-                      style: TextStyle(
-                        fontFamily: 'Inter',
-                        fontSize: 12,
-                        fontWeight: _selectedType == 'user'
-                            ? FontWeight.w600
-                            : FontWeight.w400,
-                        color: _selectedType == 'user'
-                            ? Colors.black
-                            : const Color(0xFFAAAAAA),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              Expanded(
-                child: GestureDetector(
-                  onTap: () => setState(() => _selectedType = 'client'),
-                  child: Center(
-                    child: Text(
-                      'Business Owner',
-                      style: TextStyle(
-                        fontFamily: 'Inter',
-                        fontSize: 12,
-                        fontWeight: _selectedType == 'client'
-                            ? FontWeight.w600
-                            : FontWeight.w400,
-                        color: _selectedType == 'client'
-                            ? Colors.black
-                            : const Color(0xFFAAAAAA),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
 
   // ===================== PHONE ROW =====================
 

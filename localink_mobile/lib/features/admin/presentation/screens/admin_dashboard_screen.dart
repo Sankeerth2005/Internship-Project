@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:dio/dio.dart';
 import '../../../auth/providers/auth_provider.dart';
 import '../../data/models/admin_business_dto.dart';
 import '../../providers/admin_provider.dart';
@@ -530,6 +531,30 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     }
   }
 
+  Future<Response<dynamic>> _fetchAdminStats() async {
+    final token = await SecureStorageService.getToken();
+    return DioClient().dio.get(
+      'admin/stats',
+      options: Options(
+        headers: {
+          if (token != null) 'Authorization': 'Bearer $token',
+        },
+      ),
+    );
+  }
+
+  Future<Response<dynamic>> _fetchAdminUsers() async {
+    final token = await SecureStorageService.getToken();
+    return DioClient().dio.get(
+      'admin/users',
+      options: Options(
+        headers: {
+          if (token != null) 'Authorization': 'Bearer $token',
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final businessesAsync = ref.watch(adminBusinessesProvider);
@@ -931,7 +956,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
 
   Widget _buildReportsTab() {
     return FutureBuilder(
-      future: DioClient().dio.get('admin/stats'),
+      future: _fetchAdminStats(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator(color: Color(0xFFFF7A00)));
@@ -1104,7 +1129,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
 
   Widget _buildUsersTab() {
     return FutureBuilder(
-      future: DioClient().dio.get('admin/users'),
+      future: _fetchAdminUsers(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator(color: Color(0xFFFF7A00)));
