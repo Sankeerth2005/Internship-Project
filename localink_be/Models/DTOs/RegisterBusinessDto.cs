@@ -26,7 +26,7 @@ namespace localink_be.Models.DTOs
         public string PhoneCode { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "Phone number is required")]
-        [RegularExpression(@"^[3-9][0-9]{9}$", ErrorMessage = "Phone number must be 10 digits starting with 3-9")]
+        [RegularExpression(@"^[0-9]{7,15}$", ErrorMessage = "Phone number must be between 7 and 15 digits")]
         public string PhoneNumber { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "Email is required")]
@@ -34,7 +34,7 @@ namespace localink_be.Models.DTOs
         [RegularExpression(@"^[a-zA-Z][a-zA-Z0-9._%+-]*@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$", ErrorMessage = "Invalid email format")]
         public string Email { get; set; } = string.Empty;
 
-        [RegularExpression(@"^(https?:\/\/)?(www\.)?[a-zA-Z0-9-]+\.[a-zA-Z]{2,}$", ErrorMessage = "Invalid website format")]
+        [RegularExpression(@"^$|^(https?:\/\/)?(www\.)?[a-zA-Z0-9-]+\.[a-zA-Z]{2,}$", ErrorMessage = "Invalid website format")]
         public string Website { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "Address is required")]
@@ -53,7 +53,7 @@ namespace localink_be.Models.DTOs
         [StringLength(100, ErrorMessage = "Country cannot exceed 100 characters")]
         public string Country { get; set; } = string.Empty;
 
-        [RegularExpression(@"^[1-9][0-9]{5}$", ErrorMessage = "Pincode must be a 6-digit number not starting with 0")]
+        [RegularExpression(@"^$|^[A-Za-z0-9\-\s]{3,10}$", ErrorMessage = "Invalid pincode format")]
         public string Pincode { get; set; } = string.Empty;
 
         public int UserId { get; set; }

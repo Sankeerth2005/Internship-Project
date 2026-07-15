@@ -31,7 +31,7 @@ namespace localink_be.Models.Entities
         public string Email { get; set; }
 
         [Column("website")]
-        [RegularExpression(@"^(https?:\/\/)?(www\.)?[a-zA-Z0-9-]+\.[a-zA-Z]{2,}$", ErrorMessage = "Invalid website format")]
+        [RegularExpression(@"^$|^(https?:\/\/)?(www\.)?[a-zA-Z0-9-]+\.[a-zA-Z]{2,}$", ErrorMessage = "Invalid website format")]
         public string Website { get; set; }
 
         [Column("street_address")]
@@ -52,7 +52,7 @@ namespace localink_be.Models.Entities
         public string Country { get; set; }
 
         [Column("pincode")]
-        [RegularExpression(@"^[1-9][0-9]{5}$", ErrorMessage = "Pincode must be a 6-digit number not starting with 0")]
+        [RegularExpression(@"^$|^[A-Za-z0-9\-\s]{3,10}$", ErrorMessage = "Invalid pincode format")]
         public string Pincode { get; set; }
 
         [Column("created_at")]
