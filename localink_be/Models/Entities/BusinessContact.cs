@@ -27,11 +27,9 @@ namespace localink_be.Models.Entities
         [Column("email")]
         [Required(ErrorMessage = "Email is required")]
         [EmailAddress(ErrorMessage = "Invalid email format")]
-        [RegularExpression(@"^[a-zA-Z][a-zA-Z0-9._%+-]*@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$", ErrorMessage = "Invalid email format")]
         public string Email { get; set; }
 
         [Column("website")]
-        [RegularExpression(@"^$|^(https?:\/\/)?(www\.)?[a-zA-Z0-9-]+\.[a-zA-Z]{2,}$", ErrorMessage = "Invalid website format")]
         public string Website { get; set; }
 
         [Column("street_address")]

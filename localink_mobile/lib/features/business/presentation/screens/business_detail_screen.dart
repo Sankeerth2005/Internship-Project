@@ -425,20 +425,16 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
                             _buildActionBtn(Icons.directions, 'Directions', () async {
                               _incrementClickCount();
                               if (business.latitude != null && business.longitude != null) {
-                                final String url;
-                                if (Platform.isIOS) {
-                                  url = 'https://maps.apple.com/?daddr=${business.latitude},${business.longitude}&dirflg=d';
-                                } else {
-                                  url = 'google.navigation:q=${business.latitude},${business.longitude}';
-                                }
                                 try {
-                                  final uri = Uri.parse(url);
-                                  if (await canLaunchUrl(uri)) {
-                                    await launchUrl(uri);
+                                  final String url;
+                                  if (Platform.isIOS) {
+                                    url = 'https://maps.apple.com/?daddr=${business.latitude},${business.longitude}&dirflg=d';
                                   } else {
-                                    final fallbackUrl = 'https://www.google.com/maps/dir/?api=1&destination=${business.latitude},${business.longitude}&travelmode=driving';
-                                    await launchUrl(Uri.parse(fallbackUrl), mode: LaunchMode.externalApplication);
+                                    // Use Google Maps web URL - most reliable for correct navigation
+                                    url = 'https://www.google.com/maps/dir/?api=1&destination=${business.latitude},${business.longitude}&travelmode=driving';
                                   }
+                                  final uri = Uri.parse(url);
+                                  await launchUrl(uri, mode: LaunchMode.externalApplication);
                                 } catch (e) {
                                   if (context.mounted) {
                                     ScaffoldMessenger.of(context).showSnackBar(
@@ -446,6 +442,7 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
                                     );
                                   }
                                 }
+
                               } else {
 
                                 ScaffoldMessenger.of(context).showSnackBar(

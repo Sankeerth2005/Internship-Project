@@ -31,10 +31,8 @@ namespace localink_be.Models.DTOs
 
         [Required(ErrorMessage = "Email is required")]
         [EmailAddress(ErrorMessage = "Invalid email format")]
-        [RegularExpression(@"^[a-zA-Z][a-zA-Z0-9._%+-]*@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$", ErrorMessage = "Invalid email format")]
         public string Email { get; set; } = string.Empty;
 
-        [RegularExpression(@"^$|^(https?:\/\/)?(www\.)?[a-zA-Z0-9-]+\.[a-zA-Z]{2,}$", ErrorMessage = "Invalid website format")]
         public string Website { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "Address is required")]
