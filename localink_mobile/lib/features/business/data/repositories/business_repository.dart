@@ -267,4 +267,16 @@ class BusinessRepository {
     );
     return response.data['success'] == true;
   }
+
+  Future<bool> requestDeletion(int businessId, String reason) async {
+    final options = await _getAuthOptions();
+    final response = await _dio.post(
+      'business/$businessId/request-deletion',
+      data: {
+        'reason': reason,
+      },
+      options: options,
+    );
+    return response.statusCode == 200;
+  }
 }

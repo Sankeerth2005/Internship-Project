@@ -73,6 +73,20 @@ class AdminNotifier extends AsyncNotifier<List<AdminBusinessDto>> {
       return false;
     }
   }
+
+  // Approve Permanent Deletion
+  Future<bool> approvePermanentDeletion(int id) async {
+    final repo = ref.read(adminRepositoryProvider);
+    try {
+      final success = await repo.approvePermanentDeletion(id);
+      if (success) {
+        await refresh();
+      }
+      return success;
+    } catch (e) {
+      return false;
+    }
+  }
 }
 
 final adminBusinessesProvider = AsyncNotifierProvider<AdminNotifier, List<AdminBusinessDto>>(

@@ -63,6 +63,16 @@ class AdminRepository {
     );
     return response.statusCode == 200;
   }
+
+  // APPROVE PERMANENT DELETION
+  Future<bool> approvePermanentDeletion(int id) async {
+    final options = await _getAuthOptions();
+    final response = await dio.delete(
+      'admin/business/$id/delete',
+      options: options,
+    );
+    return response.statusCode == 200;
+  }
 }
 
 final adminRepositoryProvider = Provider<AdminRepository>((ref) {

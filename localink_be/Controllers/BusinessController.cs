@@ -2,7 +2,9 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
 using localink_be.Models.DTOs;
+using localink_be.Models.Entities;
 using localink_be.Services.Interfaces;
 
 namespace localink_be.Controllers
@@ -229,6 +231,51 @@ namespace localink_be.Controllers
             await db.SaveChangesAsync();
 
             return Ok(new { success = true, message = "Business is now open / temporary closure cancelled" });
+        }
+
+        public class DeletionRequestDto
+        {
+            public string Reason { get; set; } = null!;
+        }
+
+        [Authorize(Roles = "client,businessowner")]
+        [HttpPost("{id}/request-deletion")]
+        public async Task<IActionResult> RequestDeletion(
+            long id,
+            [FromBody] DeletionRequestDto dto,
+            [FromServices] localink_be.Data.AppDbContext db,
+            [FromServices] Microsoft.AspNetCore.SignalR.IHubContext<localink_be.Hubs.NotificationHub> hubContext)
+        {
+            var userIdVal = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userIdVal)) return Unauthorized();
+            var userId = long.Parse(userIdVal);
+
+            var business = await db.Businesses.FindAsync(id);
+            if (business == null) return NotFound(new { message = "Business not found" });
+
+            if (business.UserId != userId) return Forbid();
+
+            var adminDash = await db.AdminDashboards.FirstOrDefaultAsync(a => a.BusinessId == id);
+            if (adminDash == null)
+            {
+                adminDash = new AdminDashboard
+                {
+                    BusinessId = id,
+                    CreatedAt = DateTime.UtcNow
+                };
+                await db.AdminDashboards.AddAsync(adminDash);
+            }
+
+            adminDash.Status = BusinessStatus.DeletionRequested;
+            adminDash.RejectionReason = dto.Reason;
+            adminDash.UpdatedAt = DateTime.UtcNow;
+
+            await db.SaveChangesAsync();
+
+            // Notify admin
+            await hubContext.Clients.Group("admin").SendAsync("ReceiveNotification", $"Business '{business.BusinessName}' has requested permanent deletion. Reason: {dto.Reason}");
+
+            return Ok(new { success = true, message = "Permanent deletion request submitted for admin approval" });
         }
     }
 }

@@ -30,6 +30,140 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     super.dispose();
   }
 
+  Future<void> _handleApproveDeletion(AdminBusinessDto business) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF1E1E1E),
+        title: const Text('Approve Permanent Deletion', style: TextStyle(color: Colors.white)),
+        content: Text(
+          'Are you sure you want to PERMANENTLY DELETE "${business.name}"? This will delete it completely from the database and cannot be undone.\n\nReason: "${business.rejectionComment ?? "No reason specified"}"',
+          style: const TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.redAccent,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Approve & Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(child: CircularProgressIndicator(color: Color(0xFFFF7A00))),
+      );
+
+      try {
+        final success = await ref.read(adminBusinessesProvider.notifier).approvePermanentDeletion(business.id);
+
+        if (mounted) {
+          Navigator.pop(context); // Pop loading
+          if (success) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('"${business.name}" has been permanently deleted.'),
+                backgroundColor: Colors.green,
+              ),
+            );
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Failed to delete business. Please try again.'),
+                backgroundColor: Colors.redAccent,
+              ),
+            );
+          }
+        }
+      } catch (e) {
+        if (mounted) {
+          Navigator.pop(context); // Pop loading
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error: $e'), backgroundColor: Colors.redAccent),
+          );
+        }
+      }
+    }
+  }
+
+  Future<void> _handleRejectDeletion(AdminBusinessDto business) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF1E1E1E),
+        title: const Text('Reject Deletion Request', style: TextStyle(color: Colors.white)),
+        content: Text(
+          'Are you sure you want to REJECT the deletion request for "${business.name}"? The business status will be restored to Approved.',
+          style: const TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFFF7A00),
+              foregroundColor: Colors.black,
+            ),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Reject Request & Keep Business'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(child: CircularProgressIndicator(color: Color(0xFFFF7A00))),
+      );
+
+      try {
+        final success = await ref.read(adminBusinessesProvider.notifier).approveBusiness(business.id);
+
+        if (mounted) {
+          Navigator.pop(context); // Pop loading
+          if (success) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Deletion request for "${business.name}" has been rejected. Business restored to Approved.'),
+                backgroundColor: Colors.green,
+              ),
+            );
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Failed to reject deletion request. Please try again.'),
+                backgroundColor: Colors.redAccent,
+              ),
+            );
+          }
+        }
+      } catch (e) {
+        if (mounted) {
+          Navigator.pop(context); // Pop loading
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error: $e'), backgroundColor: Colors.redAccent),
+          );
+        }
+      }
+    }
+  }
+
   Future<void> _handleApprove(AdminBusinessDto business) async {
     final confirm = await showDialog<bool>(
       context: context,
@@ -568,6 +702,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
             final approvedCount = list.where((b) => b.status.toLowerCase() == 'approved').length;
             final rejectedCount = list.where((b) => b.status.toLowerCase() == 'rejected').length;
             final closurePendingCount = list.where((b) => b.isTemporaryClosurePending).length;
+            final deletionPendingCount = list.where((b) => b.status.toLowerCase() == 'deletionrequested').length;
             final totalCount = list.length;
 
             return Container(
@@ -580,6 +715,8 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                     _buildFilterChip('Pending', pendingCount),
                     const SizedBox(width: 8),
                     _buildFilterChip('Closure Requests', closurePendingCount),
+                    const SizedBox(width: 8),
+                    _buildFilterChip('Deletion Requests', deletionPendingCount),
                     const SizedBox(width: 8),
                     _buildFilterChip('Approved', approvedCount),
                     const SizedBox(width: 8),
@@ -645,6 +782,8 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                 var filtered = list;
                 if (_selectedFilter == 'Closure Requests') {
                   filtered = list.where((b) => b.isTemporaryClosurePending).toList();
+                } else if (_selectedFilter == 'Deletion Requests') {
+                  filtered = list.where((b) => b.status.toLowerCase() == 'deletionrequested').toList();
                 } else if (_selectedFilter != 'All') {
                   filtered = list.where((b) => b.status.toLowerCase() == _selectedFilter.toLowerCase()).toList();
                 }
@@ -1221,7 +1360,11 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     IconData statusIcon = Icons.check_circle_outline;
     String badgeText = business.status;
 
-    if (business.isTemporaryClosurePending) {
+    if (business.status.toLowerCase() == 'deletionrequested') {
+      statusColor = Colors.redAccent;
+      statusIcon = Icons.delete_forever_outlined;
+      badgeText = 'Deletion Request';
+    } else if (business.isTemporaryClosurePending) {
       statusColor = Colors.orangeAccent;
       statusIcon = Icons.timer_off_outlined;
       badgeText = 'Closure Request';
@@ -1483,6 +1626,77 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                   ),
                 ],
               ),
+            ),
+          ],
+
+          // Permanent Deletion Request Info
+          if (business.status.toLowerCase() == 'deletionrequested') ...[
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.redAccent.withValues(alpha: 0.05),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.redAccent.withValues(alpha: 0.2)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.delete_forever_outlined, color: Colors.redAccent, size: 16),
+                      const SizedBox(width: 8),
+                      const Expanded(
+                        child: Text(
+                          'Permanent Deletion Requested',
+                          style: TextStyle(color: Colors.redAccent, fontSize: 12, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Reason: ${business.rejectionComment ?? "No reason provided"}',
+                    style: const TextStyle(color: Colors.white70, fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
+          ],
+
+          if (business.status.toLowerCase() == 'deletionrequested') ...[
+            const SizedBox(height: 15),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFFFF7A00),
+                      side: const BorderSide(color: Color(0xFFFF7A00)),
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    icon: const Icon(Icons.close, size: 16),
+                    label: const Text('Reject Request', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                    onPressed: () => _handleRejectDeletion(business),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.redAccent,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    icon: const Icon(Icons.delete_forever, size: 16),
+                    label: const Text('Approve & Delete', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                    onPressed: () => _handleApproveDeletion(business),
+                  ),
+                ),
+              ],
             ),
           ],
 

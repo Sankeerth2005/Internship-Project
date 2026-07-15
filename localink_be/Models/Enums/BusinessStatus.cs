@@ -4,5 +4,6 @@ public enum BusinessStatus
     Approved = 2,
     Rejected = 3,
     Active = 4,
-    Inactive = 5
+    Inactive = 5,
+    DeletionRequested = 6
 }

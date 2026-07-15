@@ -425,17 +425,19 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
                             _buildActionBtn(Icons.directions, 'Directions', () async {
                               _incrementClickCount();
                               if (business.latitude != null && business.longitude != null) {
+                                final String url;
+                                if (Platform.isIOS) {
+                                  url = 'https://maps.apple.com/?daddr=${business.latitude},${business.longitude}&dirflg=d';
+                                } else {
+                                  url = 'google.navigation:q=${business.latitude},${business.longitude}';
+                                }
                                 try {
-                                  // Use geo: URI first — opens native Maps with exact pin
-                                  final geoUri = Uri.parse(
-                                    'geo:${business.latitude},${business.longitude}?q=${business.latitude},${business.longitude}(${Uri.encodeComponent(business.businessName)})',
-                                  );
-                                  if (await canLaunchUrl(geoUri)) {
-                                    await launchUrl(geoUri);
+                                  final uri = Uri.parse(url);
+                                  if (await canLaunchUrl(uri)) {
+                                    await launchUrl(uri);
                                   } else {
-                                    // Fallback to Google Maps web with exact coords
-                                    final url = 'https://www.google.com/maps/dir/?api=1&destination=${business.latitude},${business.longitude}&travelmode=driving';
-                                    await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+                                    final fallbackUrl = 'https://www.google.com/maps/dir/?api=1&destination=${business.latitude},${business.longitude}&travelmode=driving';
+                                    await launchUrl(Uri.parse(fallbackUrl), mode: LaunchMode.externalApplication);
                                   }
                                 } catch (e) {
                                   if (context.mounted) {
@@ -445,6 +447,7 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
                                   }
                                 }
                               } else {
+
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   const SnackBar(content: Text('Business coordinates not registered.')),
                                 );

@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
+using localink_be.Models.Entities;
 
 [Authorize(Roles = "admin")]
 [ApiController]
@@ -84,6 +86,34 @@ public class AdminController : ControllerBase
         await hubContext.Clients.Group($"client_{business.UserId}").SendAsync("ReceiveNotification", $"Your business '{business.BusinessName}' temporary closure request has been REJECTED by the admin.");
 
         return Ok(new { success = true, message = "Temporary closure rejected" });
+    }
+
+    [HttpDelete("business/{id}/delete")]
+    public async Task<IActionResult> ApprovePermanentDeletion(
+        long id,
+        [FromServices] localink_be.Data.AppDbContext db,
+        [FromServices] Microsoft.AspNetCore.SignalR.IHubContext<localink_be.Hubs.NotificationHub> hubContext)
+    {
+        var adminId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(adminId)) return Unauthorized();
+
+        var business = await db.Businesses.FindAsync(id);
+        if (business == null) return NotFound(new { message = "Business not found" });
+
+        var adminDash = await db.AdminDashboards.FirstOrDefaultAsync(a => a.BusinessId == id);
+        if (adminDash == null || adminDash.Status != BusinessStatus.DeletionRequested)
+            return BadRequest(new { message = "No pending deletion request found for this business" });
+
+        try
+        {
+            await hubContext.Clients.Group($"client_{business.UserId}").SendAsync("ReceiveNotification", $"Your business '{business.BusinessName}' has been permanently deleted by the admin.");
+        }
+        catch { /* Suppress notifications errors */ }
+
+        db.Businesses.Remove(business);
+        await db.SaveChangesAsync();
+
+        return Ok(new { success = true, message = "Business permanently deleted from database" });
     }
 
     [HttpGet("users")]

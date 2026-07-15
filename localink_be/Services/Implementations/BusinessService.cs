@@ -711,21 +711,28 @@ namespace localink_be.Services.Implementations
                                           .ThenByDescending(b => b.TotalReviews)
                                           .ThenBy(b => b.Name);
             }
-            else // Default: Sort by distance / pincode
+            else // Default: Sort by distance
             {
-                var cleanPincode = userPincode?.Trim();
-                
-                if (!string.IsNullOrEmpty(cleanPincode))
+                if (userLat.HasValue && userLng.HasValue)
                 {
-                    // Prioritize exact pincode match first, then sort remaining by distance
-                    sortedResults = allMatches.OrderBy(b => (b.Pincode != null && b.Pincode.Trim() == cleanPincode) ? 0 : 1)
-                                              .ThenBy(b => b.Distance ?? double.MaxValue)
+                    // If coordinates are available, sort purely by distance (closest first)
+                    sortedResults = allMatches.OrderBy(b => b.Distance ?? double.MaxValue)
                                               .ThenBy(b => b.Name);
                 }
                 else
                 {
-                    sortedResults = allMatches.OrderBy(b => b.Distance ?? double.MaxValue)
-                                              .ThenBy(b => b.Name);
+                    // Fallback to pincode match if coordinates not available
+                    var cleanPincode = userPincode?.Trim();
+                    if (!string.IsNullOrEmpty(cleanPincode))
+                    {
+                        sortedResults = allMatches.OrderBy(b => (b.Pincode != null && b.Pincode.Trim() == cleanPincode) ? 0 : 1)
+                                                  .ThenBy(b => b.Distance ?? double.MaxValue)
+                                                  .ThenBy(b => b.Name);
+                    }
+                    else
+                    {
+                        sortedResults = allMatches.OrderBy(b => b.Name);
+                    }
                 }
             }
 

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:geolocator/geolocator.dart';
 import '../../providers/business_provider.dart';
 import '../../data/models/business_models.dart';
 import '../../../auth/providers/auth_provider.dart';
@@ -18,6 +19,36 @@ class HomeScreen extends ConsumerStatefulWidget {
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   final TextEditingController _searchController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _getUserLocation();
+    });
+  }
+
+  Future<void> _getUserLocation() async {
+    try {
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) return;
+
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
+          return;
+        }
+      }
+
+      final position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+      ref.read(searchQueryProvider.notifier).setLocation(position.latitude, position.longitude);
+    } catch (e) {
+      debugPrint('Error getting location: $e');
+    }
+  }
 
   @override
   void dispose() {
@@ -561,8 +592,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       showCheckmark: false,
       label: Text(label),
       selected: isSelected,
-      onSelected: (selected) {
+      onSelected: (selected) async {
         if (selected) {
+          if (sortVal == 'distance') {
+            await _getUserLocation();
+          }
           ref.read(searchQueryProvider.notifier).setSortBy(sortVal);
         }
       },

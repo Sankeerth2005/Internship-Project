@@ -125,7 +125,10 @@ class BusinessDashboardScreen extends ConsumerWidget {
     Color statusColor = isApproved ? Colors.green : Colors.amber;
     var statusText = business.status ?? 'Pending';
 
-    if (business.isTemporarilyClosed) {
+    if (business.status?.toLowerCase() == 'deletionrequested') {
+      statusColor = Colors.redAccent;
+      statusText = 'Deletion Pending';
+    } else if (business.isTemporarilyClosed) {
       statusColor = Colors.redAccent;
       statusText = 'Temp Closed';
     } else if (business.temporaryClosureStatus?.toLowerCase() == 'pending') {
@@ -262,42 +265,54 @@ class BusinessDashboardScreen extends ConsumerWidget {
                       ),
                       onPressed: () => context.push('/business-detail/${business.businessId}'),
                     ),
-                    if (isApproved && !business.isTemporarilyClosed && business.temporaryClosureStatus?.toLowerCase() != 'pending')
+                    if (business.status?.toLowerCase() != 'deletionrequested') ...[
+                      if (isApproved && !business.isTemporarilyClosed && business.temporaryClosureStatus?.toLowerCase() != 'pending')
+                        TextButton.icon(
+                          icon: const Icon(Icons.timer_off_outlined, size: 14, color: Colors.orangeAccent),
+                          label: const Text('Temp Close', style: TextStyle(fontSize: 12, color: Colors.orangeAccent)),
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          onPressed: () => _showTemporaryClosureDialog(context, ref, business),
+                        ),
+                      if (business.isTemporarilyClosed || business.temporaryClosureStatus?.toLowerCase() == 'pending')
+                        TextButton.icon(
+                          icon: const Icon(Icons.play_circle_outline, size: 14, color: Colors.green),
+                          label: const Text('Reopen', style: TextStyle(fontSize: 12, color: Colors.green)),
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          onPressed: () => _handleCancelTemporaryClosure(context, ref, business),
+                        ),
                       TextButton.icon(
-                        icon: const Icon(Icons.timer_off_outlined, size: 14, color: Colors.orangeAccent),
-                        label: const Text('Temp Close', style: TextStyle(fontSize: 12, color: Colors.orangeAccent)),
+                        icon: const Icon(Icons.delete_forever_outlined, size: 14, color: Colors.redAccent),
+                        label: const Text('Delete permanently', style: TextStyle(fontSize: 12, color: Colors.redAccent)),
                         style: TextButton.styleFrom(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                           minimumSize: Size.zero,
                           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         ),
-                        onPressed: () => _showTemporaryClosureDialog(context, ref, business),
+                        onPressed: () => _showDeletePermanentlyDialog(context, ref, business),
                       ),
-                    if (business.isTemporarilyClosed || business.temporaryClosureStatus?.toLowerCase() == 'pending')
-                      TextButton.icon(
-                        icon: const Icon(Icons.play_circle_outline, size: 14, color: Colors.green),
-                        label: const Text('Reopen', style: TextStyle(fontSize: 12, color: Colors.green)),
-                        style: TextButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFFF7A00),
+                          foregroundColor: Colors.black,
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                           minimumSize: Size.zero,
                           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                          textStyle: const TextStyle(fontSize: 12),
                         ),
-                        onPressed: () => _handleCancelTemporaryClosure(context, ref, business),
+                        icon: const Icon(Icons.edit, size: 14),
+                        label: const Text('Edit'),
+                        onPressed: () => context.push('/register-business', extra: business),
                       ),
-                    ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFFF7A00),
-                        foregroundColor: Colors.black,
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        minimumSize: Size.zero,
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-                        textStyle: const TextStyle(fontSize: 12),
-                      ),
-                      icon: const Icon(Icons.edit, size: 14),
-                      label: const Text('Edit'),
-                      onPressed: () => context.push('/register-business', extra: business),
-                    ),
+                    ],
                   ],
                 ),
               ],
@@ -497,6 +512,110 @@ class BusinessDashboardScreen extends ConsumerWidget {
           Navigator.pop(context); // Pop loading
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Error reopening business: $e'), backgroundColor: const Color(0xFFFF4D4F)),
+          );
+        }
+      }
+    }
+  }
+
+  Future<void> _showDeletePermanentlyDialog(BuildContext context, WidgetRef ref, BusinessDto business) async {
+    final reasonController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF1E1E1E),
+        title: const Text('Delete Business Permanently', style: TextStyle(color: Colors.white)),
+        content: Form(
+          key: formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Please specify the reason for permanently deleting this business. This will be sent to the admin for approval. Once approved, the business will be permanently deleted from the database.',
+                style: TextStyle(color: Colors.white70, fontSize: 13),
+              ),
+              const SizedBox(height: 15),
+              TextFormField(
+                controller: reasonController,
+                style: const TextStyle(color: Colors.white, fontSize: 14),
+                maxLines: 3,
+                decoration: InputDecoration(
+                  hintText: 'Reason for permanent deletion...',
+                  hintStyle: const TextStyle(color: Colors.white24, fontSize: 13),
+                  filled: true,
+                  fillColor: Colors.black26,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+                validator: (v) => v == null || v.trim().isEmpty ? 'Reason is required' : null,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.redAccent,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () {
+              if (formKey.currentState?.validate() == true) {
+                Navigator.pop(context, true);
+              }
+            },
+            child: const Text('Request Deletion'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(child: CircularProgressIndicator(color: Color(0xFFFF7A00))),
+      );
+
+      try {
+        final repo = ref.read(businessRepositoryProvider);
+        final success = await repo.requestDeletion(
+          business.businessId,
+          reasonController.text.trim(),
+        );
+
+        if (context.mounted) {
+          Navigator.pop(context); // Pop loading
+          if (success) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Deletion request submitted successfully.'),
+                backgroundColor: Colors.green,
+              ),
+            );
+            ref.read(myBusinessesProvider.notifier).refresh();
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Failed to submit deletion request. Please try again.'),
+                backgroundColor: Colors.redAccent,
+              ),
+            );
+          }
+        }
+      } catch (e) {
+        if (context.mounted) {
+          Navigator.pop(context); // Pop loading
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error: $e'),
+              backgroundColor: Colors.redAccent,
+            ),
           );
         }
       }
