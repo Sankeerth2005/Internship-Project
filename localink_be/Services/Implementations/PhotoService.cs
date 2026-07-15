@@ -26,8 +26,7 @@ namespace localink_be.Services.Implementations
         public async Task<BusinessPhoto?> UploadPhotoAsync(long businessId, IFormFile file)
         {
             if (file == null || file.Length == 0) return null;
-            var rootPath = _env.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
-            var uploadsPath = Path.Combine(rootPath, "uploads");
+            var uploadsPath = Path.Combine(Directory.GetCurrentDirectory(), "uploads");
             if (!Directory.Exists(uploadsPath)) Directory.CreateDirectory(uploadsPath);
             var fileName = $"{Guid.NewGuid()}{Path.GetExtension(file.FileName)}";
             var filePath = Path.Combine(uploadsPath, fileName);
@@ -52,7 +51,7 @@ namespace localink_be.Services.Implementations
         var photo = await _db.BusinessPhotos.FindAsync(photoId);
         if (photo == null) return false;
 
-        var filePath = Path.Combine(_env.WebRootPath, photo.ImageUrl.TrimStart('/'));
+        var filePath = Path.Combine(Directory.GetCurrentDirectory(), photo.ImageUrl.TrimStart('/'));
         if (File.Exists(filePath))
             File.Delete(filePath);
 
@@ -69,8 +68,7 @@ namespace localink_be.Services.Implementations
  
         var bytes = Convert.FromBase64String(photoBase64);
  
-        var rootPath = _env.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
-        var uploadsPath = Path.Combine(rootPath, "uploads");
+        var uploadsPath = Path.Combine(Directory.GetCurrentDirectory(), "uploads");
         if (!Directory.Exists(uploadsPath))
             Directory.CreateDirectory(uploadsPath);
  
@@ -99,8 +97,7 @@ namespace localink_be.Services.Implementations
 
         var bytes = Convert.FromBase64String(photoBase64);
 
-        var rootPath = _env.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
-        var uploadsPath = Path.Combine(rootPath, "uploads", "reviews");
+        var uploadsPath = Path.Combine(Directory.GetCurrentDirectory(), "uploads", "reviews");
         if (!Directory.Exists(uploadsPath))
             Directory.CreateDirectory(uploadsPath);
 
