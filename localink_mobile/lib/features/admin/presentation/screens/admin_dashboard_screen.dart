@@ -543,17 +543,21 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
 
     return Scaffold(
       backgroundColor: const Color(0xFF0C0C0C),
-      body: SafeArea(
-        child: Column(
-          children: [
-            // Custom Saffron Sunrise Temple skyline header
-            Container(
-              height: 125,
-              width: double.infinity,
-              child: CustomPaint(
-                painter: TempleHeaderPainter(),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+      body: Column(
+        children: [
+          // Custom Saffron Sunrise Temple skyline header
+          Container(
+            height: 125 + MediaQuery.of(context).padding.top,
+            width: double.infinity,
+            child: CustomPaint(
+              painter: TempleHeaderPainter(),
+              child: Padding(
+                padding: EdgeInsets.only(
+                  left: 20,
+                  right: 20,
+                  top: 15 + MediaQuery.of(context).padding.top,
+                  bottom: 15,
+                ),
                   child: Row(
                     children: [
                       // Circular emblem with rays and flag vector
@@ -628,7 +632,6 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
             ),
           ],
         ),
-      ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           color: const Color(0xFF161616),

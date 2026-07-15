@@ -674,12 +674,28 @@ class _BusinessRegistrationScreenState
     return Scaffold(
       backgroundColor: const Color(0xFF0F0F0F),
       appBar: AppBar(
-        backgroundColor: const Color(0xFF1E1E1E),
-        title: const Text('Register Business',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        backgroundColor: const Color(0xFF161616),
+        elevation: 0,
+        centerTitle: true,
+        title: const Text(
+          'Register Business',
+          style: TextStyle(
+            fontFamily: 'Inter',
+            color: Colors.white,
+            fontWeight: FontWeight.w800,
+            fontSize: 18,
+          ),
+        ),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          icon: const Icon(Icons.arrow_back_ios_new, color: Color(0xFFFF7A00), size: 20),
           onPressed: () => context.pop(),
+        ),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Container(
+            color: Colors.white.withValues(alpha: 0.05),
+            height: 1,
+          ),
         ),
       ),
       body: _isLoading
@@ -705,17 +721,17 @@ class _BusinessRegistrationScreenState
 
   Widget _buildStepper() {
     return Container(
-      color: const Color(0xFF1E1E1E),
+      color: const Color(0xFF161616),
       padding: const EdgeInsets.symmetric(vertical: 20),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           _buildStepCircle(1, 'Basic'),
-          _buildStepLine(),
+          _buildStepLine(2),
           _buildStepCircle(2, 'Contact'),
-          _buildStepLine(),
+          _buildStepLine(3),
           _buildStepCircle(3, 'Info'),
-          _buildStepLine(),
+          _buildStepLine(4),
           _buildStepCircle(4, 'Preview'),
         ],
       ),
@@ -723,36 +739,77 @@ class _BusinessRegistrationScreenState
   }
 
   Widget _buildStepCircle(int step, String label) {
-    final isActive = _currentStep >= step;
+    final isCompleted = _currentStep > step;
+    final isActive = _currentStep == step;
+    final isPassed = _currentStep >= step;
+    
     return Column(
       children: [
-        CircleAvatar(
-          radius: 16,
-          backgroundColor: isActive ? const Color(0xFFFF7A00) : Colors.grey[800],
-          child: Text(
-            step.toString(),
-            style: TextStyle(
-                color: isActive ? Colors.black : Colors.white54,
-                fontWeight: FontWeight.bold),
+        AnimatedContainer(
+          duration: const Duration(milliseconds: 300),
+          width: 32,
+          height: 32,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: isCompleted
+                ? const Color(0xFFFF7A00).withValues(alpha: 0.15)
+                : isActive
+                    ? const Color(0xFFFF7A00)
+                    : const Color(0xFF262626),
+            border: Border.all(
+              color: isPassed ? const Color(0xFFFF7A00) : Colors.white10,
+              width: 1.5,
+            ),
+            boxShadow: isActive
+                ? [
+                    BoxShadow(
+                      color: const Color(0xFFFF7A00).withValues(alpha: 0.25),
+                      blurRadius: 8,
+                      spreadRadius: 1,
+                    )
+                  ]
+                : null,
+          ),
+          child: Center(
+            child: isCompleted
+                ? const Icon(
+                    Icons.check,
+                    color: Color(0xFFFF7A00),
+                    size: 16,
+                  )
+                : Text(
+                    step.toString(),
+                    style: TextStyle(
+                      fontFamily: 'Inter',
+                      color: isActive ? Colors.black : Colors.white60,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                    ),
+                  ),
           ),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 6),
         Text(
           label,
           style: TextStyle(
-              color: isActive ? const Color(0xFFFF7A00) : Colors.white54,
-              fontSize: 10),
+            fontFamily: 'Inter',
+            color: isPassed ? const Color(0xFFFF7A00) : Colors.white38,
+            fontWeight: isPassed ? FontWeight.bold : FontWeight.normal,
+            fontSize: 11,
+          ),
         ),
       ],
     );
   }
 
-  Widget _buildStepLine() {
-    return Container(
+  Widget _buildStepLine(int toStep) {
+    final isHighlighted = _currentStep >= toStep;
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
       width: 30,
       height: 2,
-      color: Colors.grey[800],
-      margin: const EdgeInsets.only(bottom: 15),
+      margin: const EdgeInsets.only(bottom: 16, left: 4, right: 4),
+      color: isHighlighted ? const Color(0xFFFF7A00) : Colors.white10,
     );
   }
 
