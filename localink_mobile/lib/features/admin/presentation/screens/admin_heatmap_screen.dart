@@ -107,22 +107,33 @@ class _AdminHeatmapScreenState extends ConsumerState<AdminHeatmapScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFF0F0F0F),
       appBar: AppBar(
-        backgroundColor: const Color(0xFF1E1E1E),
+        backgroundColor: const Color(0xFF161616),
         elevation: 0,
+        centerTitle: true,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          icon: const Icon(Icons.arrow_back_ios_new, color: Color(0xFFFF7A00), size: 20),
           onPressed: () => Navigator.pop(context),
         ),
         title: const Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Text(
               'Heatmap Analytics',
-              style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontFamily: 'Inter',
+                color: Colors.white,
+                fontWeight: FontWeight.w800,
+                fontSize: 16,
+              ),
             ),
             Text(
               'Operations Center',
-              style: TextStyle(color: Color(0xFFFF7A00), fontSize: 11),
+              style: TextStyle(
+                fontFamily: 'Inter',
+                color: Color(0xFFFF7A00),
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ],
         ),
@@ -132,6 +143,13 @@ class _AdminHeatmapScreenState extends ConsumerState<AdminHeatmapScreen> {
             onPressed: _loadHeatmapData,
           ),
         ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Container(
+            color: Colors.white.withValues(alpha: 0.05),
+            height: 1,
+          ),
+        ),
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator(color: Color(0xFFFF7A00)))
@@ -161,9 +179,9 @@ class _AdminHeatmapScreenState extends ConsumerState<AdminHeatmapScreen> {
                       child: Container(
                         padding: const EdgeInsets.all(15),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF1E1E1E).withValues(alpha: 0.9),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.white12),
+                          color: const Color(0xFF161616).withValues(alpha: 0.95),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
                         ),
                         child: Column(
                           mainAxisSize: MainAxisSize.min,

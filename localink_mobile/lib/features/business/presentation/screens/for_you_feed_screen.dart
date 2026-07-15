@@ -87,15 +87,21 @@ class _ForYouFeedScreenState extends ConsumerState<ForYouFeedScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFF0F0F0F),
       appBar: AppBar(
-        backgroundColor: const Color(0xFF1E1E1E),
+        backgroundColor: const Color(0xFF161616),
         elevation: 0,
+        centerTitle: true,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
+          icon: const Icon(Icons.arrow_back_ios_new, color: Color(0xFFFF7A00), size: 20),
+          onPressed: () => context.pop(),
         ),
         title: const Text(
           'For You',
-          style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            fontFamily: 'Inter',
+            color: Colors.white,
+            fontWeight: FontWeight.w800,
+            fontSize: 18,
+          ),
         ),
         actions: [
           IconButton(
@@ -103,6 +109,13 @@ class _ForYouFeedScreenState extends ConsumerState<ForYouFeedScreen> {
             onPressed: _loadPersonalizedFeed,
           ),
         ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Container(
+            color: Colors.white.withValues(alpha: 0.05),
+            height: 1,
+          ),
+        ),
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator(color: Color(0xFFFF7A00)))
@@ -208,7 +221,7 @@ class _ForYouFeedScreenState extends ConsumerState<ForYouFeedScreen> {
                             return Container(
                               margin: const EdgeInsets.only(bottom: 15),
                               decoration: BoxDecoration(
-                                color: const Color(0xFF1E1E1E),
+                                color: const Color(0xFF161616),
                                 borderRadius: BorderRadius.circular(16),
                                 border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
                               ),

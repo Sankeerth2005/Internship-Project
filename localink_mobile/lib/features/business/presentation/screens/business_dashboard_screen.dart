@@ -25,15 +25,21 @@ class BusinessDashboardScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: const Color(0xFF0F0F0F),
       appBar: AppBar(
-        backgroundColor: const Color(0xFF1E1E1E),
+        backgroundColor: const Color(0xFF161616),
         elevation: 0,
+        centerTitle: true,
         title: const Text(
           'Business Dashboard',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
+          style: TextStyle(
+            fontFamily: 'Inter',
+            color: Colors.white,
+            fontWeight: FontWeight.w800,
+            fontSize: 18,
+          ),
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.person, color: Color(0xFFFF7A00)),
+            icon: const Icon(Icons.person_outline, color: Color(0xFFFF7A00)),
             onPressed: () => context.push('/owner-profile'),
           ),
           IconButton(
@@ -41,7 +47,7 @@ class BusinessDashboardScreen extends ConsumerWidget {
             onPressed: () => ref.read(myBusinessesProvider.notifier).refresh(),
           ),
           IconButton(
-            icon: const Icon(Icons.logout, color: Colors.redAccent),
+            icon: const Icon(Icons.logout_outlined, color: Colors.redAccent),
             onPressed: () {
               if (authState is AuthAuthenticated) {
                 SignalRService().disconnect(authState.userId);
@@ -50,6 +56,13 @@ class BusinessDashboardScreen extends ConsumerWidget {
             },
           ),
         ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Container(
+            color: Colors.white.withValues(alpha: 0.05),
+            height: 1,
+          ),
+        ),
       ),
       body: myBusinessesAsync.when(
         data: (businesses) {
@@ -140,9 +153,9 @@ class BusinessDashboardScreen extends ConsumerWidget {
       margin: const EdgeInsets.only(bottom: 15),
       padding: const EdgeInsets.all(15),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E1E1E),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-        borderRadius: BorderRadius.circular(12),
+        color: const Color(0xFF161616),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+        borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
