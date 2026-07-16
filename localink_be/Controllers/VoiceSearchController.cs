@@ -11,10 +11,12 @@ namespace localink_be.Controllers
     public class VoiceSearchController : ControllerBase
     {
         private readonly IBusinessService _businessService;
+        private readonly IAIGatewayService _aiGateway;
 
-        public VoiceSearchController(IBusinessService businessService)
+        public VoiceSearchController(IBusinessService businessService, IAIGatewayService aiGateway)
         {
             _businessService = businessService ?? throw new ArgumentNullException(nameof(businessService));
+            _aiGateway = aiGateway ?? throw new ArgumentNullException(nameof(aiGateway));
         }
 
         /// <summary>
@@ -64,6 +66,29 @@ namespace localink_be.Controllers
 
             try
             {
+                // Parse intent using AI Gateway to extract search query, category, openNow status
+                if (!string.IsNullOrWhiteSpace(request.Query))
+                {
+                    try
+                    {
+                        var intentResult = await _aiGateway.ParseIntentAsync(request.Query);
+                        if (intentResult.Success)
+                        {
+                            request.Query = intentResult.Query ?? request.Query;
+                            request.Category = intentResult.Category ?? request.Category;
+                            request.OpenNow = intentResult.OpenNow || request.OpenNow;
+                            if (intentResult.RadiusKm.HasValue)
+                            {
+                                request.Radius = intentResult.RadiusKm.Value;
+                            }
+                        }
+                    }
+                    catch
+                    {
+                        // Fall back to original query if AI parsing fails
+                    }
+                }
+
                 // Try to get user location from request headers if available
                 double? userLat = null;
                 double? userLng = null;

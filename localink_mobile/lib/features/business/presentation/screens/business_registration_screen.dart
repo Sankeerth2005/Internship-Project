@@ -89,6 +89,7 @@ class _BusinessRegistrationScreenState
   Symbol? _marker;
   double _latitude = 17.3850;
   double _longitude = 78.4867;
+  bool _manuallySelectedCoordinates = false;
 
   // Step 3 Data
   String? _photoBase64;
@@ -434,6 +435,11 @@ class _BusinessRegistrationScreenState
 
   void _onMapClick(Point<double> point, LatLng coordinates) {
     if (_mapController != null) {
+      setState(() {
+        _latitude = coordinates.latitude;
+        _longitude = coordinates.longitude;
+        _manuallySelectedCoordinates = true;
+      });
       _mapController!.animateCamera(
         CameraUpdate.newCameraPosition(
           CameraPosition(
@@ -442,6 +448,7 @@ class _BusinessRegistrationScreenState
           ),
         ),
       );
+      _addMarker(coordinates);
     }
   }
 
@@ -464,6 +471,11 @@ class _BusinessRegistrationScreenState
 
   Future<void> _geocodeSelectedCity() async {
     if (_selectedCity == null) return;
+    // Don't override if user manually selected coordinates on map
+    if (_manuallySelectedCoordinates) {
+      debugPrint('Skipping geocode - user manually selected coordinates');
+      return;
+    }
     try {
       final cityStr = _selectedCity!.name;
       final stateStr = _selectedState?.name ?? '';
@@ -1277,6 +1289,7 @@ class _BusinessRegistrationScreenState
                         _longitude = lon;
                         _locationSuggestions = [];
                         _locationSearchController.text = formattedAddress;
+                        _manuallySelectedCoordinates = true;
                       });
                       final pos = LatLng(lat, lon);
                       if (_mapController != null) {
@@ -1414,6 +1427,8 @@ class _BusinessRegistrationScreenState
                   onChanged: (CityModel? newValue) {
                     setState(() {
                       _selectedCity = newValue;
+                      // Reset manual selection flag when city changes
+                      _manuallySelectedCoordinates = false;
                     });
                     if (newValue != null) {
                       _geocodeSelectedCity();

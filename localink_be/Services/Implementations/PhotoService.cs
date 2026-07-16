@@ -78,6 +78,15 @@ namespace localink_be.Services.Implementations
         await File.WriteAllBytesAsync(filePath, bytes);
  
         var imageUrl = $"/uploads/{fileName}";
+
+        // Set all existing photos to not primary
+        var existingPhotos = await _db.BusinessPhotos
+            .Where(p => p.BusinessId == businessId)
+            .ToListAsync();
+        foreach (var p in existingPhotos)
+        {
+            p.IsPrimary = false;
+        }
  
         var photo = new BusinessPhoto
         {

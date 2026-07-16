@@ -20,7 +20,7 @@ class _MainShellState extends State<MainShell> {
       extendBody: true,
       body: widget.navigationShell,
       bottomNavigationBar: Container(
-        height: 65,
+        height: 75,
         margin: EdgeInsets.fromLTRB(
           20, 
           0, 
@@ -53,7 +53,7 @@ class _MainShellState extends State<MainShell> {
               ),
               child: NavigationBarTheme(
                 data: NavigationBarThemeData(
-                  height: 65,
+                  height: 75,
                   labelTextStyle: WidgetStateProperty.resolveWith((states) {
                     if (states.contains(WidgetState.selected)) {
                       return const TextStyle(
@@ -70,7 +70,7 @@ class _MainShellState extends State<MainShell> {
                   }),
                 ),
                 child: NavigationBar(
-                  height: 65,
+                  height: 75,
                   backgroundColor: Colors.transparent,
                   surfaceTintColor: Colors.transparent,
                   indicatorColor: const Color(0xFFFF6B00).withValues(alpha: 0.15),
@@ -84,18 +84,18 @@ class _MainShellState extends State<MainShell> {
                   labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
                   destinations: const [
                     NavigationDestination(
-                      icon: Icon(Icons.home_outlined, color: Colors.white38, size: 22),
-                      selectedIcon: Icon(Icons.home_rounded, color: Color(0xFFFF6B00), size: 22),
+                      icon: Icon(Icons.home_outlined, size: 24),
+                      selectedIcon: Icon(Icons.home_rounded, size: 24),
                       label: 'Home',
                     ),
                     NavigationDestination(
-                      icon: Icon(Icons.favorite_border_rounded, color: Colors.white38, size: 22),
-                      selectedIcon: Icon(Icons.favorite_rounded, color: Color(0xFFFF6B00), size: 22),
+                      icon: Icon(Icons.favorite_border_rounded, size: 24),
+                      selectedIcon: Icon(Icons.favorite_rounded, size: 24),
                       label: 'Favorites',
                     ),
                     NavigationDestination(
-                      icon: Icon(Icons.person_outline_rounded, color: Colors.white38, size: 22),
-                      selectedIcon: Icon(Icons.person_rounded, color: Color(0xFFFF6B00), size: 22),
+                      icon: Icon(Icons.person_outline_rounded, size: 24),
+                      selectedIcon: Icon(Icons.person_rounded, size: 24),
                       label: 'Profile',
                     ),
                   ],

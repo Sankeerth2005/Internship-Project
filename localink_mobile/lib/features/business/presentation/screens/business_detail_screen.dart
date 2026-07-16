@@ -542,9 +542,32 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
                                     }
                                   }
                                 } else {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(content: Text('Business coordinates not registered.')),
-                                  );
+                                  // Fallback: Use address if coordinates are missing
+                                  final address = '${business.address}, ${business.city}, ${business.state}, ${business.country}'.trim();
+                                  if (address.isNotEmpty && address != ', , , ') {
+                                    try {
+                                      final String url;
+                                      if (Platform.isIOS) {
+                                        url = 'https://maps.apple.com/?daddr=${Uri.encodeComponent(address)}&dirflg=d';
+                                      } else {
+                                        url = 'https://www.google.com/maps/dir/?api=1&destination=${Uri.encodeComponent(address)}&travelmode=driving';
+                                      }
+                                      final uri = Uri.parse(url);
+                                      await launchUrl(uri, mode: LaunchMode.externalApplication);
+                                    } catch (e) {
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(content: Text('Could not launch map directions.')),
+                                        );
+                                      }
+                                    }
+                                  } else {
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(content: Text('Business location not available. Please contact the business owner.')),
+                                      );
+                                    }
+                                  }
                                 }
                               }),
                             ),

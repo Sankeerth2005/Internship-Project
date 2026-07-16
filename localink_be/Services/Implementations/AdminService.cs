@@ -82,9 +82,13 @@ public class AdminService : IAdminService
         await _db.SaveChangesAsync();
         var business = await _db.Businesses
             .FirstOrDefaultAsync(b => b.BusinessId == businessId);
+        if (business == null)
+            throw new Exception("Business record not found");
 
         var user = await _db.Users
             .FirstOrDefaultAsync(u => u.UserId == business.UserId);
+        if (user == null)
+            throw new Exception("Owner user account not found");
 
         var categoryName = await _db.Categories
             .Where(c => c.CategoryId == business.CategoryId)

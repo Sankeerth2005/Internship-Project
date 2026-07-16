@@ -116,6 +116,8 @@ class BusinessRepository {
       'state': business.state,
       'country': business.country,
       'pincode': business.pincode,
+      'latitude': business.latitude,
+      'longitude': business.longitude,
       'photo': business.photo,
       'hours': business.hours.map((h) => h.toJson()).toList(),
     };

@@ -19,6 +19,8 @@ namespace localink_be.Models.DTOs
         public string State { get; set; } = string.Empty;
         public string Country { get; set; } = string.Empty;
         public string Pincode { get; set; } = string.Empty;
+        public double? Latitude { get; set; }
+        public double? Longitude { get; set; }
         public string? Photo { get; set; }
         public List<DayHoursDto> Hours { get; set; } = new List<DayHoursDto>();
     }

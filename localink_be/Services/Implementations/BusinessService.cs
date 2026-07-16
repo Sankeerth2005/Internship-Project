@@ -172,6 +172,23 @@ namespace localink_be.Services.Implementations
 
         if (contact != null)
         {
+            // Phone Number Validation: Check if phone number is already used by another business owner
+            var normalizedPhone = dto.PhoneNumber?.Trim();
+            var normalizedPhoneCode = dto.PhoneCode?.Trim();
+            if (!string.IsNullOrWhiteSpace(normalizedPhone) && 
+                (contact.PhoneNumber != normalizedPhone || contact.PhoneCode != normalizedPhoneCode))
+            {
+                var phoneExists = await _db.BusinessContacts
+                    .AnyAsync(c => c.PhoneNumber == normalizedPhone && 
+                                   c.PhoneCode == normalizedPhoneCode &&
+                                   c.BusinessId != id &&
+                                   c.Business.UserId != business.UserId);
+                if (phoneExists)
+                {
+                    throw new ArgumentException("This phone number is already registered with another business. Please use your own phone number.");
+                }
+            }
+
             contact.PhoneCode = dto.PhoneCode;
             contact.PhoneNumber = dto.PhoneNumber;
             contact.Email = dto.Email;
@@ -180,6 +197,8 @@ namespace localink_be.Services.Implementations
             contact.Country = dto.Country;
             contact.Pincode = dto.Pincode;
             contact.StreetAddress = dto.StreetAddress;
+            contact.Latitude = dto.Latitude;
+            contact.Longitude = dto.Longitude;
         }
 
         // Save new photo if provided
@@ -218,6 +237,21 @@ namespace localink_be.Services.Implementations
         if (exists)
         {
             throw new ArgumentException("A business with this name has already been registered under your account.");
+        }
+
+        // 2. Phone Number Validation: Check if phone number is already used by another business owner
+        var normalizedPhone = dto.PhoneNumber?.Trim();
+        var normalizedPhoneCode = dto.PhoneCode?.Trim();
+        if (!string.IsNullOrWhiteSpace(normalizedPhone))
+        {
+            var phoneExists = await _db.BusinessContacts
+                .AnyAsync(c => c.PhoneNumber == normalizedPhone && 
+                               c.PhoneCode == normalizedPhoneCode &&
+                               c.Business.UserId != userId);
+            if (phoneExists)
+            {
+                throw new ArgumentException("This phone number is already registered with another business. Please use your own phone number.");
+            }
         }
 
         var strategy = _db.Database.CreateExecutionStrategy();
@@ -299,7 +333,7 @@ namespace localink_be.Services.Implementations
                             .Select(c => c.CategoryName)
                             .FirstOrDefaultAsync();
 
-                        var adminEmail = "aadarshreddydepa@gmail.com";
+                        var adminEmail = "sankeerth559@gmail.com";
 
                         await scopedEmail.SendNewBusinessNotificationToAdminAsync(
                             adminEmail,
@@ -595,6 +629,11 @@ namespace localink_be.Services.Implementations
                         .Where(p => p.BusinessId == b.BusinessId && p.IsPrimary)
                         .Select(p => p.ImageUrl)
                         .FirstOrDefault(),
+                    Photos = _db.BusinessPhotos
+                        .Where(p => p.BusinessId == b.BusinessId)
+                        .OrderByDescending(p => p.IsPrimary)
+                        .Select(p => p.ImageUrl)
+                        .ToList(),
                     IsTemporarilyClosed = b.TemporaryClosureStatus == "Approved" && b.TemporaryClosureReopenDate > DateTime.UtcNow,
                     TemporaryClosureReason = b.TemporaryClosureReason,
                     TemporaryClosureStatus = b.TemporaryClosureStatus,
@@ -635,6 +674,10 @@ namespace localink_be.Services.Implementations
                     .Where(c => c.BusinessId == b.BusinessId)
                     .Select(c => c.PhoneNumber)
                     .FirstOrDefault(),
+                PhoneCode = _db.BusinessContacts
+                    .Where(c => c.BusinessId == b.BusinessId)
+                    .Select(c => c.PhoneCode)
+                    .FirstOrDefault(),
                 Email = _db.BusinessContacts
                     .Where(c => c.BusinessId == b.BusinessId)
                     .Select(c => c.Email)
@@ -646,6 +689,10 @@ namespace localink_be.Services.Implementations
                 State = _db.BusinessContacts
                     .Where(c => c.BusinessId == b.BusinessId)
                     .Select(c => c.State)
+                    .FirstOrDefault(),
+                Country = _db.BusinessContacts
+                    .Where(c => c.BusinessId == b.BusinessId)
+                    .Select(c => c.Country)
                     .FirstOrDefault(),
                 StreetAddress = _db.BusinessContacts
                     .Where(c => c.BusinessId == b.BusinessId)
@@ -760,10 +807,10 @@ namespace localink_be.Services.Implementations
 
                 var query = request.Query?.Trim() ?? string.Empty;
 
-                // Start with base query
+                // Start with base query of APPROVED businesses
                 var businessesQuery = _db.Businesses
                     .AsNoTracking()
-                    .AsQueryable();
+                    .Where(b => _db.AdminDashboards.Any(a => a.BusinessId == b.BusinessId && a.Status == BusinessStatus.Approved));
 
                 // Apply text search if query provided
                 if (!string.IsNullOrWhiteSpace(query))
@@ -809,9 +856,10 @@ namespace localink_be.Services.Implementations
                 // Apply radius filter if user location provided
                 if (userLat.HasValue && userLng.HasValue && request.Radius > 0)
                 {
-                    // Note: This is a simplified distance calculation
-                    // For production, consider using SQL Server geography types
-                    var radiusDegrees = request.Radius / 111.0; // Rough conversion km to degrees
+                    // If the radius is 5 (which is the default client-side value),
+                    // expand it to 100km to prevent filtering out businesses in the same city.
+                    var searchRadius = request.Radius == 5 ? 100 : request.Radius;
+                    var radiusDegrees = searchRadius / 111.0; // Rough conversion km to degrees
 
                     businessesQuery = businessesQuery.Where(b =>
                         _db.BusinessContacts.Any(c =>
@@ -822,6 +870,11 @@ namespace localink_be.Services.Implementations
                             Math.Abs(c.Longitude.Value - userLng.Value) <= radiusDegrees
                         )
                     );
+                }
+                else
+                {
+                    // If no location provided, don't filter by radius at all
+                    // This ensures voice search returns results even without GPS
                 }
 
                 // Project to DTO with distance calculation

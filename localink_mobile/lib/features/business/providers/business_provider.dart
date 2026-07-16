@@ -37,6 +37,7 @@ class MyBusinessesNotifier extends AsyncNotifier<List<BusinessDto>> {
   Future<void> refresh() async {
     state = const AsyncValue.loading();
     state = await AsyncValue.guard(() => _fetch());
+    ref.invalidate(searchResultsProvider);
   }
 
   Future<int> register(BusinessDto business) async {
@@ -50,6 +51,8 @@ class MyBusinessesNotifier extends AsyncNotifier<List<BusinessDto>> {
     final repo = ref.read(businessRepositoryProvider);
     final success = await repo.updateBusiness(id, business);
     await refresh();
+    // Invalidate single business provider to refresh user's view
+    ref.invalidate(singleBusinessProvider);
     return success;
   }
 }

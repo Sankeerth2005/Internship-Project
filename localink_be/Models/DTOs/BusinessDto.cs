@@ -11,11 +11,11 @@ namespace localink_be.Models.DTOs
     public string? PhoneNumber { get; set; }
     public string? PhoneCode { get; set; }
     public string? Email { get; set; }
-    
+
     public string? Country { get; set; }
-    
+
     public string? Pincode { get; set; }
-    
+
     public string? StreetAddress { get; set; }
 
         public string? City { get; set; }
@@ -35,5 +35,6 @@ namespace localink_be.Models.DTOs
         public string? TemporaryClosureStatus { get; set; }
         public int? TemporaryClosureDays { get; set; }
         public DateTime? TemporaryClosureReopenDate { get; set; }
+        public List<string>? Photos { get; set; }
     }
 }

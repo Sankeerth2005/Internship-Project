@@ -56,6 +56,68 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       return;
     }
 
+    final country = _countryCtrl.text.trim();
+    final state = _stateCtrl.text.trim();
+    final city = _cityCtrl.text.trim();
+    final pincode = _pincodeCtrl.text.trim();
+
+    if (country.isEmpty || state.isEmpty || city.isEmpty || pincode.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Country, State, City, and Pincode are all required'), backgroundColor: Color(0xFFFF4D4F)),
+      );
+      return;
+    }
+
+    // Validate country - should be at least 2 characters
+    if (country.length < 2) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Country name is too short'), backgroundColor: Color(0xFFFF4D4F)),
+      );
+      return;
+    }
+
+    // Validate state - should be at least 2 characters
+    if (state.length < 2) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('State name is too short'), backgroundColor: Color(0xFFFF4D4F)),
+      );
+      return;
+    }
+
+    // Validate city - should be at least 2 characters
+    if (city.length < 2) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('City name is too short'), backgroundColor: Color(0xFFFF4D4F)),
+      );
+      return;
+    }
+
+    // Validate pincode format based on country
+    if (country.toLowerCase() == 'india') {
+      if (pincode.length != 6 || int.tryParse(pincode) == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Indian pincodes must be exactly 6 digits'), backgroundColor: Color(0xFFFF4D4F)),
+        );
+        return;
+      }
+    } else {
+      // For other countries, pincode should be at least 3 characters and alphanumeric
+      if (pincode.length < 3) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Pincode must be at least 3 characters'), backgroundColor: Color(0xFFFF4D4F)),
+        );
+        return;
+      }
+      // Allow alphanumeric but no special characters except hyphen and space
+      final validPincode = RegExp(r'^[a-zA-Z0-9\s\-]+$');
+      if (!validPincode.hasMatch(pincode)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Pincode contains invalid characters'), backgroundColor: Color(0xFFFF4D4F)),
+        );
+        return;
+      }
+    }
+
     setState(() => _isSaving = true);
     try {
       final repo = ref.read(userRepositoryProvider);
