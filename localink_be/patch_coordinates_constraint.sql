@@ -12,7 +12,8 @@ BEGIN
         ALTER TABLE [business_contact] DROP CONSTRAINT [CK_business_contact_coordinates];
     END
 
-    ALTER TABLE [business_contact]
+    ALTER TABLE [business_contact]    WITH NOCHECK
+
     ADD CONSTRAINT [CK_business_contact_coordinates] CHECK (
         ([latitude] IS NULL AND [longitude] IS NULL) OR
         (

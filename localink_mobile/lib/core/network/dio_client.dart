@@ -33,7 +33,8 @@ class DioClient {
     _dio.interceptors.add(
       InterceptorsWrapper(
         onError: (DioException e, handler) async {
-          if (e.response?.statusCode == 401) {
+          final isLoginRequest = e.requestOptions.path.contains('sessions') || e.requestOptions.path.contains('google');
+          if (e.response?.statusCode == 401 && !isLoginRequest) {
             onUnauthorized?.call();
           } else if (e.response?.statusCode == 429) {
             onRateLimited?.call();

@@ -68,7 +68,7 @@ class AuthNotifier extends Notifier<AuthState> {
       String errorMessage = 'Something went wrong. Please try again.';
       if (e is DioException) {
         if (e.response?.statusCode == 401) {
-          errorMessage = 'The email or password you entered is incorrect. Please double-check your details and try again';
+          errorMessage = 'Invalid Credentials';
         } else if (e.response?.statusCode == 429) {
           errorMessage = 'Too many requests. Please wait a moment before trying again.';
         } else if (e.type == DioExceptionType.connectionTimeout || e.type == DioExceptionType.receiveTimeout) {

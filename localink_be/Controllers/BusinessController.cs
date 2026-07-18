@@ -176,10 +176,13 @@ namespace localink_be.Controllers
                     var log = new localink_be.Models.Entities.SearchQueryLog
                     {
                         Query = query,
-                        Latitude = userLat ?? 19.0760, // Default to Mumbai coordinates if no GPS header
-                        Longitude = userLng ?? 72.8777,
                         Timestamp = DateTime.UtcNow
                     };
+                    if (userLat.HasValue && userLng.HasValue)
+                    {
+                        log.Latitude = userLat.Value;
+                        log.Longitude = userLng.Value;
+                    }
                     db.SearchQueryLogs.Add(log);
                     await db.SaveChangesAsync();
                 }

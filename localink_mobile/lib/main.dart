@@ -39,45 +39,48 @@ final routerProvider = Provider<GoRouter>((ref) {
     initialLocation: '/splash',
     refreshListenable: GoRouterRefreshListenable(ref),
     redirect: (BuildContext context, GoRouterState state) {
-      // Use ref.watch to listen for auth state changes.
-      final authState = ref.watch(authProvider);
-      final isGoingToSplash = state.matchedLocation == '/splash';
+      final authState = ref.watch(authProvider); // Listen to auth state changes
+      final currentLocation = state.matchedLocation;
 
-      // While checking auth status, stay on the splash screen.
-      if (authState is AuthInitial && !isGoingToSplash) {
-        return '/splash';
+      // If the app is still in the initial authentication check,
+      // allow it to stay on the splash screen.
+      // The SplashScreen widget itself will handle navigation after a delay.
+      if (authState is AuthInitial) {
+        return null; // Allow SplashScreen to handle its own navigation
       }
 
       // Define public routes that an unauthenticated user can access.
-      final isPublicRoute = state.matchedLocation == '/welcome' ||
-          state.matchedLocation == '/login' ||
-          state.matchedLocation == '/signup' ||
-          state.matchedLocation == '/forgot-password' ||
-          state.matchedLocation == '/verify-otp' ||
-          state.matchedLocation == '/reset-password';
+      // These are routes that don't require authentication.
+      final isPublicRoute = currentLocation == '/welcome' ||
+          currentLocation == '/login' ||
+          currentLocation == '/signup' ||
+          currentLocation == '/forgot-password' ||
+          currentLocation == '/verify-otp' ||
+          currentLocation == '/reset-password';
 
+      // If the user is NOT authenticated and trying to access a protected route,
+      // redirect them to the welcome screen.
       if (authState is AuthUnauthenticated && !isPublicRoute) {
-        // If not authenticated and not on a public route, go to the welcome screen.
         return '/welcome';
       }
 
-      // If the user is authenticated...
+      // If the user IS authenticated...
       if (authState is AuthAuthenticated) {
-        // ...and they are on the splash or a public page, redirect them to their dashboard.
-        if (isGoingToSplash || isPublicRoute) {
-          // Normalize matching on backend role string (lowercase/uppercase check)
+        // ...and they are trying to access the splash screen or any public route,
+        // redirect them to their appropriate dashboard.
+        if (currentLocation == '/splash' || isPublicRoute) {
         final role = authState.userType.toLowerCase().trim();
         if (role == 'admin') {
           return '/admin-dashboard';
         }
-        if (role == 'businessowner') {
+        if (role == 'businessowner' || role == 'client') {
           return '/business-dashboard';
         }
         return '/home';
         }
       }
 
-      return null;
+      return null; // No redirection needed, continue to the requested route.
     },
     routes: [
       GoRoute(

@@ -143,8 +143,8 @@ namespace localink_be.Controllers
             var mappedBusinesses = businesses.Select(b => new
             {
                 businessName = b.BusinessName,
-                latitude = b.Latitude ?? 19.0760,
-                longitude = b.Longitude ?? 72.8777
+                latitude = b.Latitude,
+                longitude = b.Longitude
             }).ToList();
 
             var searchLogs = await _db.SearchQueryLogs

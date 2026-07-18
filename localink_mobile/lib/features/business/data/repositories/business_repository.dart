@@ -182,23 +182,26 @@ class BusinessRepository {
 
   // ─── FAVORITES ───
   Future<List<int>> getFavorites(int userId) async {
-    final response = await _dio.get('favorites/user/$userId');
+    final options = await _getAuthOptions();
+    final response = await _dio.get('favorites/user/$userId', options: options);
     final list = response.data as List? ?? [];
     return list.map<int>((e) => (e as num).toInt()).toList();
   }
 
   Future<void> addFavorite(int userId, int businessId) async {
+    final options = await _getAuthOptions();
     await _dio.post('favorites/add', data: {
       'userId': userId,
       'businessId': businessId,
-    });
+    }, options: options);
   }
 
   Future<void> removeFavorite(int userId, int businessId) async {
+    final options = await _getAuthOptions();
     await _dio.delete('favorites/remove', queryParameters: {
       'userId': userId,
       'businessId': businessId,
-    });
+    }, options: options);
   }
 
   // ─── AI REVIEW ───
