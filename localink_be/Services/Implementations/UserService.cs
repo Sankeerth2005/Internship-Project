@@ -14,15 +14,18 @@ public class UserService : IUserService
 {
     private readonly AppDbContext _db;
     private readonly IBusinessPincodeService _pincodeService;
+    private readonly IBusinessLocationService _locationService;
     private readonly Microsoft.Extensions.Logging.ILogger<UserService> _logger;
 
     public UserService(
         AppDbContext db, 
         IBusinessPincodeService pincodeService, 
+        IBusinessLocationService locationService,
         Microsoft.Extensions.Logging.ILogger<UserService> logger)
     {
         _db = db;
         _pincodeService = pincodeService;
+        _locationService = locationService;
         _logger = logger;
     }
 
@@ -81,6 +84,18 @@ public class UserService : IUserService
             throw new ArgumentException("Country, State, City, and Pincode are all required.");
         }
 
+        // Cascading address validation (Country -> State -> City) using CSC API
+        var isValidLocation = await _locationService.ValidateAddressAsync(
+            dto.Address.Country.Trim(),
+            dto.Address.State.Trim(),
+            dto.Address.City.Trim()
+        );
+
+        if (!isValidLocation)
+        {
+            throw new ArgumentException("The specified Country, State, and City combination is invalid.");
+        }
+
         // 3. Indian pincode validation (exactly 6 digits and numeric)
         var cleanPincode = dto.Address.Pincode.Trim();
         if (dto.Address.Country.ToLower().Contains("india") && (cleanPincode.Length != 6 || !int.TryParse(cleanPincode, out _)))
@@ -98,6 +113,22 @@ public class UserService : IUserService
                 if (features.GetArrayLength() == 0)
                 {
                     throw new ArgumentException("Pincode does not exist or is invalid.");
+                }
+
+                // Verify state matches
+                var firstFeature = features[0];
+                if (firstFeature.TryGetProperty("properties", out var props))
+                {
+                    string? geocodedState = null;
+                    if (props.TryGetProperty("state", out var stateProp))
+                        geocodedState = stateProp.GetString();
+
+                    if (!string.IsNullOrEmpty(geocodedState) && 
+                        !geocodedState.Contains(dto.Address.State.Trim(), StringComparison.OrdinalIgnoreCase) &&
+                        !dto.Address.State.Trim().Contains(geocodedState, StringComparison.OrdinalIgnoreCase))
+                    {
+                        throw new ArgumentException($"The pincode {cleanPincode} belongs to state '{geocodedState}', not '{dto.Address.State}'.");
+                    }
                 }
             }
         }

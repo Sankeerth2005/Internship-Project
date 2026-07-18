@@ -15,10 +15,12 @@ namespace localink_be.Controllers
     public class BusinessController : ControllerBase
     {
         private readonly IBusinessService _service;
+        private readonly IConfiguration _config;
 
-        public BusinessController(IBusinessService service)
+        public BusinessController(IBusinessService service, IConfiguration config)
         {
             _service = service;
+            _config = config;
         }
 
         [HttpGet]
@@ -30,7 +32,7 @@ namespace localink_be.Controllers
         [HttpGet("{id}")]
         public async Task<IActionResult> GetBusinessById(long id)
         {
-            var business = await _service.GetBusinessByIdAsync(id);
+            var business = await _service.GetByIdAsync(id);
             if (business == null) return NotFound();
             return Ok(business);
         }
@@ -52,6 +54,7 @@ namespace localink_be.Controllers
             }
 
             var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId)) return Unauthorized();
 
             var businessId = await _service.RegisterBusinessAsync(dto, long.Parse(userId));
 
@@ -78,16 +81,40 @@ namespace localink_be.Controllers
                 });
             }
 
-            var result = await _service.UpdateBusinessFullAsync(id, dto);
-            return !result ? NotFound(new { success = false, message = "Business not found" }) : Ok(new { success = true, data = result });
+            var userIdStr = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userIdStr)) return Unauthorized();
+            long currentUserId = long.Parse(userIdStr);
+            bool isAdmin = User.IsInRole("admin");
+
+            try
+            {
+                var result = await _service.UpdateBusinessFullAsync(id, dto, currentUserId, isAdmin);
+                return !result ? NotFound(new { success = false, message = "Business not found" }) : Ok(new { success = true, data = result });
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, new { success = false, message = ex.Message });
+            }
         }
 
         [Authorize(Roles = "client,businessowner")]
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteBusiness(long id)
         {
-            var deleted = await _service.DeleteBusinessAsync(id);
-            return deleted ? NoContent() : NotFound();
+            var userIdStr = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userIdStr)) return Unauthorized();
+            long currentUserId = long.Parse(userIdStr);
+            bool isAdmin = User.IsInRole("admin");
+
+            try
+            {
+                var deleted = await _service.DeleteBusinessAsync(id, currentUserId, isAdmin);
+                return deleted ? NoContent() : NotFound();
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, new { success = false, message = ex.Message });
+            }
         }
 
         [Authorize]
@@ -95,6 +122,7 @@ namespace localink_be.Controllers
         public async Task<IActionResult> GetMyBusinesses()
         {
             var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId)) return Unauthorized();
 
             var data = await _service.GetBusinessesByUserAsync(long.Parse(userId));
             return Ok(data);
@@ -166,7 +194,8 @@ namespace localink_be.Controllers
         {
             using var client = new HttpClient();
 
-            var url = $"https://api.geoapify.com/v1/geocode/search?text={pincode}&format=json&apiKey=b5574329b50a49f49fe3b9ebbaf7a837";
+            var apiKey = _config["Geoapify:ApiKey"] ?? throw new Exception("Geoapify API key missing");
+            var url = $"https://api.geoapify.com/v1/geocode/search?text={pincode}&format=json&apiKey={apiKey}";
 
             var response = await client.GetAsync(url);
 

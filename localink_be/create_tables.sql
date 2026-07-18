@@ -149,7 +149,11 @@ CREATE TABLE [business_contact] (
     [latitude] float NULL,
     [longitude] float NULL,
     CONSTRAINT [PK_business_contact] PRIMARY KEY ([contact_id]),
-    CONSTRAINT [FK_business_contact_business_business_id] FOREIGN KEY ([business_id]) REFERENCES [business] ([business_id]) ON DELETE CASCADE
+    CONSTRAINT [FK_business_contact_business_business_id] FOREIGN KEY ([business_id]) REFERENCES [business] ([business_id]) ON DELETE CASCADE,
+    CONSTRAINT [CK_business_contact_coordinates] CHECK (
+        ([latitude] IS NULL AND [longitude] IS NULL) OR
+        ([latitude] BETWEEN -90.0 AND 90.0 AND [longitude] BETWEEN -180.0 AND 180.0 AND ([latitude] <> 0.0 OR [longitude] <> 0.0))
+    )
 );
 GO
 

@@ -3,12 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:geolocator/geolocator.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:ui';
 import '../../providers/business_provider.dart';
 import '../../data/models/business_models.dart';
 import '../../../../core/network/dio_client.dart';
+import '../../../../core/network/signalr_service.dart';
 import '../../../auth/providers/auth_provider.dart';
 import '../../../auth/providers/auth_state.dart';
 
@@ -68,6 +70,23 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
   void initState() {
     super.initState();
     _incrementViewCount();
+    SignalRService().addNotificationListener(_onNotificationReceived);
+  }
+
+  @override
+  void dispose() {
+    SignalRService().removeNotificationListener(_onNotificationReceived);
+    _commentController.dispose();
+    super.dispose();
+  }
+
+  void _onNotificationReceived(String message) {
+    if (message.contains('BusinessUpdated:${widget.businessId}') ||
+        message.contains('BusinessDeleted:${widget.businessId}') ||
+        message.contains('status') ||
+        message.contains('closure')) {
+      ref.invalidate(singleBusinessProvider(widget.businessId));
+    }
   }
 
   Future<void> _incrementViewCount() async {
@@ -82,11 +101,7 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
     } catch (_) {}
   }
 
-  @override
-  void dispose() {
-    _commentController.dispose();
-    super.dispose();
-  }
+
 
   Future<void> _submitReview() async {
     if (_commentController.text.trim().isEmpty) return;
@@ -523,52 +538,86 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
                             const SizedBox(width: 12),
                             Expanded(
                               child: _buildActionBtn(Icons.directions_rounded, 'Directions', () async {
-                                _incrementClickCount();
-                                if (business.latitude != null && business.longitude != null) {
-                                  try {
-                                    final String url;
-                                    if (Platform.isIOS) {
-                                      url = 'https://maps.apple.com/?daddr=${business.latitude},${business.longitude}&dirflg=d';
-                                    } else {
-                                      url = 'https://www.google.com/maps/dir/?api=1&destination=${business.latitude},${business.longitude}&travelmode=driving';
-                                    }
-                                    final uri = Uri.parse(url);
-                                    await launchUrl(uri, mode: LaunchMode.externalApplication);
-                                  } catch (e) {
-                                    if (context.mounted) {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(content: Text('Could not launch map directions.')),
-                                      );
-                                    }
-                                  }
-                                } else {
-                                  // Fallback: Use address if coordinates are missing
-                                  final address = '${business.address}, ${business.city}, ${business.state}, ${business.country}'.trim();
-                                  if (address.isNotEmpty && address != ', , , ') {
+                                 _incrementClickCount();
+                                 Position? userPos;
+                                 try {
+                                   LocationPermission permission = await Geolocator.checkPermission();
+                                   if (permission == LocationPermission.denied) {
+                                     permission = await Geolocator.requestPermission();
+                                   }
+                                   if (permission == LocationPermission.whileInUse || permission == LocationPermission.always) {
+                                     userPos = await Geolocator.getCurrentPosition(
+                                       timeLimit: const Duration(seconds: 5),
+                                     );
+                                   }
+                                 } catch (e) {
+                                   debugPrint('Error getting user location for directions: $e');
+                                 }
+
+                                  final lat = business.latitude;
+                                  final lng = business.longitude;
+
+                                  if (lat != null &&
+                                      lng != null &&
+                                      lat >= -90.0 &&
+                                      lat <= 90.0 &&
+                                      lng >= -180.0 &&
+                                      lng <= 180.0 &&
+                                      lat != 0.0 &&
+                                      lng != 0.0 &&
+                                      !lat.isNaN &&
+                                      !lng.isNaN) {
                                     try {
                                       final String url;
                                       if (Platform.isIOS) {
-                                        url = 'https://maps.apple.com/?daddr=${Uri.encodeComponent(address)}&dirflg=d';
+                                        if (userPos != null) {
+                                          url = 'https://maps.apple.com/?saddr=${userPos.latitude},${userPos.longitude}&daddr=$lat,$lng&dirflg=d';
+                                        } else {
+                                          url = 'https://maps.apple.com/?daddr=$lat,$lng&dirflg=d';
+                                        }
                                       } else {
-                                        url = 'https://www.google.com/maps/dir/?api=1&destination=${Uri.encodeComponent(address)}&travelmode=driving';
+                                        if (userPos != null) {
+                                          url = 'https://www.google.com/maps/dir/?api=1&origin=${userPos.latitude},${userPos.longitude}&destination=$lat,$lng&travelmode=driving';
+                                        } else {
+                                          url = 'https://www.google.com/maps/dir/?api=1&destination=$lat,$lng&travelmode=driving';
+                                        }
                                       }
                                       final uri = Uri.parse(url);
                                       await launchUrl(uri, mode: LaunchMode.externalApplication);
                                     } catch (e) {
+                                      debugPrint('Error launching map directions URL: $e');
                                       if (context.mounted) {
                                         ScaffoldMessenger.of(context).showSnackBar(
-                                          const SnackBar(content: Text('Could not launch map directions.')),
+                                          const SnackBar(content: Text('Could not launch map application.')),
                                         );
                                       }
                                     }
                                   } else {
+                                    debugPrint('Navigation validation failed for business "${business.businessName}" (ID: ${business.businessId}). Coordinates: Lat=$lat, Lng=$lng');
                                     if (context.mounted) {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(content: Text('Business location not available. Please contact the business owner.')),
+                                      showDialog(
+                                        context: context,
+                                        builder: (ctx) => AlertDialog(
+                                          title: const Row(
+                                            children: [
+                                              Icon(Icons.error_outline, color: Colors.red),
+                                              SizedBox(width: 8),
+                                              Text('Navigation Failed'),
+                                            ],
+                                          ),
+                                          content: const Text(
+                                            'This business has invalid or uninitialized coordinates. Navigation cannot be launched until the business owner updates the location.',
+                                          ),
+                                          actions: [
+                                            TextButton(
+                                              onPressed: () => Navigator.pop(ctx),
+                                              child: const Text('OK'),
+                                            ),
+                                          ],
+                                        ),
                                       );
                                     }
                                   }
-                                }
                               }),
                             ),
                             const SizedBox(width: 12),

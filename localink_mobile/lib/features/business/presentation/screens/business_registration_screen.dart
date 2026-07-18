@@ -8,6 +8,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:dio/dio.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../../core/network/dio_client.dart';
+import '../../../../core/config/app_config.dart';
 
 import '../../providers/business_provider.dart';
 import '../../data/models/business_models.dart';
@@ -42,12 +43,12 @@ class _BusinessRegistrationScreenState
 
   List<Map<String, String>> get _phoneCountryItems {
     final list = <Map<String, String>>[];
-    list.addAll([
-      {'code': '91', 'name': 'India', 'flag': '🇮🇳'},
-      {'code': '1', 'name': 'United States', 'flag': '🇺🇸'},
-      {'code': '44', 'name': 'United Kingdom', 'flag': '🇬🇧'},
-      {'code': '61', 'name': 'Australia', 'flag': '🇦🇺'},
-    ]);
+    // list.addAll([
+    //   {'code': '91', 'name': 'India', 'flag': '🇮🇳'},
+    //   {'code': '1', 'name': 'United States', 'flag': '🇺🇸'},
+    //   {'code': '44', 'name': 'United Kingdom', 'flag': '🇬🇧'},
+    //   {'code': '61', 'name': 'Australia', 'flag': '🇦🇺'},
+    // ]);
     
     list.addAll(_customPhoneCountries);
 
@@ -87,9 +88,12 @@ class _BusinessRegistrationScreenState
   // MapLibre
   MapLibreMapController? _mapController;
   Symbol? _marker;
-  double _latitude = 17.3850;
-  double _longitude = 78.4867;
+  double? _latitude;
+  double? _longitude;
   bool _manuallySelectedCoordinates = false;
+  bool _mapInitialized = false;
+  bool _userSelectedLocation = false;
+  bool _coordinatesResolved = false;
 
   // Step 3 Data
   String? _photoBase64;
@@ -157,8 +161,11 @@ class _BusinessRegistrationScreenState
       _websiteController.text = edit.website;
       _addressController.text = edit.address;
       _pincodeController.text = edit.pincode;
-      _latitude = edit.latitude ?? 17.3850;
-      _longitude = edit.longitude ?? 78.4867;
+      _latitude = edit.latitude;
+      _longitude = edit.longitude;
+      if (_latitude != null && _longitude != null && _latitude != 0.0 && _longitude != 0.0) {
+        _coordinatesResolved = true;
+      }
       _businessHours = List.from(edit.hours);
       _loadLocationForEdit();
     } else {
@@ -330,6 +337,15 @@ class _BusinessRegistrationScreenState
             const SnackBar(content: Text('Please complete location selection')));
         return;
       }
+      if (_latitude == null || _longitude == null || _latitude == 0.0 || _longitude == 0.0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Valid map coordinates are required. Please geocode your city or select a point on the map.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
       if (!_formKey.currentState!.validate()) {
         return;
       }
@@ -347,6 +363,15 @@ class _BusinessRegistrationScreenState
 
   Future<void> _submitForm() async {
     if (!_formKey.currentState!.validate()) return;
+    if (_latitude == null || _longitude == null || _latitude == 0.0 || _longitude == 0.0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Valid map coordinates are required. Please pin your business location on the map.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
     setState(() => _isLoading = true);
 
     try {
@@ -430,7 +455,10 @@ class _BusinessRegistrationScreenState
 
   void _onMapCreated(MapLibreMapController controller) {
     _mapController = controller;
-    _addMarker(LatLng(_latitude, _longitude));
+    _mapInitialized = true;
+    if (_latitude != null && _longitude != null && _latitude != 0.0 && _longitude != 0.0) {
+      _addMarker(LatLng(_latitude!, _longitude!));
+    }
   }
 
   void _onMapClick(Point<double> point, LatLng coordinates) {
@@ -439,6 +467,7 @@ class _BusinessRegistrationScreenState
         _latitude = coordinates.latitude;
         _longitude = coordinates.longitude;
         _manuallySelectedCoordinates = true;
+        _userSelectedLocation = true;
       });
       _mapController!.animateCamera(
         CameraUpdate.newCameraPosition(
@@ -488,7 +517,7 @@ class _BusinessRegistrationScreenState
         queryParameters: {
           'text': queryText,
           'format': 'json',
-          'apiKey': 'b5574329b50a49f49fe3b9ebbaf7a837',
+          'apiKey': AppConfig.geoapifyApiKey,
         },
       );
 
@@ -498,10 +527,11 @@ class _BusinessRegistrationScreenState
           final result = results.first as Map<String, dynamic>;
           final lat = result['lat'] as double?;
           final lon = result['lon'] as double?;
-          if (lat != null && lon != null) {
+          if (lat != null && lon != null && lat != 0.0 && lon != 0.0) {
             setState(() {
               _latitude = lat;
               _longitude = lon;
+              _coordinatesResolved = true;
             });
             if (_mapController != null) {
               final pos = LatLng(lat, lon);
@@ -510,11 +540,40 @@ class _BusinessRegistrationScreenState
               );
               _addMarker(pos);
             }
+            return;
           }
         }
       }
+
+      // If we reach here, geocoding returned no valid results
+      setState(() {
+        _latitude = null;
+        _longitude = null;
+        _coordinatesResolved = false;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to resolve city coordinates. Please enter a valid address or locate manually on the map.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     } catch (e) {
       debugPrint('Error geocoding selected city: $e');
+      setState(() {
+        _latitude = null;
+        _longitude = null;
+        _coordinatesResolved = false;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Geocoding network error: $e. Please verify location details.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -554,18 +613,21 @@ class _BusinessRegistrationScreenState
       }
 
       final position = await Geolocator.getCurrentPosition();
-      setState(() {
-        _latitude = position.latitude;
-        _longitude = position.longitude;
-      });
+      if (position.latitude != 0.0 && position.longitude != 0.0) {
+        setState(() {
+          _latitude = position.latitude;
+          _longitude = position.longitude;
+          _coordinatesResolved = true;
+        });
 
-      final pos = LatLng(position.latitude, position.longitude);
-      if (_mapController != null) {
-        await _mapController!.animateCamera(
-          CameraUpdate.newCameraPosition(CameraPosition(target: pos, zoom: 15)),
-        );
+        final pos = LatLng(position.latitude, position.longitude);
+        if (_mapController != null) {
+          await _mapController!.animateCamera(
+            CameraUpdate.newCameraPosition(CameraPosition(target: pos, zoom: 15)),
+          );
+        }
+        _addMarker(pos);
       }
-      _addMarker(pos);
 
       // Call reverse geocoding to auto-fill address
       final dio = Dio();
@@ -575,7 +637,7 @@ class _BusinessRegistrationScreenState
           'lat': position.latitude,
           'lon': position.longitude,
           'format': 'json',
-          'apiKey': 'b5574329b50a49f49fe3b9ebbaf7a837',
+          'apiKey': AppConfig.geoapifyApiKey,
         },
       );
 
@@ -680,7 +742,7 @@ class _BusinessRegistrationScreenState
         queryParameters: {
           'text': text,
           'format': 'json',
-          'apiKey': 'b5574329b50a49f49fe3b9ebbaf7a837',
+          'apiKey': AppConfig.geoapifyApiKey,
         },
       );
       if (response.statusCode == 200 && response.data != null) {
@@ -1283,13 +1345,14 @@ class _BusinessRegistrationScreenState
                   onTap: () async {
                     final lat = item['lat'] as double?;
                     final lon = item['lon'] as double?;
-                    if (lat != null && lon != null) {
+                    if (lat != null && lon != null && lat != 0.0 && lon != 0.0) {
                       setState(() {
                         _latitude = lat;
                         _longitude = lon;
                         _locationSuggestions = [];
                         _locationSearchController.text = formattedAddress;
                         _manuallySelectedCoordinates = true;
+                        _coordinatesResolved = true;
                       });
                       final pos = LatLng(lat, lon);
                       if (_mapController != null) {
@@ -1497,6 +1560,30 @@ class _BusinessRegistrationScreenState
           ],
         ),
         const SizedBox(height: 10),
+        if (_latitude == null || _longitude == null || _latitude == 0.0 || _longitude == 0.0)
+          Container(
+            padding: const EdgeInsets.all(10),
+            margin: const EdgeInsets.only(bottom: 10),
+            decoration: BoxDecoration(
+              color: Colors.red.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.redAccent.withOpacity(0.3)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.warning_amber_rounded, color: Colors.redAccent),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    widget.businessToEdit != null
+                        ? 'Location coordinates are missing in database. You must select a location on the map before saving.'
+                        : 'Location coordinates are unselected. Geocode your city or pick a spot on the map.',
+                    style: const TextStyle(color: Colors.redAccent, fontSize: 13, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
+            ),
+          ),
         Container(
           height: 250,
           decoration: BoxDecoration(
@@ -1509,7 +1596,10 @@ class _BusinessRegistrationScreenState
               MapLibreMap(
                 styleString: osmStyle,
                 initialCameraPosition: CameraPosition(
-                    target: LatLng(_latitude, _longitude), zoom: 12),
+                    target: (_latitude != null && _longitude != null && _latitude != 0.0 && _longitude != 0.0)
+                        ? LatLng(_latitude!, _longitude!)
+                        : const LatLng(17.385, 78.4867),
+                    zoom: (_latitude != null && _longitude != null && _latitude != 0.0 && _longitude != 0.0) ? 12 : 5),
                 onMapCreated: _onMapCreated,
                 onMapClick: _onMapClick,
                 rotateGesturesEnabled: true,
@@ -1519,14 +1609,16 @@ class _BusinessRegistrationScreenState
                 doubleClickZoomEnabled: true,
                 myLocationEnabled: true,
                 onCameraIdle: () {
-                  if (_mapController != null) {
-                    final target = _mapController!.cameraPosition?.target;
-                    if (target != null) {
-                      setState(() {
-                        _latitude = target.latitude;
-                        _longitude = target.longitude;
-                      });
-                      _addMarker(target);
+                  if (_mapController != null && _mapInitialized) {
+                    if (_userSelectedLocation || _coordinatesResolved) {
+                      final target = _mapController!.cameraPosition?.target;
+                      if (target != null && target.latitude != 0.0 && target.longitude != 0.0) {
+                        setState(() {
+                          _latitude = target.latitude;
+                          _longitude = target.longitude;
+                        });
+                        _addMarker(target);
+                      }
                     }
                   }
                 },
@@ -1622,7 +1714,7 @@ class _BusinessRegistrationScreenState
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(color: Colors.white12),
                     image: DecorationImage(
-                      image: NetworkImage(widget.businessToEdit!.photos.first),
+                      image: NetworkImage('${Uri.parse(DioClient().dio.options.baseUrl).origin}${widget.businessToEdit!.photos.first}'),
                       fit: BoxFit.cover,
                     ),
                   ),
@@ -1800,7 +1892,7 @@ class _BusinessRegistrationScreenState
         _buildPreviewItem('Email', _emailController.text),
         _buildPreviewItem('Location',
             '${_selectedCity?.name}, ${_selectedState?.name}, ${_selectedCountry?.name}'),
-        _buildPreviewItem('Coordinates', 'Lat: ${_latitude.toStringAsFixed(4)}, Lng: ${_longitude.toStringAsFixed(4)}'),
+        _buildPreviewItem('Coordinates', 'Lat: ${_latitude?.toStringAsFixed(4) ?? "N/A"}, Lng: ${_longitude?.toStringAsFixed(4) ?? "N/A"}'),
       ],
     );
   }

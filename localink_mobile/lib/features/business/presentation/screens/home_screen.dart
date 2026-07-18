@@ -26,6 +26,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _getUserLocation();
     });
+    SignalRService().addNotificationListener(_onNotificationReceived);
   }
 
   Future<void> _getUserLocation() async {
@@ -52,8 +53,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   @override
   void dispose() {
+    SignalRService().removeNotificationListener(_onNotificationReceived);
     _searchController.dispose();
     super.dispose();
+  }
+
+  void _onNotificationReceived(String message) {
+    if (message.contains('BusinessUpdated') || 
+        message.contains('BusinessDeleted') || 
+        message.contains('status') || 
+        message.contains('closure')) {
+      ref.invalidate(searchResultsProvider);
+    }
   }
   void _triggerVoiceSearch() {
     showDialog(
@@ -61,7 +72,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       builder: (context) => const VoiceSearchDialog(),
     ).then((voiceQuery) {
       if (voiceQuery != null && voiceQuery is String && voiceQuery.isNotEmpty) {
-        _searchController.text = voiceQuery;
+        setState(() {
+          _searchController.text = voiceQuery;
+        });
         ref.read(searchQueryProvider.notifier).setQuery(voiceQuery, isVoice: true);
       }
     });

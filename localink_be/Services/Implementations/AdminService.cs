@@ -106,6 +106,15 @@ public class AdminService : IAdminService
 
         // Real-time status update notification to the business owner
         await _hubContext.Clients.Group($"client_{business.UserId}").SendAsync("ReceiveNotification", $"Your business '{business.BusinessName}' status has been updated to {record.Status}.");
+
+        if (record.Status == BusinessStatus.Approved)
+        {
+            try
+            {
+                await _hubContext.Clients.All.SendAsync("ReceiveNotification", $"BusinessUpdated:{businessId}");
+            }
+            catch { /* ignore */ }
+        }
     }
 
     public async Task<byte[]> ExportAsync(string status)

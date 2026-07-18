@@ -7,10 +7,10 @@ namespace localink_be.Services.Interfaces
 {
     public interface IPhotoService
     {
-        Task<BusinessPhoto?> UploadPhotoAsync(long businessId, IFormFile file);
+        Task<BusinessPhoto?> UploadPhotoAsync(long businessId, IFormFile file, long currentUserId, bool isAdmin);
         Task<List<BusinessPhoto>> GetPhotosAsync(long businessId);
-        Task<bool> DeletePhotoAsync(long photoId);
+        Task<bool> DeletePhotoAsync(long photoId, long currentUserId, bool isAdmin);
         Task SavePhotoAsync(string photoBase64, long businessId);
-        Task<string> SaveReviewPhotoAsync(string photoBase64);
+        Task<string?> SaveReviewPhotoAsync(string photoBase64);
     }
 }

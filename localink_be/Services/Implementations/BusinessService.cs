@@ -157,10 +157,15 @@ namespace localink_be.Services.Implementations
     }
 
 
-    public async Task<bool> UpdateBusinessFullAsync(long id, UpdateBusinessDto dto)
+    public async Task<bool> UpdateBusinessFullAsync(long id, UpdateBusinessDto dto, long currentUserId, bool isAdmin)
     {
         var business = await _db.Businesses.FindAsync(id);
         if (business == null) return false;
+
+        if (!isAdmin && business.UserId != currentUserId)
+        {
+            throw new UnauthorizedAccessException("You do not own this business.");
+        }
 
         business.BusinessName = dto.BusinessName;
         business.Description = dto.Description;
@@ -186,6 +191,28 @@ namespace localink_be.Services.Implementations
                 if (phoneExists)
                 {
                     throw new ArgumentException("This phone number is already registered with another business. Please use your own phone number.");
+                }
+            }
+
+            if (dto.Latitude.HasValue || dto.Longitude.HasValue)
+            {
+                var lat = dto.Latitude;
+                var lng = dto.Longitude;
+                if (!lat.HasValue || !lng.HasValue)
+                {
+                    throw new ArgumentException("Both latitude and longitude must be provided together.");
+                }
+                if (lat < -90.0 || lat > 90.0 || double.IsNaN(lat.Value) || double.IsInfinity(lat.Value))
+                {
+                    throw new ArgumentException("Latitude must be a valid number between -90 and 90.");
+                }
+                if (lng < -180.0 || lng > 180.0 || double.IsNaN(lng.Value) || double.IsInfinity(lng.Value))
+                {
+                    throw new ArgumentException("Longitude must be a valid number between -180 and 180.");
+                }
+                if (lat == 0.0 && lng == 0.0)
+                {
+                    throw new ArgumentException("Coordinates (0,0) are invalid.");
                 }
             }
 
@@ -217,15 +244,30 @@ namespace localink_be.Services.Implementations
         }
 
         await _db.SaveChangesAsync();
+        try
+        {
+            await _hubContext.Clients.All.SendAsync("ReceiveNotification", $"BusinessUpdated:{id}");
+        }
+        catch { /* fail silently */ }
         return true;
     }
-    public async Task<bool> DeleteBusinessAsync(long id)
+    public async Task<bool> DeleteBusinessAsync(long id, long currentUserId, bool isAdmin)
     {
         var business = await _db.Businesses.FindAsync(id);
         if (business == null) return false;
 
+        if (!isAdmin && business.UserId != currentUserId)
+        {
+            throw new UnauthorizedAccessException("You do not own this business.");
+        }
+
         _db.Businesses.Remove(business);
         await _db.SaveChangesAsync();
+        try
+        {
+            await _hubContext.Clients.All.SendAsync("ReceiveNotification", $"BusinessDeleted:{id}");
+        }
+        catch { /* fail silently */ }
         return true;
     }
 
@@ -512,7 +554,7 @@ namespace localink_be.Services.Implementations
                         .Where(p => p.BusinessId == b.BusinessId && p.IsPrimary)
                         .Select(p => p.ImageUrl)
                         .FirstOrDefault(),
-                    IsTemporarilyClosed = b.TemporaryClosureStatus == "Approved" && b.TemporaryClosureReopenDate > DateTime.UtcNow,
+                    IsTemporarilyClosed = b.TemporaryClosureStatus == "Approved" && b.TemporaryClosureReopenDate.HasValue && b.TemporaryClosureReopenDate.Value > DateTime.UtcNow,
                     TemporaryClosureReason = b.TemporaryClosureReason,
                     TemporaryClosureStatus = b.TemporaryClosureStatus,
                     TemporaryClosureDays = b.TemporaryClosureDays,
@@ -634,7 +676,23 @@ namespace localink_be.Services.Implementations
                         .OrderByDescending(p => p.IsPrimary)
                         .Select(p => p.ImageUrl)
                         .ToList(),
-                    IsTemporarilyClosed = b.TemporaryClosureStatus == "Approved" && b.TemporaryClosureReopenDate > DateTime.UtcNow,
+                    Hours = _db.BusinessHours
+                        .Where(h => h.BusinessId == b.BusinessId)
+                        .Select(h => new DayHoursDto
+                        {
+                            DayOfWeek = h.DayOfWeek,
+                            Mode = h.Mode,
+                            Slots = _db.BusinessHourSlots
+                                .Where(s => s.BusinessHourId == h.BusinessHourId)
+                                .Select(s => new TimeSlotDto
+                                {
+                                    OpenTime = s.OpenTime,
+                                    CloseTime = s.CloseTime
+                                })
+                                .ToList()
+                        })
+                        .ToList(),
+                    IsTemporarilyClosed = b.TemporaryClosureStatus == "Approved" && b.TemporaryClosureReopenDate.HasValue && b.TemporaryClosureReopenDate.Value > DateTime.UtcNow,
                     TemporaryClosureReason = b.TemporaryClosureReason,
                     TemporaryClosureStatus = b.TemporaryClosureStatus,
                     TemporaryClosureDays = b.TemporaryClosureDays,
@@ -724,7 +782,7 @@ namespace localink_be.Services.Implementations
                     .Average() ?? 0.0,
                 TotalReviews = _db.BusinessReviews
                     .Count(r => r.BusinessId == b.BusinessId),
-                IsTemporarilyClosed = b.TemporaryClosureStatus == "Approved" && b.TemporaryClosureReopenDate > DateTime.UtcNow,
+                IsTemporarilyClosed = b.TemporaryClosureStatus == "Approved" && b.TemporaryClosureReopenDate.HasValue && b.TemporaryClosureReopenDate.Value > DateTime.UtcNow,
                 TemporaryClosureReason = b.TemporaryClosureReason,
                 TemporaryClosureStatus = b.TemporaryClosureStatus,
                 TemporaryClosureDays = b.TemporaryClosureDays,
@@ -826,11 +884,50 @@ namespace localink_be.Services.Implementations
                 // Apply category filter if provided
                 if (!string.IsNullOrWhiteSpace(request.Category))
                 {
-                    var categoryLower = request.Category.ToLower();
-                    businessesQuery = businessesQuery.Where(b =>
-                        (b.Category != null && EF.Functions.Like(b.Category.CategoryName, $"%{categoryLower}%")) ||
-                        (b.Subcategory != null && EF.Functions.Like(b.Subcategory.SubcategoryName, $"%{categoryLower}%"))
-                    );
+                    var categoryLower = request.Category.ToLower().Trim();
+                    if (categoryLower == "restaurant")
+                    {
+                        businessesQuery = businessesQuery.Where(b => (b.Category != null && EF.Functions.Like(b.Category.CategoryName, "%Restaurants & Cafes%")) || (b.Subcategory != null && EF.Functions.Like(b.Subcategory.SubcategoryName, "%restaurant%")));
+                    }
+                    else if (categoryLower == "hospital" || categoryLower == "fitness")
+                    {
+                        businessesQuery = businessesQuery.Where(b => (b.Category != null && EF.Functions.Like(b.Category.CategoryName, "%Health & Wellness%")) || (b.Subcategory != null && EF.Functions.Like(b.Subcategory.SubcategoryName, "%hospital%")) || (b.Subcategory != null && EF.Functions.Like(b.Subcategory.SubcategoryName, "%fitness%")));
+                    }
+                    else if (categoryLower == "school")
+                    {
+                        businessesQuery = businessesQuery.Where(b => (b.Category != null && EF.Functions.Like(b.Category.CategoryName, "%Education%")) || (b.Subcategory != null && EF.Functions.Like(b.Subcategory.SubcategoryName, "%school%")));
+                    }
+                    else if (categoryLower == "shop" || categoryLower == "electronics")
+                    {
+                        businessesQuery = businessesQuery.Where(b => (b.Category != null && EF.Functions.Like(b.Category.CategoryName, "%Shopping & Retail%")) || (b.Subcategory != null && EF.Functions.Like(b.Subcategory.SubcategoryName, "%shop%")) || (b.Subcategory != null && EF.Functions.Like(b.Subcategory.SubcategoryName, "%electronics%")));
+                    }
+                    else if (categoryLower == "bank")
+                    {
+                        businessesQuery = businessesQuery.Where(b => (b.Category != null && EF.Functions.Like(b.Category.CategoryName, "%Finance%")) || (b.Subcategory != null && EF.Functions.Like(b.Subcategory.SubcategoryName, "%bank%")));
+                    }
+                    else if (categoryLower == "repair" || categoryLower == "home services")
+                    {
+                        businessesQuery = businessesQuery.Where(b => (b.Category != null && EF.Functions.Like(b.Category.CategoryName, "%Services%")) || (b.Subcategory != null && EF.Functions.Like(b.Subcategory.SubcategoryName, "%repair%")) || (b.Subcategory != null && EF.Functions.Like(b.Subcategory.SubcategoryName, "%service%")));
+                    }
+                    else if (categoryLower == "beauty")
+                    {
+                        businessesQuery = businessesQuery.Where(b => (b.Category != null && EF.Functions.Like(b.Category.CategoryName, "%Beauty & Wellness%")) || (b.Subcategory != null && EF.Functions.Like(b.Subcategory.SubcategoryName, "%beauty%")));
+                    }
+                    else if (categoryLower == "automotive")
+                    {
+                        businessesQuery = businessesQuery.Where(b => (b.Category != null && EF.Functions.Like(b.Category.CategoryName, "%Automotive%")) || (b.Subcategory != null && EF.Functions.Like(b.Subcategory.SubcategoryName, "%automotive%")));
+                    }
+                    else if (categoryLower == "travel")
+                    {
+                        businessesQuery = businessesQuery.Where(b => (b.Category != null && EF.Functions.Like(b.Category.CategoryName, "%Travel%")) || (b.Subcategory != null && EF.Functions.Like(b.Subcategory.SubcategoryName, "%travel%")));
+                    }
+                    else
+                    {
+                        businessesQuery = businessesQuery.Where(b =>
+                            (b.Category != null && EF.Functions.Like(b.Category.CategoryName, $"%{categoryLower}%")) ||
+                            (b.Subcategory != null && EF.Functions.Like(b.Subcategory.SubcategoryName, $"%{categoryLower}%"))
+                        );
+                    }
                 }
 
                 // Apply "open now" filter if requested
@@ -937,6 +1034,81 @@ namespace localink_be.Services.Implementations
                     : projectedQuery.OrderBy(b => b.Name))
                     .Take(20)
                     .ToListAsync();
+
+                // FALLBACK: If 0 results found, and we had filters, relax them
+                if (results.Count == 0 && (!string.IsNullOrEmpty(query) || !string.IsNullOrEmpty(request.Category)))
+                {
+                    var fallbackQuery = _db.Businesses
+                        .AsNoTracking()
+                        .Where(b => _db.AdminDashboards.Any(a => a.BusinessId == b.BusinessId && a.Status == BusinessStatus.Approved));
+
+                    var keywords = new List<string>();
+                    if (!string.IsNullOrWhiteSpace(query)) keywords.Add(query.ToLower().Trim());
+                    if (!string.IsNullOrWhiteSpace(request.Category)) keywords.Add(request.Category.ToLower().Trim());
+
+                    if (keywords.Count > 0)
+                    {
+                        var kw1 = keywords[0];
+                        if (keywords.Count == 1)
+                        {
+                            fallbackQuery = fallbackQuery.Where(b =>
+                                EF.Functions.Like(b.BusinessName.ToLower(), $"%{kw1}%") ||
+                                (b.Description != null && EF.Functions.Like(b.Description.ToLower(), $"%{kw1}%")) ||
+                                (b.Category != null && EF.Functions.Like(b.Category.CategoryName.ToLower(), $"%{kw1}%")) ||
+                                (b.Subcategory != null && EF.Functions.Like(b.Subcategory.SubcategoryName.ToLower(), $"%{kw1}%"))
+                            );
+                        }
+                        else
+                        {
+                            var kw2 = keywords[1];
+                            fallbackQuery = fallbackQuery.Where(b =>
+                                EF.Functions.Like(b.BusinessName.ToLower(), $"%{kw1}%") ||
+                                (b.Description != null && EF.Functions.Like(b.Description.ToLower(), $"%{kw1}%")) ||
+                                (b.Category != null && EF.Functions.Like(b.Category.CategoryName.ToLower(), $"%{kw1}%")) ||
+                                (b.Subcategory != null && EF.Functions.Like(b.Subcategory.SubcategoryName.ToLower(), $"%{kw1}%")) ||
+                                EF.Functions.Like(b.BusinessName.ToLower(), $"%{kw2}%") ||
+                                (b.Description != null && EF.Functions.Like(b.Description.ToLower(), $"%{kw2}%")) ||
+                                (b.Category != null && EF.Functions.Like(b.Category.CategoryName.ToLower(), $"%{kw2}%")) ||
+                                (b.Subcategory != null && EF.Functions.Like(b.Subcategory.SubcategoryName.ToLower(), $"%{kw2}%"))
+                            );
+                        }
+                    }
+
+                    var projectedFallback = fallbackQuery.Select(b => new BusinessDto
+                    {
+                        Id = b.BusinessId,
+                        Name = b.BusinessName,
+                        Description = b.Description,
+                        CategoryName = b.Category != null ? b.Category.CategoryName : "",
+                        SubcategoryName = b.Subcategory != null ? b.Subcategory.SubcategoryName : "",
+                        SubcategoryId = b.SubcategoryId,
+                        CategoryId = b.CategoryId,
+                        PhoneNumber = _db.BusinessContacts.Where(c => c.BusinessId == b.BusinessId).Select(c => c.PhoneNumber).FirstOrDefault(),
+                        PhoneCode = _db.BusinessContacts.Where(c => c.BusinessId == b.BusinessId).Select(c => c.PhoneCode).FirstOrDefault(),
+                        Email = _db.BusinessContacts.Where(c => c.BusinessId == b.BusinessId).Select(c => c.Email).FirstOrDefault(),
+                        City = _db.BusinessContacts.Where(c => c.BusinessId == b.BusinessId).Select(c => c.City).FirstOrDefault(),
+                        State = _db.BusinessContacts.Where(c => c.BusinessId == b.BusinessId).Select(c => c.State).FirstOrDefault(),
+                        Latitude = _db.BusinessContacts.Where(c => c.BusinessId == b.BusinessId).Select(c => c.Latitude).FirstOrDefault(),
+                        Longitude = _db.BusinessContacts.Where(c => c.BusinessId == b.BusinessId).Select(c => c.Longitude).FirstOrDefault(),
+                        Status = _db.AdminDashboards.Where(a => a.BusinessId == b.BusinessId).Select(a => a.Status.ToString()).FirstOrDefault(),
+                        PrimaryImage = _db.BusinessPhotos.Where(p => p.BusinessId == b.BusinessId && p.IsPrimary).Select(p => p.ImageUrl).FirstOrDefault(),
+                        Distance = userLat.HasValue && userLng.HasValue
+                            ? _db.BusinessContacts
+                                .Where(c => c.BusinessId == b.BusinessId && c.Latitude.HasValue && c.Longitude.HasValue)
+                                .Select(c => (double?)(111.0 * Math.Sqrt(
+                                    Math.Pow(c.Latitude.Value - userLat.Value, 2) +
+                                    Math.Pow(c.Longitude.Value - userLng.Value, 2) * Math.Cos(userLat.Value * Math.PI / 180.0)
+                                )))
+                                .FirstOrDefault()
+                            : null
+                    });
+
+                    results = await (userLat.HasValue && userLng.HasValue
+                        ? projectedFallback.OrderBy(b => b.Distance ?? double.MaxValue)
+                        : projectedFallback.OrderBy(b => b.Name))
+                        .Take(20)
+                        .ToListAsync();
+                }
 
                 return new VoiceSearchResponse
                 {

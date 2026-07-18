@@ -7,6 +7,7 @@ import '../../main.dart';
 
 class SignalRService {
   HubConnection? _hubConnection;
+  final List<Function(String)> _notificationListeners = [];
   
   static final SignalRService _instance = SignalRService._internal();
   factory SignalRService() => _instance;
@@ -14,12 +15,21 @@ class SignalRService {
 
   bool get isConnected => _hubConnection?.state == HubConnectionState.Connected;
 
+  void addNotificationListener(Function(String) listener) {
+    _notificationListeners.add(listener);
+  }
+
+  void removeNotificationListener(Function(String) listener) {
+    _notificationListeners.remove(listener);
+  }
+
   Future<void> connect(int userId, String role, BuildContext context) async {
     if (_hubConnection != null && _hubConnection!.state == HubConnectionState.Connected) {
       return;
     }
 
-    String url = 'https://bulldog-kinsman-tutor.ngrok-free.dev/notifications';
+    final baseUrl = DioClient().dio.options.baseUrl;
+    final url = baseUrl.replaceAll('/api/v1/', '/notifications');
 
     _hubConnection = HubConnectionBuilder().withUrl(url).build();
 
@@ -31,6 +41,15 @@ class SignalRService {
       if (arguments != null && arguments.isNotEmpty) {
         final message = arguments[0] as String;
         debugPrint('SignalR Notification: $message');
+        
+        // Notify all registered listeners
+        for (final listener in _notificationListeners) {
+          try {
+            listener(message);
+          } catch (e) {
+            debugPrint('Error invoking notification listener: $e');
+          }
+        }
         
         // Show real-time SnackBar using global scaffoldMessengerState
         scaffoldMessengerKey.currentState?.showSnackBar(

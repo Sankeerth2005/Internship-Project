@@ -117,4 +117,75 @@ public class BusinessLocationService : IBusinessLocationService
             CitiesCacheExpiration
         ) ?? "[]"; // Return empty JSON array if null
     }
+
+    public async Task<bool> ValidateAddressAsync(string countryName, string stateName, string cityName)
+    {
+        if (string.IsNullOrWhiteSpace(countryName) || string.IsNullOrWhiteSpace(stateName) || string.IsNullOrWhiteSpace(cityName))
+            return false;
+
+        try
+        {
+            // 1. Get countries and find country matching countryName
+            var countriesJson = await GetCountries();
+            using var countriesDoc = System.Text.Json.JsonDocument.Parse(countriesJson);
+            string? countryCode = null;
+            foreach (var country in countriesDoc.RootElement.EnumerateArray())
+            {
+                if (country.TryGetProperty("name", out var nameProp) && 
+                    nameProp.GetString()?.Equals(countryName, StringComparison.OrdinalIgnoreCase) == true)
+                {
+                    if (country.TryGetProperty("iso2", out var iso2Prop))
+                    {
+                        countryCode = iso2Prop.GetString();
+                        break;
+                    }
+                }
+            }
+
+            if (string.IsNullOrEmpty(countryCode))
+                return false;
+
+            // 2. Get states and find state matching stateName
+            var statesJson = await GetStates(countryCode);
+            using var statesDoc = System.Text.Json.JsonDocument.Parse(statesJson);
+            string? stateCode = null;
+            foreach (var state in statesDoc.RootElement.EnumerateArray())
+            {
+                if (state.TryGetProperty("name", out var nameProp) && 
+                    nameProp.GetString()?.Equals(stateName, StringComparison.OrdinalIgnoreCase) == true)
+                {
+                    if (state.TryGetProperty("iso2", out var iso2Prop))
+                    {
+                        stateCode = iso2Prop.GetString();
+                        break;
+                    }
+                }
+            }
+
+            if (string.IsNullOrEmpty(stateCode))
+                return false;
+
+            // 3. Get cities and find city matching cityName
+            var citiesJson = await GetCities(countryCode, stateCode);
+            using var citiesDoc = System.Text.Json.JsonDocument.Parse(citiesJson);
+            bool cityFound = false;
+            foreach (var city in citiesDoc.RootElement.EnumerateArray())
+            {
+                if (city.TryGetProperty("name", out var nameProp) && 
+                    nameProp.GetString()?.Equals(cityName, StringComparison.OrdinalIgnoreCase) == true)
+                {
+                    cityFound = true;
+                    break;
+                }
+            }
+
+            return cityFound;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error validating address for country={Country}, state={State}, city={City}", countryName, stateName, cityName);
+            // In case of CSC API failure/rate limiting, we fall back to returning true to avoid blocking user profile updates
+            return true;
+        }
+    }
 }

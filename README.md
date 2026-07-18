@@ -1,68 +1,55 @@
-# 📄 Abstract
+# 🚩 Localink: The All-in-One Business Directory Platform
 
-The Business Directory Application is a web-based platform designed to simplify the process of discovering and registering local businesses. The system enables users to search for businesses based on predefined categories and subcategories while allowing business owners to register and manage their business information efficiently.
+Localink is a comprehensive, full-stack business directory platform designed to connect users with local businesses. It consists of a powerful **.NET Web API** backend, a feature-rich **Angular web application**, and a native **Flutter mobile application** for both Android and iOS.
 
-The application focuses on delivering a seamless and intuitive user experience through structured navigation, minimal input requirements, and scalable architecture. Future enhancements such as business listings, detailed views, ratings, and user comments aim to improve user engagement and trust, making the platform a reliable solution for local business discovery.
+The platform empowers business owners to register and manage their services, while users can discover, review, and interact with local businesses through an intuitive and engaging interface. With advanced features like AI-powered recommendations, real-time analytics, and location-based services, Localink aims to be the ultimate tool for local commerce.
 
 # 📘 Introduction
 
 In today’s digital era, finding reliable local businesses quickly and efficiently is essential for users. Traditional methods of searching for businesses often lack organization, personalization, and real-time updates.
 
-The Business Directory Application addresses this gap by providing a structured and user-friendly platform where users can explore businesses categorized into various domains such as medical, food, tutoring, and general services.
-
-The application not only benefits users seeking services but also empowers business owners by providing them with a simple interface to register and showcase their offerings. Designed with scalability in mind, the system supports future integrations such as maps, authentication systems, and user-generated feedback.
-
-#  Problem Statement
-
-Users often face challenges in discovering relevant local businesses due to:
-
-Lack of structured categorization
-Limited access to verified business information
-Inefficient search mechanisms
-Absence of user feedback and ratings
-
-Similarly, small business owners struggle to gain visibility without complex onboarding systems.
-
-This project aims to solve these problems by developing a centralized, easy-to-use platform that enables efficient business discovery and registration.
+The Localink platform addresses this gap by providing a structured and user-friendly ecosystem where users can explore businesses across various domains. The project not only benefits users seeking services but also empowers business owners by providing them with a simple interface to register, manage, and analyze their business performance.
 
 # 🎯 Objectives
 
-The primary objectives of the Business Directory Application are:
-
-* To provide a simple and intuitive platform for users to search businesses by category and subcategory
-* To enable business owners to register their businesses with minimal effort
-* To ensure a structured and scalable data model for managing business information
-* To enhance user experience through organized navigation and responsive design
-* To support future features such as ratings, reviews, and location-based search
-* To maintain high performance, reliability, and usability standards
+*   **Unified Platform**: Provide a seamless experience across web and mobile for both users and business owners.
+*   **Effortless Registration**: Enable business owners to register and manage their business profiles with a multi-step, user-friendly form.
+*   **Intelligent Discovery**: Allow users to find businesses through categorized search, personalized feeds, and an AI-powered chat assistant.
+*   **Actionable Analytics**: Offer business owners a dashboard with performance metrics and AI-generated insights to drive growth.
+*   **Engaging User Interaction**: Facilitate user engagement through reviews, ratings, favorites, and photo uploads.
+*   **Scalable & Modern Architecture**: Build a robust, maintainable, and scalable system using modern technologies and best practices.
 
 # 🛠️ Technology Stack
 
-The Business Directory Application is built using a modern full-stack architecture, ensuring scalability, performance, and maintainability.
+The Localink platform is built using a modern full-stack architecture, ensuring scalability, performance, and maintainability.
 
-## Frontend:
+### Backend (`localink_be`)
 
-* Angular – Used for building a dynamic and responsive user interface
-* TypeScript – For type-safe development
-* HTML5 & CSS3 – For structuring and styling the UI
+*   **.NET Core Web API**: For building RESTful APIs, handling business logic, and authentication.
+*   **Entity Framework Core**: ORM for interacting with the SQL database.
+*   **SignalR**: For real-time push notifications to the mobile app.
+*   **SQL Database**: For structured data storage and efficient querying.
+*   **Swagger/OpenAPI**: For API documentation and testing.
 
-## Backend:
+### Web Frontend (`localink-fe`)
 
-.NET (ASP.NET Core Web API) – Used to build RESTful APIs and handle business logic
+*   **Angular**: For building a dynamic and responsive single-page application (SPA).
+*   **TypeScript**: For type-safe development.
+*   **HTML5 & SCSS**: For structuring and styling the UI.
 
-## Database:
+### Mobile App (`localink_mobile`)
 
-SQL Database – Used for structured data storage and efficient querying
-
-## Tools & Platforms:
-
-* Swagger – API testing and documentation
-* VS Code – Development environment
-* GitHub – Version control and collaboration
+*   **Flutter**: For building high-performance, cross-platform native apps for Android & iOS.
+*   **Dart**: The programming language for Flutter.
+*   **Riverpod**: For robust, scalable, and compile-safe state management.
+*   **GoRouter**: For declarative, URL-based navigation.
+*   **Dio**: For powerful and flexible HTTP networking.
+*   **MapLibre GL**: For open-source, customizable vector maps.
+*   **Flutter Secure Storage**: For securely persisting sensitive data like auth tokens.
 
 # 🏗️ System Architecture
 
-The Business Directory Application follows a three-tier architecture, ensuring clear separation between the user interface, business logic, and data storage.
+The system follows a decoupled, service-oriented architecture where the backend serves as the single source of truth for both the web and mobile frontends.
 
 ```
           Presentation Layer
@@ -715,6 +702,3 @@ Frontend testing ensures that the user interface behaves as expected and provide
 The Business Directory Application successfully demonstrates the development of a full-stack system that enables users to efficiently discover and register businesses through a structured and user-friendly interface. Built using Angular, .NET, and SQL, the application integrates essential functionalities such as authentication, business registration, search, and review management. The inclusion of advanced features like JWT-based security, multi-language support, voice-based search, map integration, and AI-powered review enhancement significantly improves usability and makes the system more interactive and modern.
 
 Overall, the project reflects strong implementation of software engineering principles, modular architecture, and effective testing practices. It provides a scalable foundation that can be extended with additional features such as cloud deployment, advanced analytics, and enhanced security mechanisms. This application not only meets the current requirements but also serves as a robust base for real-world business directory solutions and future innovations.
-
-
-

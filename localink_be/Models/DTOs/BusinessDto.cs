@@ -36,5 +36,6 @@ namespace localink_be.Models.DTOs
         public int? TemporaryClosureDays { get; set; }
         public DateTime? TemporaryClosureReopenDate { get; set; }
         public List<string>? Photos { get; set; }
+        public List<DayHoursDto>? Hours { get; set; }
     }
 }

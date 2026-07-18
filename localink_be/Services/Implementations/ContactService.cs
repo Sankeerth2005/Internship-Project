@@ -13,10 +13,12 @@ namespace localink_be.Services.Implementations
     public class ContactService : IContactService
     {
         private readonly AppDbContext _db;
+        private readonly Microsoft.Extensions.Logging.ILogger<ContactService> _logger;
 
-        public ContactService(AppDbContext db)
+        public ContactService(AppDbContext db, Microsoft.Extensions.Logging.ILogger<ContactService> logger)
         {
             _db = db ?? throw new ArgumentNullException(nameof(db));
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
         // ADD CONTACT (used during registration)
@@ -24,6 +26,35 @@ namespace localink_be.Services.Implementations
         {
             if (string.IsNullOrWhiteSpace(dto.PhoneCode) || string.IsNullOrWhiteSpace(dto.PhoneNumber))
                 throw new ArgumentException("Phone code and number required");
+
+            if (dto.Latitude.HasValue || dto.Longitude.HasValue)
+            {
+                var lat = dto.Latitude;
+                var lng = dto.Longitude;
+                if (!lat.HasValue || !lng.HasValue)
+                {
+                    _logger.LogWarning("Coordinates validation failed for business registration BusinessId={BusinessId}: both latitude and longitude must be provided together.", businessId);
+                    throw new ArgumentException("Both latitude and longitude must be provided together.");
+                }
+                if (lat < -90.0 || lat > 90.0 || double.IsNaN(lat.Value) || double.IsInfinity(lat.Value))
+                {
+                    _logger.LogWarning("Coordinates validation failed for business registration BusinessId={BusinessId}: latitude {Latitude} out of bounds.", businessId, lat);
+                    throw new ArgumentException("Latitude must be a valid number between -90 and 90.");
+                }
+                if (lng < -180.0 || lng > 180.0 || double.IsNaN(lng.Value) || double.IsInfinity(lng.Value))
+                {
+                    _logger.LogWarning("Coordinates validation failed for business registration BusinessId={BusinessId}: longitude {Longitude} out of bounds.", businessId, lng);
+                    throw new ArgumentException("Longitude must be a valid number between -180 and 180.");
+                }
+                if (lat == 0.0 && lng == 0.0)
+                {
+                    _logger.LogWarning("Coordinates validation failed for business registration BusinessId={BusinessId}: coordinates cannot be (0,0).", businessId);
+                    throw new ArgumentException("Coordinates (0,0) are invalid.");
+                }
+            }
+
+            _logger.LogInformation("Saving new contact for BusinessId {BusinessId} with coordinates Lat={Latitude}, Lng={Longitude}", 
+                businessId, dto.Latitude, dto.Longitude);
 
             var contact = new BusinessContact
             {
@@ -53,6 +84,35 @@ namespace localink_be.Services.Implementations
                 .FirstOrDefaultAsync(c => c.BusinessId == businessId);
 
             if (existing == null) return null;
+
+            if (updated.Latitude.HasValue || updated.Longitude.HasValue)
+            {
+                var lat = updated.Latitude;
+                var lng = updated.Longitude;
+                if (!lat.HasValue || !lng.HasValue)
+                {
+                    _logger.LogWarning("Coordinates validation failed for business update BusinessId={BusinessId}: both latitude and longitude must be provided together.", businessId);
+                    throw new ArgumentException("Both latitude and longitude must be provided together.");
+                }
+                if (lat < -90.0 || lat > 90.0 || double.IsNaN(lat.Value) || double.IsInfinity(lat.Value))
+                {
+                    _logger.LogWarning("Coordinates validation failed for business update BusinessId={BusinessId}: latitude {Latitude} out of bounds.", businessId, lat);
+                    throw new ArgumentException("Latitude must be a valid number between -90 and 90.");
+                }
+                if (lng < -180.0 || lng > 180.0 || double.IsNaN(lng.Value) || double.IsInfinity(lng.Value))
+                {
+                    _logger.LogWarning("Coordinates validation failed for business update BusinessId={BusinessId}: longitude {Longitude} out of bounds.", businessId, lng);
+                    throw new ArgumentException("Longitude must be a valid number between -180 and 180.");
+                }
+                if (lat == 0.0 && lng == 0.0)
+                {
+                    _logger.LogWarning("Coordinates validation failed for business update BusinessId={BusinessId}: coordinates cannot be (0,0).", businessId);
+                    throw new ArgumentException("Coordinates (0,0) are invalid.");
+                }
+            }
+
+            _logger.LogInformation("Updating contact for BusinessId {BusinessId} with coordinates Lat={Latitude}, Lng={Longitude}", 
+                businessId, updated.Latitude, updated.Longitude);
 
             existing.PhoneCode = updated.PhoneCode;
             existing.PhoneNumber = updated.PhoneNumber;
