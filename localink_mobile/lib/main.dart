@@ -38,12 +38,18 @@ final routerProvider = Provider<GoRouter>((ref) {
     navigatorKey: _rootNavigatorKey,
     initialLocation: '/splash',
     refreshListenable: GoRouterRefreshListenable(ref),
-    redirect: (context, state) {
-      final authState = ref.read(authProvider);
+    redirect: (BuildContext context, GoRouterState state) {
+      // Use ref.watch to listen for auth state changes.
+      final authState = ref.watch(authProvider);
+      final isGoingToSplash = state.matchedLocation == '/splash';
 
-      final isPublicRoute =
-          state.matchedLocation == '/splash' ||
-          state.matchedLocation == '/welcome' ||
+      // While checking auth status, stay on the splash screen.
+      if (authState is AuthInitial && !isGoingToSplash) {
+        return '/splash';
+      }
+
+      // Define public routes that an unauthenticated user can access.
+      final isPublicRoute = state.matchedLocation == '/welcome' ||
           state.matchedLocation == '/login' ||
           state.matchedLocation == '/signup' ||
           state.matchedLocation == '/forgot-password' ||
@@ -51,11 +57,15 @@ final routerProvider = Provider<GoRouter>((ref) {
           state.matchedLocation == '/reset-password';
 
       if (authState is AuthUnauthenticated && !isPublicRoute) {
-        return '/splash';
+        // If not authenticated and not on a public route, go to the welcome screen.
+        return '/welcome';
       }
 
-      if (authState is AuthAuthenticated && isPublicRoute) {
-        // Normalize matching on backend role string (lowercase/uppercase check)
+      // If the user is authenticated...
+      if (authState is AuthAuthenticated) {
+        // ...and they are on the splash or a public page, redirect them to their dashboard.
+        if (isGoingToSplash || isPublicRoute) {
+          // Normalize matching on backend role string (lowercase/uppercase check)
         final role = authState.userType.toLowerCase().trim();
         if (role == 'admin') {
           return '/admin-dashboard';
@@ -64,6 +74,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           return '/business-dashboard';
         }
         return '/home';
+        }
       }
 
       return null;
