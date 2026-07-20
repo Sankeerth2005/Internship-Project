@@ -40,13 +40,21 @@ final routerProvider = Provider<GoRouter>((ref) {
     refreshListenable: GoRouterRefreshListenable(ref),
     redirect: (BuildContext context, GoRouterState state) {
       final authState = ref.watch(authProvider); // Listen to auth state changes
+      final splashShown = ref.watch(splashShownProvider);
       final currentLocation = state.matchedLocation;
 
+      // If splash has not completed displaying yet, force staying on /splash
+      if (!splashShown) {
+        if (currentLocation == '/splash') {
+          return null;
+        }
+        return '/splash';
+      }
+
       // If the app is still in the initial authentication check,
-      // allow it to stay on the splash screen.
-      // The SplashScreen widget itself will handle navigation after a delay.
+      // allow it to stay on the welcome screen.
       if (authState is AuthInitial) {
-        return null; // Allow SplashScreen to handle its own navigation
+        return null; 
       }
 
       // Define public routes that an unauthenticated user can access.
@@ -69,14 +77,14 @@ final routerProvider = Provider<GoRouter>((ref) {
         // ...and they are trying to access the splash screen or any public route,
         // redirect them to their appropriate dashboard.
         if (currentLocation == '/splash' || isPublicRoute) {
-        final role = authState.userType.toLowerCase().trim();
-        if (role == 'admin') {
-          return '/admin-dashboard';
-        }
-        if (role == 'businessowner' || role == 'client') {
-          return '/business-dashboard';
-        }
-        return '/home';
+          final role = authState.userType.toLowerCase().trim();
+          if (role == 'admin') {
+            return '/admin-dashboard';
+          }
+          if (role == 'businessowner' || role == 'client') {
+            return '/business-dashboard';
+          }
+          return '/home';
         }
       }
 
@@ -214,6 +222,12 @@ class GoRouterRefreshListenable extends ChangeNotifier {
   GoRouterRefreshListenable(Ref ref) {
     ref.listen<AuthState>(
       authProvider,
+      (previous, next) {
+        notifyListeners();
+      },
+    );
+    ref.listen<bool>(
+      splashShownProvider,
       (previous, next) {
         notifyListeners();
       },

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/user_provider.dart';
 import '../../data/models/user_profile.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/location_provider.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -25,7 +26,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   final _countryCtrl = TextEditingController();
 
   @override
+  void initState() {
+    super.initState();
+    _pincodeCtrl.addListener(_onPincodeChanged);
+  }
+
+  @override
   void dispose() {
+    _pincodeCtrl.removeListener(_onPincodeChanged);
     _nameCtrl.dispose();
     _emailCtrl.dispose();
     _phoneCtrl.dispose();
@@ -35,6 +43,34 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     _pincodeCtrl.dispose();
     _countryCtrl.dispose();
     super.dispose();
+  }
+
+  void _onPincodeChanged() {
+    if (!_isEditMode) return;
+    final pincode = _pincodeCtrl.text.trim();
+    if (pincode.length == 6 && int.tryParse(pincode) != null) {
+      _lookupPincode(pincode);
+    }
+  }
+
+  Future<void> _lookupPincode(String pincode) async {
+    try {
+      final repo = ref.read(locationRepositoryProvider);
+      final res = await repo.validatePincode(pincode);
+      if (res.city != null && res.city!.isNotEmpty) {
+        setState(() {
+          _cityCtrl.text = res.city!;
+          if (res.state != null && res.state!.isNotEmpty) {
+            _stateCtrl.text = res.state!;
+          }
+          if (res.country != null && res.country!.isNotEmpty) {
+            _countryCtrl.text = res.country!;
+          }
+        });
+      }
+    } catch (e) {
+      debugPrint('Pincode lookup error: $e');
+    }
   }
 
   void _populateFields(UserProfileDto profile) {
@@ -60,6 +96,43 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final state = _stateCtrl.text.trim();
     final city = _cityCtrl.text.trim();
     final pincode = _pincodeCtrl.text.trim();
+
+    // Validate phone format
+    final phone = _phoneCtrl.text.trim();
+    if (phone.isNotEmpty) {
+      // Remove any non-digit chars
+      final digitsOnly = phone.replaceAll(RegExp(r'\D'), '');
+      if (country.toLowerCase() == 'india') {
+        if (digitsOnly.length != 10 || !RegExp(r'^[3-9][0-9]{9}$').hasMatch(digitsOnly)) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Indian phone numbers must be exactly 10 digits and start with 3-9'), backgroundColor: Color(0xFFFF4D4F)),
+          );
+          return;
+        }
+      } else {
+        if (digitsOnly.length < 6 || digitsOnly.length > 15) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Phone number must be between 6 and 15 digits'), backgroundColor: Color(0xFFFF4D4F)),
+          );
+          return;
+        }
+      }
+    }
+
+    // Validate email format
+    final email = _emailCtrl.text.trim();
+    if (email.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Email is required'), backgroundColor: Color(0xFFFF4D4F)),
+      );
+      return;
+    }
+    if (!RegExp(r'^[a-zA-Z][a-zA-Z0-9._%+-]*@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$').hasMatch(email)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Invalid email address format (e.g. name@domain.com)'), backgroundColor: Color(0xFFFF4D4F)),
+      );
+      return;
+    }
 
     if (country.isEmpty || state.isEmpty || city.isEmpty || pincode.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(

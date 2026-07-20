@@ -12,6 +12,19 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
   return AuthRepository(dio: DioClient().dio);
 });
 
+class SplashShownNotifier extends Notifier<bool> {
+  @override
+  bool build() => false;
+
+  void setShown(bool value) {
+    state = value;
+  }
+}
+
+final splashShownProvider = NotifierProvider<SplashShownNotifier, bool>(
+  SplashShownNotifier.new,
+);
+
 final authProvider = NotifierProvider<AuthNotifier, AuthState>(
   AuthNotifier.new,
 );

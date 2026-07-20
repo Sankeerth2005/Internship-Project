@@ -541,24 +541,27 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ],
         ),
       ),
-      floatingActionButton: Container(
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFFFF6B00).withValues(alpha: 0.3),
-              blurRadius: 12,
-              spreadRadius: 2,
-            )
-          ],
-        ),
-        child: FloatingActionButton(
-          backgroundColor: const Color(0xFFFF6B00),
-          foregroundColor: Colors.black,
-          tooltip: 'AI Search Assistant',
-          onPressed: () => context.push('/ai-assistant'),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          child: const Icon(Icons.auto_awesome_rounded, color: Colors.black, size: 24),
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.only(bottom: 90.0),
+        child: Container(
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFFFF6B00).withValues(alpha: 0.3),
+                blurRadius: 12,
+                spreadRadius: 2,
+              )
+            ],
+          ),
+          child: FloatingActionButton(
+            backgroundColor: const Color(0xFFFF6B00),
+            foregroundColor: Colors.black,
+            tooltip: 'AI Search Assistant',
+            onPressed: () => context.push('/ai-assistant'),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            child: const Icon(Icons.auto_awesome_rounded, color: Colors.black, size: 24),
+          ),
         ),
       ),
     );

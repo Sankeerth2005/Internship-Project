@@ -25,6 +25,12 @@ namespace localink_be.Services.Implementations
             _logger = logger;
         }
 
+        private string GetUploadsRootPath()
+        {
+            var baseDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "localink_uploads");
+            return Path.GetFullPath(baseDir);
+        }
+
         private readonly List<string> _allowedExtensions = new() { ".jpg", ".jpeg", ".png", ".gif", ".webp" };
         private readonly List<string> _allowedMimeTypes = new() { "image/jpeg", "image/png", "image/gif", "image/webp" };
 
@@ -129,7 +135,7 @@ namespace localink_be.Services.Implementations
                 }
             }
 
-            var uploadsPath = Path.Combine(Directory.GetCurrentDirectory(), "uploads");
+            var uploadsPath = GetUploadsRootPath();
             if (!Directory.Exists(uploadsPath)) Directory.CreateDirectory(uploadsPath);
             var fileName = $"{Guid.NewGuid()}{ext}";
             var filePath = Path.Combine(uploadsPath, fileName);
@@ -176,7 +182,8 @@ namespace localink_be.Services.Implementations
                 throw new UnauthorizedAccessException("You do not own the business associated with this photo.");
             }
 
-            var filePath = Path.Combine(Directory.GetCurrentDirectory(), photo.ImageUrl.TrimStart('/'));
+            var relativePath = photo.ImageUrl.Replace("/uploads/", "").Replace("/", Path.DirectorySeparatorChar.ToString());
+            var filePath = Path.Combine(GetUploadsRootPath(), relativePath);
             if (File.Exists(filePath))
             {
                 try
@@ -223,7 +230,7 @@ namespace localink_be.Services.Implementations
                 throw new ArgumentException("Invalid image magic bytes in base64");
             }
 
-            var uploadsPath = Path.Combine(Directory.GetCurrentDirectory(), "uploads");
+            var uploadsPath = GetUploadsRootPath();
             if (!Directory.Exists(uploadsPath))
                 Directory.CreateDirectory(uploadsPath);
 
@@ -284,7 +291,7 @@ namespace localink_be.Services.Implementations
                 throw new ArgumentException("Invalid image magic bytes in base64");
             }
 
-            var uploadsPath = Path.Combine(Directory.GetCurrentDirectory(), "uploads", "reviews");
+            var uploadsPath = Path.Combine(GetUploadsRootPath(), "reviews");
             if (!Directory.Exists(uploadsPath))
                 Directory.CreateDirectory(uploadsPath);
 

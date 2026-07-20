@@ -949,7 +949,6 @@ namespace localink_be.Services.Implementations
                         )
                     );
                 }
-
                 // Apply radius filter if user location provided
                 if (userLat.HasValue && userLng.HasValue && request.Radius > 0)
                 {
@@ -958,7 +957,7 @@ namespace localink_be.Services.Implementations
                     var searchRadius = request.Radius == 5 ? 100 : request.Radius;
                     var radiusDegrees = searchRadius / 111.0; // Rough conversion km to degrees
 
-                    businessesQuery = businessesQuery.Where(b =>
+                    var localQuery = businessesQuery.Where(b =>
                         _db.BusinessContacts.Any(c =>
                             c.BusinessId == b.BusinessId &&
                             c.Latitude.HasValue &&
@@ -967,11 +966,11 @@ namespace localink_be.Services.Implementations
                             Math.Abs(c.Longitude.Value - userLng.Value) <= radiusDegrees
                         )
                     );
-                }
-                else
-                {
-                    // If no location provided, don't filter by radius at all
-                    // This ensures voice search returns results even without GPS
+
+                    if (await localQuery.AnyAsync())
+                    {
+                        businessesQuery = localQuery;
+                    }
                 }
 
                 // Project to DTO with distance calculation

@@ -140,6 +140,7 @@ class _BusinessRegistrationScreenState
   @override
   void initState() {
     super.initState();
+    _pincodeController.addListener(_onPincodeChanged);
     if (widget.businessToEdit != null) {
       final edit = widget.businessToEdit!;
       _nameController.text = edit.businessName;
@@ -250,6 +251,7 @@ class _BusinessRegistrationScreenState
 
   @override
   void dispose() {
+    _pincodeController.removeListener(_onPincodeChanged);
     _nameController.dispose();
     _descController.dispose();
     _phoneController.dispose();
@@ -259,6 +261,64 @@ class _BusinessRegistrationScreenState
     _pincodeController.dispose();
     _locationSearchController.dispose();
     super.dispose();
+  }
+
+  void _onPincodeChanged() {
+    final pincode = _pincodeController.text.trim();
+    if (pincode.length == 6 && int.tryParse(pincode) != null) {
+      _lookupPincode(pincode);
+    }
+  }
+
+  Future<void> _lookupPincode(String pincode) async {
+    try {
+      final res = await _locationRepo.validatePincode(pincode);
+      if (res.city != null && res.city!.isNotEmpty) {
+        // 1. Find and select the country
+        if (res.country != null && res.country!.isNotEmpty) {
+          try {
+            final matchedCountry = _countries.firstWhere(
+              (c) => c.name.toLowerCase() == res.country!.toLowerCase(),
+              orElse: () => _countries.firstWhere((c) => c.name.toLowerCase() == 'india', orElse: () => _countries.first),
+            );
+            
+            setState(() {
+              _selectedCountry = matchedCountry;
+            });
+            
+            // 2. Load states for this country
+            await _loadStates(matchedCountry.iso2);
+            
+            // 3. Find and select the state
+            if (res.state != null && res.state!.isNotEmpty) {
+              final matchedState = _states.firstWhere(
+                (s) => s.name.toLowerCase() == res.state!.toLowerCase(),
+                orElse: () => _states.first,
+              );
+              setState(() {
+                _selectedState = matchedState;
+              });
+              
+              // 4. Load cities for this state
+              await _loadCities(matchedCountry.iso2, matchedState.iso2);
+              
+              // 5. Find and select the city
+              final matchedCity = _cities.firstWhere(
+                (c) => c.name.toLowerCase() == res.city!.toLowerCase(),
+                orElse: () => _cities.first,
+              );
+              setState(() {
+                _selectedCity = matchedCity;
+              });
+            }
+          } catch (e) {
+            debugPrint('Failed to match location dropdown options: $e');
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Pincode lookup error: $e');
+    }
   }
 
   LocationRepository get _locationRepo => ref.read(locationRepositoryProvider);

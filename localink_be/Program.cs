@@ -213,7 +213,8 @@ app.UseHttpsRedirection();
 app.UseStaticFiles();
 
 // Serve uploads folder at /uploads route
-var uploadsPath = Path.Combine(Directory.GetCurrentDirectory(), "uploads");
+var baseUploadsDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "localink_uploads");
+var uploadsPath = Path.GetFullPath(baseUploadsDir);
 if (!Directory.Exists(uploadsPath)) Directory.CreateDirectory(uploadsPath);
 app.UseStaticFiles(new StaticFileOptions
 {
