@@ -176,6 +176,14 @@ final routerProvider = Provider<GoRouter>((ref) {
               ),
             ],
           ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/ai-assistant',
+                builder: (context, state) => const AiAssistantScreen(),
+              ),
+            ],
+          ),
         ],
       ),
 

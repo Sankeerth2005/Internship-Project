@@ -95,6 +95,11 @@ class _MainShellState extends State<MainShell> {
                         selectedIcon: Icon(Icons.person_rounded, size: 24, color: Color(0xFFFF8C00)),
                         label: 'Profile',
                       ),
+                      NavigationDestination(
+                        icon: Icon(Icons.chat_bubble_outline_rounded, size: 24, color: Colors.white60),
+                        selectedIcon: Icon(Icons.chat_bubble_rounded, size: 24, color: Color(0xFFFF8C00)),
+                        label: 'AI Chat',
+                      ),
                     ],
                   ),
                 ),

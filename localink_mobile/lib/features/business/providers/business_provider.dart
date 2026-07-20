@@ -65,6 +65,7 @@ final myBusinessesProvider = AsyncNotifierProvider<MyBusinessesNotifier, List<Bu
 class SearchQueryState {
   final String query;
   final int? selectedCategoryId;
+  final int? selectedSubcategoryId;
   final double? latitude;
   final double? longitude;
   final bool isVoiceSearch;
@@ -74,6 +75,7 @@ class SearchQueryState {
   SearchQueryState({
     this.query = '',
     this.selectedCategoryId,
+    this.selectedSubcategoryId,
     this.latitude,
     this.longitude,
     this.isVoiceSearch = false,
@@ -84,16 +86,19 @@ class SearchQueryState {
   SearchQueryState copyWith({
     String? query,
     int? selectedCategoryId,
+    int? selectedSubcategoryId,
     double? latitude,
     double? longitude,
     bool? isVoiceSearch,
     String? sortBy,
     String? userPincode,
     bool clearCategory = false,
+    bool clearSubcategory = false,
   }) {
     return SearchQueryState(
       query: query ?? this.query,
       selectedCategoryId: clearCategory ? null : (selectedCategoryId ?? this.selectedCategoryId),
+      selectedSubcategoryId: (clearCategory || clearSubcategory) ? null : (selectedSubcategoryId ?? this.selectedSubcategoryId),
       latitude: latitude ?? this.latitude,
       longitude: longitude ?? this.longitude,
       isVoiceSearch: isVoiceSearch ?? this.isVoiceSearch,
@@ -112,8 +117,10 @@ class SearchQueryNotifier extends Notifier<SearchQueryState> {
   void setQuery(String q, {bool isVoice = false}) {
     state = state.copyWith(query: q, isVoiceSearch: isVoice);
   }
-  void setCategory(int? id) => state = state.copyWith(selectedCategoryId: id, isVoiceSearch: false);
-  void clearCategory() => state = state.copyWith(clearCategory: true, isVoiceSearch: false);
+  void setCategory(int? id) => state = state.copyWith(selectedCategoryId: id, clearSubcategory: true, isVoiceSearch: false);
+  void setSubcategory(int? subId) => state = state.copyWith(selectedSubcategoryId: subId, isVoiceSearch: false);
+  void clearCategory() => state = state.copyWith(clearCategory: true, clearSubcategory: true, isVoiceSearch: false);
+  void clearSubcategory() => state = state.copyWith(clearSubcategory: true, isVoiceSearch: false);
   void setLocation(double lat, double lng) => state = state.copyWith(latitude: lat, longitude: lng);
   void setSortBy(String sort) => state = state.copyWith(sortBy: sort);
   void setPincode(String pin) => state = state.copyWith(userPincode: pin);
@@ -162,7 +169,11 @@ final searchResultsProvider = FutureProvider<List<BusinessDto>>((ref) async {
   );
 
   if (queryState.selectedCategoryId != null) {
-    return results.where((b) => b.categoryId == queryState.selectedCategoryId).toList();
+    var filtered = results.where((b) => b.categoryId == queryState.selectedCategoryId).toList();
+    if (queryState.selectedSubcategoryId != null) {
+      filtered = filtered.where((b) => b.subcategoryId == queryState.selectedSubcategoryId).toList();
+    }
+    return filtered;
   }
 
   return results;
