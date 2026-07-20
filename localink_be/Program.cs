@@ -209,18 +209,12 @@ app.UseResponseTranslation();
 
 app.UseHttpsRedirection();
 
-// Serve default wwwroot static files
-app.UseStaticFiles();
-
-// Serve uploads folder at /uploads route
-var baseUploadsDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "localink_uploads");
-var uploadsPath = Path.GetFullPath(baseUploadsDir);
+// Serve default wwwroot static files & ensure wwwroot/uploads directory
+var webRootPath = builder.Environment.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+var uploadsPath = Path.Combine(webRootPath, "uploads");
 if (!Directory.Exists(uploadsPath)) Directory.CreateDirectory(uploadsPath);
-app.UseStaticFiles(new StaticFileOptions
-{
-    FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(uploadsPath),
-    RequestPath = "/uploads"
-});
+
+app.UseStaticFiles();
 
 // CORS FIRST
 app.UseCors("AllowFrontend");

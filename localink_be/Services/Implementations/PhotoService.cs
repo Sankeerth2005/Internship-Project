@@ -27,8 +27,17 @@ namespace localink_be.Services.Implementations
 
         private string GetUploadsRootPath()
         {
-            var baseDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "localink_uploads");
-            return Path.GetFullPath(baseDir);
+            var webRoot = _env.WebRootPath;
+            if (string.IsNullOrEmpty(webRoot))
+            {
+                webRoot = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+            }
+            var uploadsDir = Path.Combine(webRoot, "uploads");
+            if (!Directory.Exists(uploadsDir))
+            {
+                Directory.CreateDirectory(uploadsDir);
+            }
+            return Path.GetFullPath(uploadsDir);
         }
 
         private readonly List<string> _allowedExtensions = new() { ".jpg", ".jpeg", ".png", ".gif", ".webp" };
