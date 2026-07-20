@@ -449,7 +449,7 @@ class BusinessDashboardScreen extends ConsumerWidget {
           const SizedBox(height: 16),
           const Divider(color: Colors.white10, height: 1),
           const SizedBox(height: 14),
-          // User-Friendly Action Buttons Toolbar with proper gaps
+          // Row 1 of Action Buttons: View Details, Edit Details, Analytics
           Row(
             children: [
               Expanded(
@@ -477,6 +477,29 @@ class BusinessDashboardScreen extends ConsumerWidget {
               ),
             ],
           ),
+          const SizedBox(height: 8),
+          // Row 2 of Action Buttons: Temp Closure & Permanent Delete
+          Row(
+            children: [
+              Expanded(
+                child: _buildActionButton(
+                  icon: business.isTemporarilyClosed ? Icons.play_circle_fill_rounded : Icons.pause_circle_outline_rounded,
+                  label: business.isTemporarilyClosed ? 'Reopen Store' : 'Temp Closure',
+                  accentColor: Colors.amber,
+                  onTap: () => _showTemporaryClosureDialog(context, ref, business),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _buildActionButton(
+                  icon: Icons.delete_outline_rounded,
+                  label: 'Delete Store',
+                  accentColor: const Color(0xFFFF3333),
+                  onTap: () => _showDeletionDialog(context, ref, business),
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );
@@ -486,26 +509,28 @@ class BusinessDashboardScreen extends ConsumerWidget {
     required IconData icon,
     required String label,
     required VoidCallback onTap,
+    Color? accentColor,
   }) {
+    final color = accentColor ?? const Color(0xFFFF7A00);
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.05),
+          color: color.withValues(alpha: 0.06),
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+          border: Border.all(color: color.withValues(alpha: 0.2)),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, color: const Color(0xFFFF7A00), size: 15),
+            Icon(icon, color: color, size: 15),
             const SizedBox(width: 5),
             Flexible(
               child: Text(
                 label,
-                style: const TextStyle(
-                  color: Colors.white,
+                style: TextStyle(
+                  color: accentColor != null ? color : Colors.white,
                   fontSize: 11.5,
                   fontWeight: FontWeight.bold,
                 ),
@@ -515,6 +540,269 @@ class BusinessDashboardScreen extends ConsumerWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  void _showTemporaryClosureDialog(BuildContext context, WidgetRef ref, BusinessDto business) {
+    if (business.isTemporarilyClosed) {
+      showDialog(
+        context: context,
+        builder: (dialogCtx) => AlertDialog(
+          backgroundColor: const Color(0xFF141210),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Text('Reopen Business', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          content: Text(
+            'Your business "${business.businessName}" is currently marked as temporarily closed. Would you like to reopen it now?',
+            style: const TextStyle(color: Colors.white70, fontSize: 13),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogCtx),
+              child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFFF7A00), foregroundColor: Colors.white),
+              onPressed: () async {
+                Navigator.pop(dialogCtx);
+                final success = await ref.read(myBusinessesProvider.notifier).cancelTemporaryClosure(business.businessId);
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(success ? 'Business reopened successfully.' : 'Failed to reopen business.')),
+                  );
+                }
+              },
+              child: const Text('Reopen Store', style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
+    final reasonController = TextEditingController();
+    int closureDays = 7;
+    String? errorMessage;
+
+    showDialog(
+      context: context,
+      builder: (dialogCtx) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            backgroundColor: const Color(0xFF141210),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: Row(
+              children: [
+                const Icon(Icons.pause_circle_outline_rounded, color: Colors.amber, size: 22),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Temporary Closure (${business.businessName})',
+                    style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Reason for temporary closure is mandatory.',
+                  style: TextStyle(color: Colors.white70, fontSize: 12),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: reasonController,
+                  maxLines: 3,
+                  style: const TextStyle(color: Colors.white, fontSize: 13),
+                  decoration: InputDecoration(
+                    hintText: 'Enter reason (e.g. renovation, vacation)...',
+                    hintStyle: const TextStyle(color: Colors.white38, fontSize: 12),
+                    filled: true,
+                    fillColor: const Color(0xFF1C1917),
+                    errorText: errorMessage,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: Colors.white12),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: Color(0xFFFF7A00)),
+                    ),
+                  ),
+                  onChanged: (val) {
+                    if (val.trim().isNotEmpty && errorMessage != null) {
+                      setDialogState(() {
+                        errorMessage = null;
+                      });
+                    }
+                  },
+                ),
+                const SizedBox(height: 12),
+                const Text('Closure Duration (Days):', style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1C1917),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.white12),
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<int>(
+                      value: closureDays,
+                      dropdownColor: const Color(0xFF1C1917),
+                      isExpanded: true,
+                      style: const TextStyle(color: Colors.white, fontSize: 13),
+                      items: const [
+                        DropdownMenuItem(value: 3, child: Text('3 Days')),
+                        DropdownMenuItem(value: 7, child: Text('7 Days (1 Week)')),
+                        DropdownMenuItem(value: 14, child: Text('14 Days (2 Weeks)')),
+                        DropdownMenuItem(value: 30, child: Text('30 Days (1 Month)')),
+                      ],
+                      onChanged: (val) {
+                        if (val != null) {
+                          setDialogState(() {
+                            closureDays = val;
+                          });
+                        }
+                      },
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogCtx),
+                child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.amber, foregroundColor: Colors.black),
+                onPressed: () async {
+                  final reason = reasonController.text.trim();
+                  if (reason.isEmpty) {
+                    setDialogState(() {
+                      errorMessage = 'Reason is mandatory for temporary closure';
+                    });
+                    return;
+                  }
+                  Navigator.pop(dialogCtx);
+                  final success = await ref.read(myBusinessesProvider.notifier).requestTemporaryClosure(
+                    business.businessId,
+                    reason,
+                    closureDays,
+                  );
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(success ? 'Temporary closure submitted successfully.' : 'Failed to submit closure request.'),
+                      ),
+                    );
+                  }
+                },
+                child: const Text('Submit Closure', style: TextStyle(fontWeight: FontWeight.bold)),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  void _showDeletionDialog(BuildContext context, WidgetRef ref, BusinessDto business) {
+    final reasonController = TextEditingController();
+    String? errorMessage;
+
+    showDialog(
+      context: context,
+      builder: (dialogCtx) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            backgroundColor: const Color(0xFF141210),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: Row(
+              children: [
+                const Icon(Icons.delete_forever_rounded, color: Color(0xFFFF3333), size: 24),
+                const SizedBox(width: 8),
+                const Text(
+                  'Permanent Store Deletion',
+                  style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Are you sure you want to request deletion for "${business.businessName}"? A mandatory reason is required for admin review.',
+                  style: const TextStyle(color: Colors.white70, fontSize: 12.5),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: reasonController,
+                  maxLines: 3,
+                  style: const TextStyle(color: Colors.white, fontSize: 13),
+                  decoration: InputDecoration(
+                    hintText: 'Enter mandatory reason for deletion...',
+                    hintStyle: const TextStyle(color: Colors.white38, fontSize: 12),
+                    filled: true,
+                    fillColor: const Color(0xFF1C1917),
+                    errorText: errorMessage,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: Colors.white12),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: Color(0xFFFF3333)),
+                    ),
+                  ),
+                  onChanged: (val) {
+                    if (val.trim().isNotEmpty && errorMessage != null) {
+                      setDialogState(() {
+                        errorMessage = null;
+                      });
+                    }
+                  },
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogCtx),
+                child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFFF3333), foregroundColor: Colors.white),
+                onPressed: () async {
+                  final reason = reasonController.text.trim();
+                  if (reason.isEmpty) {
+                    setDialogState(() {
+                      errorMessage = 'Reason is mandatory for deletion request';
+                    });
+                    return;
+                  }
+                  Navigator.pop(dialogCtx);
+                  final success = await ref.read(myBusinessesProvider.notifier).requestDeletion(
+                    business.businessId,
+                    reason,
+                  );
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(success ? 'Deletion request submitted to admin successfully.' : 'Failed to submit deletion request.'),
+                      ),
+                    );
+                  }
+                },
+                child: const Text('Request Deletion', style: TextStyle(fontWeight: FontWeight.bold)),
+              ),
+            ],
+          );
+        },
       ),
     );
   }

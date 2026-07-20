@@ -55,6 +55,30 @@ class MyBusinessesNotifier extends AsyncNotifier<List<BusinessDto>> {
     ref.invalidate(singleBusinessProvider);
     return success;
   }
+
+  Future<bool> requestTemporaryClosure(int id, String reason, int days) async {
+    final repo = ref.read(businessRepositoryProvider);
+    final success = await repo.requestTemporaryClosure(id, reason, days);
+    await refresh();
+    ref.invalidate(singleBusinessProvider);
+    return success;
+  }
+
+  Future<bool> cancelTemporaryClosure(int id) async {
+    final repo = ref.read(businessRepositoryProvider);
+    final success = await repo.cancelTemporaryClosure(id);
+    await refresh();
+    ref.invalidate(singleBusinessProvider);
+    return success;
+  }
+
+  Future<bool> requestDeletion(int id, String reason) async {
+    final repo = ref.read(businessRepositoryProvider);
+    final success = await repo.requestDeletion(id, reason);
+    await refresh();
+    ref.invalidate(singleBusinessProvider);
+    return success;
+  }
 }
 
 final myBusinessesProvider = AsyncNotifierProvider<MyBusinessesNotifier, List<BusinessDto>>(
