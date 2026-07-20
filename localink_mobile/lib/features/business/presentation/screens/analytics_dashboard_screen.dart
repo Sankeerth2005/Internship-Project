@@ -9,7 +9,7 @@ class AnalyticsDashboardScreen extends ConsumerStatefulWidget {
   const AnalyticsDashboardScreen({
     super.key,
     required this.businessId,
-    required this.businessName,
+    this.businessName = 'Business Performance',
   });
 
   @override

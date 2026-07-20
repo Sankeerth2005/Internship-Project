@@ -204,6 +204,14 @@ final routerProvider = Provider<GoRouter>((ref) {
         },
       ),
       GoRoute(
+        parentNavigatorKey: _rootNavigatorKey,
+        path: '/edit-business/:id',
+        builder: (context, state) {
+          final business = state.extra as BusinessDto?;
+          return BusinessRegistrationScreen(businessToEdit: business);
+        },
+      ),
+      GoRoute(
         path: '/owner-profile',
         builder: (context, state) => const ProfileScreen(),
       ),
@@ -213,6 +221,18 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => BusinessDetailScreen(
           businessId: int.parse(state.pathParameters['id']!),
         ),
+      ),
+      GoRoute(
+        parentNavigatorKey: _rootNavigatorKey,
+        path: '/analytics/:id',
+        builder: (context, state) {
+          final id = int.parse(state.pathParameters['id']!);
+          final business = state.extra as BusinessDto?;
+          return AnalyticsDashboardScreen(
+            businessId: id,
+            businessName: business?.businessName ?? 'Business Performance',
+          );
+        },
       ),
       GoRoute(
         path: '/ai-assistant',

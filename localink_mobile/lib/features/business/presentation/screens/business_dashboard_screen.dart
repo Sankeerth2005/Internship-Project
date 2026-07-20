@@ -143,14 +143,105 @@ class BusinessDashboardScreen extends ConsumerWidget {
             return CustomScrollView(
               physics: const BouncingScrollPhysics(),
               slivers: [
-                // Top Navigation Bar (Store Performance Overview + Quick Add CTA)
+                // ─── 1. HERO PROMOTIONAL BANNER FOR BUSINESS OWNER ───
                 SliverToBoxAdapter(
                   child: Padding(
-                    padding: const EdgeInsets.all(20.0),
+                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 10),
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFFFF7A00), Color(0xFFFF5100)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(22),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFFFF7A00).withValues(alpha: 0.25),
+                            blurRadius: 14,
+                            offset: const Offset(0, 5),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Expanding your community',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 17,
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: 0.3,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  'Register and showcase your business to thousands of local customers nearby.',
+                                  style: TextStyle(
+                                    color: Colors.white.withValues(alpha: 0.95),
+                                    fontSize: 11.5,
+                                    height: 1.35,
+                                  ),
+                                ),
+                                const SizedBox(height: 14),
+                                ElevatedButton.icon(
+                                  onPressed: () => context.push('/register-business'),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.white,
+                                    foregroundColor: const Color(0xFFFF6B00),
+                                    elevation: 4,
+                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                  ),
+                                  icon: const Icon(Icons.add_rounded, size: 18),
+                                  label: const Text(
+                                    'List your store',
+                                    style: TextStyle(
+                                      fontSize: 12.5,
+                                      fontWeight: FontWeight.w900,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 14),
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.2),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.storefront_rounded,
+                              color: Colors.white,
+                              size: 38,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+
+                // ─── 2. STORE PERFORMANCE OVERVIEW CARD ───
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8.0),
                     child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Container(
-                          padding: const EdgeInsets.all(20),
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(18),
                           decoration: BoxDecoration(
                             gradient: const LinearGradient(
                               colors: [Color(0xFF1C1917), Color(0xFF100F0E)],
@@ -161,37 +252,18 @@ class BusinessDashboardScreen extends ConsumerWidget {
                             border: Border.all(color: const Color(0xFFFF7A00).withValues(alpha: 0.2)),
                           ),
                           child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  const Text(
-                                    'Store Performance Overview',
-                                    style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w900),
-                                  ),
-                                  ElevatedButton.icon(
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: const Color(0xFFFF7A00),
-                                      foregroundColor: Colors.white,
-                                      elevation: 2,
-                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                                    ),
-                                    onPressed: () => context.push('/register-business'),
-                                    icon: const Icon(Icons.add_rounded, size: 16),
-                                    label: const Text('Add Business', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                                  ),
-                                ],
+                              const Text(
+                                'Store Performance Overview',
+                                style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w900),
                               ),
-                              const SizedBox(height: 6),
-                              Align(
-                                alignment: Alignment.centerLeft,
-                                child: Text(
-                                  'Manage listings, hours & details from your business hub.',
-                                  style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 12),
-                                ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Manage listings, operating hours & performance stats.',
+                                style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 12),
                               ),
-                              const SizedBox(height: 16),
+                              const SizedBox(height: 14),
                               Row(
                                 children: [
                                   _buildStatBadge('Total Stores', totalCount.toString(), const Color(0xFFFF7A00)),
@@ -202,7 +274,7 @@ class BusinessDashboardScreen extends ConsumerWidget {
                             ],
                           ),
                         ),
-                        const SizedBox(height: 20),
+                        const SizedBox(height: 18),
                         const Row(
                           children: [
                             Icon(Icons.storefront_rounded, color: Color(0xFFFF7A00), size: 18),
@@ -213,6 +285,7 @@ class BusinessDashboardScreen extends ConsumerWidget {
                             ),
                           ],
                         ),
+                        const SizedBox(height: 8),
                       ],
                     ),
                   ),
@@ -231,7 +304,7 @@ class BusinessDashboardScreen extends ConsumerWidget {
                   ),
                 ),
 
-                const SliverToBoxAdapter(child: SizedBox(height: 100)),
+                const SliverToBoxAdapter(child: SizedBox(height: 50)),
               ],
             );
           },
@@ -246,7 +319,7 @@ class BusinessDashboardScreen extends ConsumerWidget {
 
   Widget _buildStatBadge(String label, String count, Color color) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(12),
@@ -254,9 +327,9 @@ class BusinessDashboardScreen extends ConsumerWidget {
       ),
       child: Row(
         children: [
-          Text(label, style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.bold)),
-          const SizedBox(width: 6),
-          Text(count, style: TextStyle(color: color, fontSize: 13, fontWeight: FontWeight.w900)),
+          Text(label, style: TextStyle(color: color, fontSize: 11.5, fontWeight: FontWeight.bold)),
+          const SizedBox(width: 8),
+          Text(count, style: TextStyle(color: color, fontSize: 13.5, fontWeight: FontWeight.w900)),
         ],
       ),
     );
@@ -375,25 +448,32 @@ class BusinessDashboardScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 16),
           const Divider(color: Colors.white10, height: 1),
-          const SizedBox(height: 12),
-          // Action Buttons Toolbar (View Details, Edit Details, Analytics)
+          const SizedBox(height: 14),
+          // User-Friendly Action Buttons Toolbar with proper gaps
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _buildActionButton(
-                icon: Icons.visibility_rounded,
-                label: 'View Details',
-                onTap: () => context.push('/business-detail/${business.businessId}'),
+              Expanded(
+                child: _buildActionButton(
+                  icon: Icons.visibility_rounded,
+                  label: 'View Details',
+                  onTap: () => context.push('/business-detail/${business.businessId}'),
+                ),
               ),
-              _buildActionButton(
-                icon: Icons.edit_note_rounded,
-                label: 'Edit Details',
-                onTap: () => context.push('/edit-business/${business.businessId}', extra: business),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _buildActionButton(
+                  icon: Icons.edit_note_rounded,
+                  label: 'Edit Details',
+                  onTap: () => context.push('/edit-business/${business.businessId}', extra: business),
+                ),
               ),
-              _buildActionButton(
-                icon: Icons.analytics_outlined,
-                label: 'Analytics',
-                onTap: () => context.push('/analytics/${business.businessId}'),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _buildActionButton(
+                  icon: Icons.analytics_outlined,
+                  label: 'Analytics',
+                  onTap: () => context.push('/analytics/${business.businessId}', extra: business),
+                ),
               ),
             ],
           ),
@@ -410,22 +490,27 @@ class BusinessDashboardScreen extends ConsumerWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.04),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+          color: Colors.white.withValues(alpha: 0.05),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
         ),
         child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, color: const Color(0xFFFF7A00), size: 16),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 11.5,
-                fontWeight: FontWeight.bold,
+            Icon(icon, color: const Color(0xFFFF7A00), size: 15),
+            const SizedBox(width: 5),
+            Flexible(
+              child: Text(
+                label,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.bold,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
           ],
