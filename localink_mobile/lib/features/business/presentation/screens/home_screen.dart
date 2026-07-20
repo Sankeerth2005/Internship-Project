@@ -17,8 +17,10 @@ class HomeScreen extends ConsumerStatefulWidget {
   ConsumerState<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends ConsumerState<HomeScreen> {
+class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProviderStateMixin {
   final TextEditingController _searchController = TextEditingController();
+  late AnimationController _pulseController;
+  late Animation<double> _pulseAnimation;
 
   @override
   void initState() {
@@ -27,6 +29,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       _getUserLocation();
     });
     SignalRService().addNotificationListener(_onNotificationReceived);
+
+    // Initialize continuous breathing pulse motion graphic for floating AI button
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1500),
+    )..repeat(reverse: true);
+
+    _pulseAnimation = Tween<double>(begin: 0.95, end: 1.08).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
   }
 
   Future<void> _getUserLocation() async {
@@ -53,6 +65,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   @override
   void dispose() {
+    _pulseController.dispose();
     SignalRService().removeNotificationListener(_onNotificationReceived);
     _searchController.dispose();
     super.dispose();
@@ -94,7 +107,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       });
     }
 
-    // Extract user full name & avatar initials for greeting
+    // Extract user full name for greeting
     String userName = 'Guest';
     if (authState is AuthAuthenticated) {
       userName = authState.userType.toUpperCase() == 'ADMIN'
@@ -119,28 +132,37 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   children: [
                     Row(
                       children: [
-                        // User Avatar Circle
+                        // User Avatar Circle with pulse glow effect
                         GestureDetector(
                           onTap: () => context.push('/profile'),
-                          child: Container(
-                            width: 44,
-                            height: 44,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              gradient: const LinearGradient(
-                                colors: [Color(0xFFFF9F00), Color(0xFFFF5500)],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: const Color(0xFFFF7A00).withValues(alpha: 0.25),
-                                  blurRadius: 10,
+                          child: AnimatedBuilder(
+                            animation: _pulseAnimation,
+                            builder: (context, child) {
+                              return Transform.scale(
+                                scale: 1.0 + (_pulseAnimation.value - 1.0) * 0.3,
+                                child: child,
+                              );
+                            },
+                            child: Container(
+                              width: 44,
+                              height: 44,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                gradient: const LinearGradient(
+                                  colors: [Color(0xFFFF9F00), Color(0xFFFF5500)],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
                                 ),
-                              ],
-                            ),
-                            child: const Center(
-                              child: Icon(Icons.person_rounded, color: Colors.white, size: 24),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: const Color(0xFFFF7A00).withValues(alpha: 0.3),
+                                    blurRadius: 12,
+                                  ),
+                                ],
+                              ),
+                              child: const Center(
+                                child: Icon(Icons.person_rounded, color: Colors.white, size: 24),
+                              ),
                             ),
                           ),
                         ),
@@ -307,7 +329,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
             ),
 
-            // ─── 3. HERO PROMOTIONAL BANNER CARD ("Post your Business for Free") ───
+            // ─── 3. HERO PROMOTIONAL BANNER CARD WITH GLOW MOTION ───
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
@@ -323,8 +345,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     borderRadius: BorderRadius.circular(24),
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(0xFFFF7A00).withValues(alpha: 0.25),
-                        blurRadius: 16,
+                        color: const Color(0xFFFF7A00).withValues(alpha: 0.3),
+                        blurRadius: 18,
                         offset: const Offset(0, 6),
                       ),
                     ],
@@ -371,7 +393,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.white,
                                 foregroundColor: const Color(0xFFFF6B00),
-                                elevation: 0,
+                                elevation: 4,
                                 padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(25),
@@ -407,7 +429,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
             ),
 
-            // ─── 4. CIRCULAR CATEGORY CHIPS ───
+            // ─── 4. CIRCULAR CATEGORY CHIPS WITH ANIMATED SELECTION SCALE ───
             SliverToBoxAdapter(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -465,47 +487,53 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 ref.read(searchQueryProvider.notifier).setCategory(categories[index - 1].categoryId);
                               }
                             },
-                            child: Container(
-                              margin: const EdgeInsets.symmetric(horizontal: 8),
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  AnimatedContainer(
-                                    duration: const Duration(milliseconds: 200),
-                                    width: 54,
-                                    height: 54,
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      color: isSelected ? const Color(0xFFFF7A00) : const Color(0xFF141210),
-                                      border: Border.all(
-                                        color: isSelected ? const Color(0xFFFF7A00) : Colors.white.withValues(alpha: 0.08),
-                                        width: 1.5,
+                            child: AnimatedScale(
+                              scale: isSelected ? 1.08 : 1.0,
+                              duration: const Duration(milliseconds: 200),
+                              curve: Curves.easeOutCubic,
+                              child: Container(
+                                margin: const EdgeInsets.symmetric(horizontal: 8),
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    AnimatedContainer(
+                                      duration: const Duration(milliseconds: 250),
+                                      width: 54,
+                                      height: 54,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: isSelected ? const Color(0xFFFF7A00) : const Color(0xFF141210),
+                                        border: Border.all(
+                                          color: isSelected ? const Color(0xFFFF7A00) : Colors.white.withValues(alpha: 0.08),
+                                          width: 1.5,
+                                        ),
+                                        boxShadow: isSelected
+                                            ? [
+                                                BoxShadow(
+                                                  color: const Color(0xFFFF7A00).withValues(alpha: 0.4),
+                                                  blurRadius: 12,
+                                                  spreadRadius: 1,
+                                                )
+                                              ]
+                                            : [],
                                       ),
-                                      boxShadow: isSelected
-                                          ? [
-                                              BoxShadow(
-                                                color: const Color(0xFFFF7A00).withValues(alpha: 0.3),
-                                                blurRadius: 10,
-                                              )
-                                            ]
-                                          : [],
+                                      child: Icon(
+                                        catIcon,
+                                        color: isSelected ? Colors.white : Colors.white60,
+                                        size: 24,
+                                      ),
                                     ),
-                                    child: Icon(
-                                      catIcon,
-                                      color: isSelected ? Colors.white : Colors.white60,
-                                      size: 24,
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      label,
+                                      style: TextStyle(
+                                        color: isSelected ? const Color(0xFFFF7A00) : Colors.white60,
+                                        fontSize: 11.5,
+                                        fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                                      ),
                                     ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    label,
-                                    style: TextStyle(
-                                      color: isSelected ? const Color(0xFFFF7A00) : Colors.white60,
-                                      fontSize: 11.5,
-                                      fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                                    ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
                             ),
                           );
@@ -519,7 +547,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
             ),
 
-            // ─── 5. SEGMENTED FILTER BAR (Featured / Near Me / Sort) ───
+            // ─── 5. SEGMENTED FILTER BAR ───
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
@@ -546,7 +574,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
             ),
 
-            // ─── 6. BUSINESS LISTING CARDS ───
+            // ─── 6. BUSINESS LISTING CARDS WITH SLIDE & FADE ENTRANCE MOTION ───
             searchResultsAsync.when(
               data: (businesses) {
                 if (businesses.isEmpty) {
@@ -576,7 +604,23 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       (context, index) {
                         final business = businesses[index];
                         final isFav = ref.read(favoritesProvider.notifier).isFavorite(business.businessId);
-                        return _buildBusinessCard(context, ref, business, isFav);
+
+                        // Animated entrance transition for each card
+                        return TweenAnimationBuilder<double>(
+                          tween: Tween(begin: 0.0, end: 1.0),
+                          duration: Duration(milliseconds: 300 + (index * 60).clamp(0, 400)),
+                          curve: Curves.easeOutCubic,
+                          builder: (context, value, child) {
+                            return Transform.translate(
+                              offset: Offset(0, 30 * (1 - value)),
+                              child: Opacity(
+                                opacity: value,
+                                child: child,
+                              ),
+                            );
+                          },
+                          child: _buildBusinessCard(context, ref, business, isFav),
+                        );
                       },
                       childCount: businesses.length,
                     ),
@@ -601,19 +645,30 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ],
         ),
       ),
+
+      // ─── 7. FLOATING ACTION BUTTON WITH CONTINUOUS BREATHING MOTION GRAPHIC ───
       floatingActionButton: Padding(
         padding: const EdgeInsets.only(bottom: 90.0),
-        child: Container(
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFFFF6B00).withValues(alpha: 0.35),
-                blurRadius: 16,
-                spreadRadius: 2,
-              )
-            ],
-          ),
+        child: AnimatedBuilder(
+          animation: _pulseAnimation,
+          builder: (context, child) {
+            return Transform.scale(
+              scale: _pulseAnimation.value,
+              child: Container(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFFFF6B00).withValues(alpha: 0.4 * _pulseAnimation.value),
+                      blurRadius: 18 * _pulseAnimation.value,
+                      spreadRadius: 3 * _pulseAnimation.value,
+                    )
+                  ],
+                ),
+                child: child,
+              ),
+            );
+          },
           child: FloatingActionButton(
             backgroundColor: const Color(0xFFFF6B00),
             foregroundColor: Colors.white,
@@ -749,7 +804,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       ),
                     ),
                   ),
-                  // Favorite Heart Button (Top Right)
+                  // Favorite Heart Button with Scale Bounce Micro-Animation (Top Right)
                   Positioned(
                     top: 12,
                     right: 12,
@@ -757,16 +812,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       onTap: () {
                         ref.read(favoritesProvider.notifier).toggleFavorite(business.businessId);
                       },
-                      child: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.6),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                          color: isFav ? const Color(0xFFFF3333) : Colors.white,
-                          size: 18,
+                      child: AnimatedScale(
+                        scale: isFav ? 1.2 : 1.0,
+                        duration: const Duration(milliseconds: 200),
+                        curve: Curves.elasticOut,
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.6),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                            color: isFav ? const Color(0xFFFF3333) : Colors.white,
+                            size: 18,
+                          ),
                         ),
                       ),
                     ),
