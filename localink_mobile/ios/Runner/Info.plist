@@ -66,5 +66,15 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>This app requires GPS access to show local businesses and calculate distance.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>This app requires camera access to take business profile photos and review photos.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>This app requires gallery access to upload business photos.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>This app requires microphone access for voice command search.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>This app requires speech recognition access for Ask AI voice search.</string>
 </dict>
 </plist>
