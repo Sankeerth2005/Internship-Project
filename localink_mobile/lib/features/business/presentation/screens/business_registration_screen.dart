@@ -1172,7 +1172,7 @@ class _BusinessRegistrationScreenState
   "sources": {
     "osm": {
       "type": "raster",
-      "tiles": ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
+      "tiles": ["https://maps.geoapify.com/v1/tile/osm-carto/{z}/{x}/{y}.png?apiKey=${AppConfig.geoapifyApiKey}"],
       "tileSize": 256
     }
   },
