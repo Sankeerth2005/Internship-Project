@@ -15,7 +15,6 @@ namespace localink_be.Models.Entities
         public string? PhoneNumber { get; set; }
         public string CountryCode { get; set; } = string.Empty;
         public string? PasswordHash { get; set; }
-        public string? GoogleId { get; set; }
 
         public int? OtpAttempts { get; set; }
         public string? PasswordResetOtp { get; set; }

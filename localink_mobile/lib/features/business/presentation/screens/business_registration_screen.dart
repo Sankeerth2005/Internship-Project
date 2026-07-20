@@ -92,8 +92,7 @@ class _BusinessRegistrationScreenState
   double? _longitude;
   bool _manuallySelectedCoordinates = false;
   bool _mapInitialized = false;
-  bool _userSelectedLocation = false;
-  bool _coordinatesResolved = false;
+  bool _userInteractedWithMap = false;
 
   // Step 3 Data
   String? _photoBase64;
@@ -163,9 +162,6 @@ class _BusinessRegistrationScreenState
       _pincodeController.text = edit.pincode;
       _latitude = edit.latitude;
       _longitude = edit.longitude;
-      if (_latitude != null && _longitude != null && _latitude != 0.0 && _longitude != 0.0) {
-        _coordinatesResolved = true;
-      }
       _businessHours = List.from(edit.hours);
       _loadLocationForEdit();
     } else {
@@ -467,7 +463,6 @@ class _BusinessRegistrationScreenState
         _latitude = coordinates.latitude;
         _longitude = coordinates.longitude;
         _manuallySelectedCoordinates = true;
-        _userSelectedLocation = true;
       });
       _mapController!.animateCamera(
         CameraUpdate.newCameraPosition(
@@ -531,7 +526,7 @@ class _BusinessRegistrationScreenState
             setState(() {
               _latitude = lat;
               _longitude = lon;
-              _coordinatesResolved = true;
+              _userInteractedWithMap = false;
             });
             if (_mapController != null) {
               final pos = LatLng(lat, lon);
@@ -549,7 +544,6 @@ class _BusinessRegistrationScreenState
       setState(() {
         _latitude = null;
         _longitude = null;
-        _coordinatesResolved = false;
       });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -564,7 +558,6 @@ class _BusinessRegistrationScreenState
       setState(() {
         _latitude = null;
         _longitude = null;
-        _coordinatesResolved = false;
       });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -617,7 +610,7 @@ class _BusinessRegistrationScreenState
         setState(() {
           _latitude = position.latitude;
           _longitude = position.longitude;
-          _coordinatesResolved = true;
+          _userInteractedWithMap = false;
         });
 
         final pos = LatLng(position.latitude, position.longitude);
@@ -1352,7 +1345,7 @@ class _BusinessRegistrationScreenState
                         _locationSuggestions = [];
                         _locationSearchController.text = formattedAddress;
                         _manuallySelectedCoordinates = true;
-                        _coordinatesResolved = true;
+                        _userInteractedWithMap = false;
                       });
                       final pos = LatLng(lat, lon);
                       if (_mapController != null) {
@@ -1593,35 +1586,42 @@ class _BusinessRegistrationScreenState
           clipBehavior: Clip.antiAlias,
           child: Stack(
             children: [
-              MapLibreMap(
-                styleString: osmStyle,
-                initialCameraPosition: CameraPosition(
-                    target: (_latitude != null && _longitude != null && _latitude != 0.0 && _longitude != 0.0)
-                        ? LatLng(_latitude!, _longitude!)
-                        : const LatLng(17.385, 78.4867),
-                    zoom: (_latitude != null && _longitude != null && _latitude != 0.0 && _longitude != 0.0) ? 12 : 5),
-                onMapCreated: _onMapCreated,
-                onMapClick: _onMapClick,
-                rotateGesturesEnabled: true,
-                scrollGesturesEnabled: true,
-                tiltGesturesEnabled: true,
-                zoomGesturesEnabled: true,
-                doubleClickZoomEnabled: true,
-                myLocationEnabled: true,
-                onCameraIdle: () {
-                  if (_mapController != null && _mapInitialized) {
-                    if (_userSelectedLocation || _coordinatesResolved) {
-                      final target = _mapController!.cameraPosition?.target;
-                      if (target != null && target.latitude != 0.0 && target.longitude != 0.0) {
-                        setState(() {
-                          _latitude = target.latitude;
-                          _longitude = target.longitude;
-                        });
-                        _addMarker(target);
+              Listener(
+                onPointerDown: (_) {
+                  setState(() {
+                    _userInteractedWithMap = true;
+                  });
+                },
+                child: MapLibreMap(
+                  styleString: osmStyle,
+                  initialCameraPosition: CameraPosition(
+                      target: (_latitude != null && _longitude != null && _latitude != 0.0 && _longitude != 0.0)
+                          ? LatLng(_latitude!, _longitude!)
+                          : const LatLng(17.385, 78.4867),
+                      zoom: (_latitude != null && _longitude != null && _latitude != 0.0 && _longitude != 0.0) ? 12 : 5),
+                  onMapCreated: _onMapCreated,
+                  onMapClick: _onMapClick,
+                  rotateGesturesEnabled: true,
+                  scrollGesturesEnabled: true,
+                  tiltGesturesEnabled: true,
+                  zoomGesturesEnabled: true,
+                  doubleClickZoomEnabled: true,
+                  myLocationEnabled: true,
+                  onCameraIdle: () {
+                    if (_mapController != null && _mapInitialized) {
+                      if (_userInteractedWithMap) {
+                        final target = _mapController!.cameraPosition?.target;
+                        if (target != null && target.latitude != 0.0 && target.longitude != 0.0) {
+                          setState(() {
+                            _latitude = target.latitude;
+                            _longitude = target.longitude;
+                          });
+                          _addMarker(target);
+                        }
                       }
                     }
-                  }
-                },
+                  },
+                ),
               ),
               IgnorePointer(
                 child: Center(

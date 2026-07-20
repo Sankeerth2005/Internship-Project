@@ -11,6 +11,5 @@ namespace localink_be.Services.Interfaces
         Task<string> ResetPasswordAsync(ForgotPasswordRequest request);
         Task<string> SendResetOtpAsync(string email, string captchaToken);
         Task<string> VerifyOtpAndResetPasswordAsync(string email, string otp, string newPassword);
-        Task<object> GoogleSignInAsync(string idToken);
     }
 }
