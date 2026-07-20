@@ -66,6 +66,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       ref.invalidate(searchResultsProvider);
     }
   }
+
   void _triggerVoiceSearch() {
     showDialog(
       context: context,
@@ -79,12 +80,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       }
     });
   }
+
   @override
   Widget build(BuildContext context) {
     final categoriesAsync = ref.watch(categoriesProvider);
     final searchResultsAsync = ref.watch(searchResultsProvider);
     final queryState = ref.watch(searchQueryProvider);
-    final favorites = ref.watch(favoritesProvider);
     final authState = ref.watch(authProvider);
 
     if (authState is AuthAuthenticated) {
@@ -93,41 +94,54 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       });
     }
 
+    // Extract user full name & avatar initials for greeting
+    String userName = 'Guest';
+    if (authState is AuthAuthenticated) {
+      userName = authState.userType.toUpperCase() == 'ADMIN'
+          ? 'Admin'
+          : authState.userType.toLowerCase() == 'client' || authState.userType.toLowerCase() == 'businessowner'
+              ? 'Owner'
+              : 'User';
+    }
+
     return Scaffold(
       backgroundColor: const Color(0xFF080706), // Obsidian Black
       body: SafeArea(
         child: CustomScrollView(
           physics: const BouncingScrollPhysics(),
           slivers: [
-            // Premium Saffron/National Header Bar
+            // ─── 1. HEADER BAR (Avatar + Greeting + Notification Bell) ───
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Row(
                       children: [
-                        // Traditional Mandala/Sun symbol container
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            gradient: const RadialGradient(
-                              colors: [Color(0xFFFF9F00), Color(0xFFFF5100)],
+                        // User Avatar Circle
+                        GestureDetector(
+                          onTap: () => context.push('/profile'),
+                          child: Container(
+                            width: 44,
+                            height: 44,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              gradient: const LinearGradient(
+                                colors: [Color(0xFFFF9F00), Color(0xFFFF5500)],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: const Color(0xFFFF7A00).withValues(alpha: 0.25),
+                                  blurRadius: 10,
+                                ),
+                              ],
                             ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: const Color(0xFFFF6B00).withValues(alpha: 0.4),
-                                blurRadius: 10,
-                                spreadRadius: 1,
-                              )
-                            ],
-                          ),
-                          child: const Icon(
-                            Icons.wb_sunny_rounded, // Surya/Sun representation
-                            color: Colors.white,
-                            size: 20,
+                            child: const Center(
+                              child: Icon(Icons.person_rounded, color: Colors.white, size: 24),
+                            ),
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -136,180 +150,255 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           children: [
                             Row(
                               children: [
-                                const Text(
-                                  'Explore Local ',
+                                Text(
+                                  'Hello 👋',
                                   style: TextStyle(
-                                    color: Colors.white70,
-                                    fontSize: 13,
+                                    color: Colors.white.withValues(alpha: 0.6),
+                                    fontSize: 12,
                                     fontWeight: FontWeight.w500,
-                                    letterSpacing: 0.5,
-                                  ),
-                                ),
-                                // Subtle Tricolor Flag Pill
-                                Container(
-                                  width: 14,
-                                  height: 8,
-                                  decoration: const BoxDecoration(
-                                    gradient: LinearGradient(
-                                      colors: [
-                                        Color(0xFFFF6B00), // Saffron
-                                        Colors.white,      // White
-                                        Color(0xFF2E7D32), // Green
-                                      ],
-                                      begin: Alignment.topCenter,
-                                      end: Alignment.bottomCenter,
-                                    ),
-                                    borderRadius: BorderRadius.all(Radius.circular(1)),
                                   ),
                                 ),
                               ],
                             ),
-                            const Text(
-                              'Vocal for Sanatan',
-                              style: TextStyle(
-                                color: Color(0xFFFF6B00), // Pure Saffron
-                                fontSize: 22,
+                            Text(
+                              userName,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 18,
                                 fontWeight: FontWeight.w900,
-                                letterSpacing: 0.5,
+                                letterSpacing: 0.3,
                               ),
                             ),
                           ],
                         ),
                       ],
                     ),
-                    IconButton(
-                      icon: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: const Color(0xFFFF3333).withValues(alpha: 0.1),
-                          border: Border.all(color: const Color(0xFFFF3333).withValues(alpha: 0.2)),
+                    Row(
+                      children: [
+                        // Notification Bell with Badge
+                        Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: const Color(0xFF161412),
+                                border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                              ),
+                              child: const Icon(Icons.notifications_none_rounded, color: Colors.white, size: 20),
+                            ),
+                            Positioned(
+                              top: -2,
+                              right: -2,
+                              child: Container(
+                                padding: const EdgeInsets.all(4),
+                                decoration: const BoxDecoration(
+                                  color: Color(0xFFFF3333),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Text(
+                                  '2',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                        child: const Icon(Icons.logout_rounded, color: Color(0xFFFF3333), size: 18),
-                      ),
-                      onPressed: () {
-                        ref.read(authProvider.notifier).logout();
-                      },
+                        const SizedBox(width: 10),
+                        IconButton(
+                          icon: Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: const Color(0xFFFF3333).withValues(alpha: 0.1),
+                              border: Border.all(color: const Color(0xFFFF3333).withValues(alpha: 0.2)),
+                            ),
+                            child: const Icon(Icons.logout_rounded, color: Color(0xFFFF3333), size: 18),
+                          ),
+                          onPressed: () {
+                            ref.read(authProvider.notifier).logout();
+                          },
+                        ),
+                      ],
                     ),
                   ],
                 ),
               ),
             ),
 
-            // Futuristic Glassmorphic Search Header
+            // ─── 2. SEARCH BAR WITH INTEGRATED FILTER BUTTON ───
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Container(
+                        height: 52,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF141210),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.08),
+                            width: 1,
+                          ),
+                        ),
+                        child: TextField(
+                          controller: _searchController,
+                          style: const TextStyle(color: Colors.white, fontSize: 14),
+                          decoration: InputDecoration(
+                            hintText: 'Search business, category, area...',
+                            hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 13),
+                            prefixIcon: const Icon(Icons.search_rounded, color: Color(0xFFFF7A00), size: 20),
+                            suffixIcon: _searchController.text.isNotEmpty
+                                ? IconButton(
+                                    icon: const Icon(Icons.clear_rounded, color: Colors.white38, size: 18),
+                                    onPressed: () {
+                                      _searchController.clear();
+                                      ref.read(searchQueryProvider.notifier).setQuery('');
+                                    },
+                                  )
+                                : null,
+                            filled: false,
+                            border: InputBorder.none,
+                            enabledBorder: InputBorder.none,
+                            focusedBorder: InputBorder.none,
+                            contentPadding: const EdgeInsets.symmetric(vertical: 14),
+                          ),
+                          onChanged: (val) {
+                            ref.read(searchQueryProvider.notifier).setQuery(val);
+                            setState(() {});
+                          },
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    // Saffron Filter Action Button
+                    GestureDetector(
+                      onTap: _triggerVoiceSearch,
+                      child: Container(
+                        width: 52,
+                        height: 52,
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFFFF7A00), Color(0xFFFF5100)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFFFF7A00).withValues(alpha: 0.3),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
+                            )
+                          ],
+                        ),
+                        child: const Icon(Icons.tune_rounded, color: Colors.white, size: 22),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            // ─── 3. HERO PROMOTIONAL BANNER CARD ("Post your Business for Free") ───
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
                 child: Container(
+                  width: double.infinity,
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        const Color(0xFF181614).withValues(alpha: 0.8),
-                        const Color(0xFF0C0B0A).withValues(alpha: 0.8),
-                      ],
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFFFF7A00), Color(0xFFFF5100)],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
-                    ),
-                    border: Border.all(
-                      color: const Color(0xFFFF6B00).withValues(alpha: 0.2),
-                      width: 1.2,
                     ),
                     borderRadius: BorderRadius.circular(24),
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(0xFFFF6B00).withValues(alpha: 0.05),
-                        blurRadius: 20,
-                        offset: const Offset(0, 8),
+                        color: const Color(0xFFFF7A00).withValues(alpha: 0.25),
+                        blurRadius: 16,
+                        offset: const Offset(0, 6),
                       ),
                     ],
                   ),
-                  child: Column(
+                  child: Row(
                     children: [
-                      // Search Bar & Mic
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Container(
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF0F0E0D),
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(
-                                  color: Colors.white.withValues(alpha: 0.05),
-                                  width: 1,
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                const Text(
+                                  'Post your Business for ',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w800,
+                                  ),
                                 ),
-                              ),
-                              child: TextField(
-                                controller: _searchController,
-                                style: const TextStyle(color: Colors.white, fontSize: 14),
-                                decoration: InputDecoration(
-                                  hintText: 'Search restaurants, services, shops...',
-                                  hintStyle: const TextStyle(color: Colors.white38, fontSize: 13),
-                                  prefixIcon: const Icon(Icons.search_rounded, color: Color(0xFFFF6B00), size: 20),
-                                  suffixIcon: _searchController.text.isNotEmpty
-                                      ? IconButton(
-                                          icon: const Icon(Icons.clear_rounded, color: Colors.white38, size: 18),
-                                          onPressed: () {
-                                            _searchController.clear();
-                                            ref.read(searchQueryProvider.notifier).setQuery('');
-                                          },
-                                        )
-                                      : null,
-                                  filled: false,
-                                  border: InputBorder.none,
-                                  enabledBorder: InputBorder.none,
-                                  focusedBorder: InputBorder.none,
-                                  contentPadding: const EdgeInsets.symmetric(vertical: 14),
+                                Text(
+                                  'Free',
+                                  style: TextStyle(
+                                    color: Colors.amber.shade200,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w900,
+                                    fontStyle: FontStyle.italic,
+                                  ),
                                 ),
-                                onChanged: (val) {
-                                  ref.read(searchQueryProvider.notifier).setQuery(val);
-                                  setState(() {});
-                                },
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              'Connect with local customers & get genuine verified leads.',
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.85),
+                                fontSize: 11.5,
+                                height: 1.3,
                               ),
                             ),
-                          ),
-                          const SizedBox(width: 10),
-                          GestureDetector(
-                            onTap: _triggerVoiceSearch,
-                            child: Container(
-                              padding: const EdgeInsets.all(14),
-                              decoration: BoxDecoration(
-                                gradient: const LinearGradient(
-                                  colors: [Color(0xFFFF7A00), Color(0xFFFF5100)],
+                            const SizedBox(height: 14),
+                            ElevatedButton(
+                              onPressed: () => context.push('/register-business'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.white,
+                                foregroundColor: const Color(0xFFFF6B00),
+                                elevation: 0,
+                                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(25),
                                 ),
-                                borderRadius: BorderRadius.circular(16),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: const Color(0xFFFF6B00).withValues(alpha: 0.3),
-                                    blurRadius: 10,
-                                    offset: const Offset(0, 4),
-                                  )
-                                ],
                               ),
-                              child: const Icon(Icons.mic_none_rounded, color: Colors.white, size: 20),
+                              child: const Text(
+                                'Post your business',
+                                style: TextStyle(
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
                             ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      // AI Assistant quick-feed pill
-                      ElevatedButton.icon(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFFF6B00).withValues(alpha: 0.08),
-                          foregroundColor: const Color(0xFFFF7A00),
-                          minimumSize: const Size(double.infinity, 45),
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
-                            side: BorderSide(color: const Color(0xFFFF6B00).withValues(alpha: 0.2), width: 1),
-                          ),
-                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          ],
                         ),
-                        onPressed: () => context.push('/for-you'),
-                        icon: const Icon(Icons.auto_awesome_rounded, size: 16),
-                        label: const Text(
-                          'ASK AI ASSISTANT FEED',
-                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, letterSpacing: 0.5),
+                      ),
+                      const SizedBox(width: 12),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.15),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.storefront_rounded,
+                          color: Colors.white,
+                          size: 38,
                         ),
                       ),
                     ],
@@ -318,175 +407,146 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
             ),
 
-            // Categories Header
+            // ─── 4. CIRCULAR CATEGORY CHIPS ───
             SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.only(left: 24, top: 20, bottom: 12),
-                child: Row(
-                  children: [
-                    const Icon(Icons.spa_rounded, color: Color(0xFFFF6B00), size: 18),
-                    const SizedBox(width: 8),
-                    Text(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                    child: Text(
                       'Categories',
                       style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.9),
-                        fontSize: 15,
+                        color: Colors.white,
+                        fontSize: 16,
                         fontWeight: FontWeight.w800,
-                        letterSpacing: 0.5,
+                        letterSpacing: 0.3,
                       ),
                     ),
-                  ],
-                ),
-              ),
-            ),
-
-            // Horizontal Categories list with traditional icons
-            SliverToBoxAdapter(
-              child: SizedBox(
-                height: 52,
-                child: categoriesAsync.when(
-                  data: (categories) => ListView.builder(
-                    scrollDirection: Axis.horizontal,
-                    physics: const BouncingScrollPhysics(),
-                    padding: const EdgeInsets.symmetric(horizontal: 18),
-                    itemCount: categories.length + 1,
-                    itemBuilder: (context, index) {
-                      final isAll = index == 0;
-                      final isSelected = isAll 
-                          ? queryState.selectedCategoryId == null
-                          : queryState.selectedCategoryId == categories[index - 1].categoryId;
-                      final label = isAll ? 'All' : categories[index - 1].categoryName;
-                      
-                      // Assign traditional Indian outline icons to categories
-                      IconData catIcon = Icons.brightness_7_outlined; // Default sun
-                      if (!isAll) {
-                        final name = label.toLowerCase();
-                        if (name.contains('restaurant') || name.contains('food') || name.contains('eat')) {
-                          catIcon = Icons.villa_outlined; // Temple dome / shelter
-                        } else if (name.contains('shop') || name.contains('grocery') || name.contains('store')) {
-                          catIcon = Icons.storefront_outlined;
-                        } else if (name.contains('service') || name.contains('mechanic') || name.contains('salon')) {
-                          catIcon = Icons.construction_outlined;
-                        } else if (name.contains('health') || name.contains('doctor') || name.contains('medical')) {
-                          catIcon = Icons.local_hospital_outlined;
-                        } else {
-                          catIcon = Icons.spa_outlined; // Lotus outline
-                        }
-                      } else {
-                        catIcon = Icons.spa_outlined; // All shows Lotus
-                      }
-
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 6),
-                        child: ChoiceChip(
-                          showCheckmark: false,
-                          avatar: Icon(
-                            catIcon,
-                            color: isSelected ? Colors.black : const Color(0xFFFF6B00),
-                            size: 16,
-                          ),
-                          label: Text(label),
-                          selected: isSelected,
-                          onSelected: (selected) {
-                            if (isAll) {
-                              ref.read(searchQueryProvider.notifier).clearCategory();
+                  ),
+                  SizedBox(
+                    height: 100,
+                    child: categoriesAsync.when(
+                      data: (categories) => ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        physics: const BouncingScrollPhysics(),
+                        padding: const EdgeInsets.symmetric(horizontal: 14),
+                        itemCount: categories.length + 1,
+                        itemBuilder: (context, index) {
+                          final isAll = index == 0;
+                          final isSelected = isAll 
+                              ? queryState.selectedCategoryId == null
+                              : queryState.selectedCategoryId == categories[index - 1].categoryId;
+                          final label = isAll ? 'All' : categories[index - 1].categoryName;
+                          
+                          IconData catIcon = Icons.category_rounded;
+                          if (!isAll) {
+                            final name = label.toLowerCase();
+                            if (name.contains('restaurant') || name.contains('food') || name.contains('eat')) {
+                              catIcon = Icons.restaurant_rounded;
+                            } else if (name.contains('shop') || name.contains('grocery') || name.contains('store')) {
+                              catIcon = Icons.shopping_bag_rounded;
+                            } else if (name.contains('service') || name.contains('mechanic') || name.contains('salon')) {
+                              catIcon = Icons.build_rounded;
+                            } else if (name.contains('health') || name.contains('doctor') || name.contains('medical')) {
+                              catIcon = Icons.local_hospital_rounded;
                             } else {
-                              ref.read(searchQueryProvider.notifier).setCategory(selected ? categories[index - 1].categoryId : null);
+                              catIcon = Icons.grid_view_rounded;
                             }
-                          },
-                          backgroundColor: const Color(0xFF141210),
-                          selectedColor: const Color(0xFFFF6B00),
-                          labelStyle: TextStyle(
-                            color: isSelected ? Colors.black : Colors.white70,
-                            fontWeight: FontWeight.w800,
-                            fontSize: 12,
-                          ),
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(25),
-                            side: BorderSide(
-                              color: isSelected 
-                                  ? const Color(0xFFFF6B00)
-                                  : const Color(0xFF25211F),
-                              width: 1,
-                            ),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                  loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFFFF7A00))),
-                  error: (err, stack) => const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 20),
-                    child: Text('Error loading categories', style: TextStyle(color: Colors.redAccent)),
-                  ),
-                ),
-              ),
-            ),
+                          } else {
+                            catIcon = Icons.apps_rounded;
+                          }
 
-            // Business Results Header & Sorting Chips
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          queryState.query.isEmpty && queryState.selectedCategoryId == null
-                              ? 'Verified Listings'
-                              : 'Found Matches',
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.9),
-                            fontSize: 15,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 0.5,
-                          ),
-                        ),
-                        if (favorites.isNotEmpty)
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFFF6B00).withValues(alpha: 0.08),
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: const Color(0xFFFF6B00).withValues(alpha: 0.2)),
-                            ),
-                            child: Text(
-                              '${favorites.length} SAVED',
-                              style: const TextStyle(
-                                color: Color(0xFFFF6B00),
-                                fontSize: 11,
-                                fontWeight: FontWeight.w900,
+                          return GestureDetector(
+                            onTap: () {
+                              if (isAll) {
+                                ref.read(searchQueryProvider.notifier).clearCategory();
+                              } else {
+                                ref.read(searchQueryProvider.notifier).setCategory(categories[index - 1].categoryId);
+                              }
+                            },
+                            child: Container(
+                              margin: const EdgeInsets.symmetric(horizontal: 8),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  AnimatedContainer(
+                                    duration: const Duration(milliseconds: 200),
+                                    width: 54,
+                                    height: 54,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: isSelected ? const Color(0xFFFF7A00) : const Color(0xFF141210),
+                                      border: Border.all(
+                                        color: isSelected ? const Color(0xFFFF7A00) : Colors.white.withValues(alpha: 0.08),
+                                        width: 1.5,
+                                      ),
+                                      boxShadow: isSelected
+                                          ? [
+                                              BoxShadow(
+                                                color: const Color(0xFFFF7A00).withValues(alpha: 0.3),
+                                                blurRadius: 10,
+                                              )
+                                            ]
+                                          : [],
+                                    ),
+                                    child: Icon(
+                                      catIcon,
+                                      color: isSelected ? Colors.white : Colors.white60,
+                                      size: 24,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    label,
+                                    style: TextStyle(
+                                      color: isSelected ? const Color(0xFFFF7A00) : Colors.white60,
+                                      fontSize: 11.5,
+                                      fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                          ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    // Glassmorphic Sort Chips Bar
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      physics: const BouncingScrollPhysics(),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.sort_rounded, color: Colors.white38, size: 14),
-                          const SizedBox(width: 8),
-                          _buildSortChip(ref, 'distance', 'Nearest first', queryState.sortBy),
-                          const SizedBox(width: 8),
-                          _buildSortChip(ref, 'alphabetical', 'A-Z order', queryState.sortBy),
-                          const SizedBox(width: 8),
-                          _buildSortChip(ref, 'reviews', 'Top Rated', queryState.sortBy),
-                        ],
+                          );
+                        },
                       ),
+                      loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFFFF7A00))),
+                      error: (err, stack) => const SizedBox.shrink(),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // ─── 5. SEGMENTED FILTER BAR (Featured / Near Me / Sort) ───
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Featured Listings',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    Row(
+                      children: [
+                        _buildSortChip(ref, 'distance', 'Nearest', queryState.sortBy),
+                        const SizedBox(width: 6),
+                        _buildSortChip(ref, 'reviews', 'Top Rated', queryState.sortBy),
+                      ],
                     ),
                   ],
                 ),
               ),
             ),
 
-            // Search Results List
+            // ─── 6. BUSINESS LISTING CARDS ───
             searchResultsAsync.when(
               data: (businesses) {
                 if (businesses.isEmpty) {
@@ -548,19 +608,47 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             shape: BoxShape.circle,
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFFFF6B00).withValues(alpha: 0.3),
-                blurRadius: 12,
+                color: const Color(0xFFFF6B00).withValues(alpha: 0.35),
+                blurRadius: 16,
                 spreadRadius: 2,
               )
             ],
           ),
           child: FloatingActionButton(
             backgroundColor: const Color(0xFFFF6B00),
-            foregroundColor: Colors.black,
-            tooltip: 'AI Search Assistant',
+            foregroundColor: Colors.white,
+            tooltip: 'Ask AI Assistant',
             onPressed: () => context.push('/ai-assistant'),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            child: const Icon(Icons.auto_awesome_rounded, color: Colors.black, size: 24),
+            child: const Icon(Icons.auto_awesome_rounded, color: Colors.white, size: 24),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSortChip(WidgetRef ref, String sortKey, String label, String currentSort) {
+    final isSelected = currentSort == sortKey;
+    return GestureDetector(
+      onTap: () {
+        ref.read(searchQueryProvider.notifier).setSortBy(sortKey);
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFFFF7A00).withValues(alpha: 0.15) : const Color(0xFF141210),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected ? const Color(0xFFFF7A00) : Colors.white.withValues(alpha: 0.08),
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isSelected ? const Color(0xFFFF7A00) : Colors.white60,
+            fontSize: 11.5,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
           ),
         ),
       ),
@@ -568,7 +656,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   Widget _buildBusinessCard(BuildContext context, WidgetRef ref, BusinessDto business, bool isFav) {
-    // Determine location distance pill details
     String locationText = business.city;
     if (business.distance != null) {
       locationText = '${business.distance!.toStringAsFixed(1)} km away';
@@ -581,9 +668,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       child: Container(
         margin: const EdgeInsets.only(bottom: 20),
         decoration: BoxDecoration(
-          color: const Color(0xFF141210), // Warm charcoal
+          color: const Color(0xFF141210),
           border: Border.all(
-            color: const Color(0xFFFF6B00).withValues(alpha: 0.12),
+            color: Colors.white.withValues(alpha: 0.08),
             width: 1,
           ),
           borderRadius: BorderRadius.circular(20),
@@ -607,12 +694,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     height: 150,
                     width: double.infinity,
                     decoration: const BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          Color(0xFF221F1C),
-                          Color(0xFF0F0E0D),
-                        ],
-                      ),
+                      color: Color(0xFF1C1917),
                     ),
                     child: business.photos.isNotEmpty
                         ? Image.network(
@@ -628,15 +710,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             child: const Icon(Icons.storefront_rounded, color: Color(0xFFFF6B00), size: 45),
                           ),
                   ),
-                  // Gradient Overlay for text visibility
+                  // Gradient Overlay
                   Positioned.fill(
                     child: Container(
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
                           colors: [
-                            Colors.black.withValues(alpha: 0.6),
-                            Colors.transparent,
                             Colors.black.withValues(alpha: 0.5),
+                            Colors.transparent,
+                            Colors.black.withValues(alpha: 0.6),
                           ],
                           begin: Alignment.topCenter,
                           end: Alignment.bottomCenter,
@@ -644,87 +726,55 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       ),
                     ),
                   ),
-                  // Favorite Button
-                  Positioned(
-                    top: 12,
-                    right: 12,
-                    child: CircleAvatar(
-                      backgroundColor: Colors.black.withValues(alpha: 0.6),
-                      radius: 18,
-                      child: IconButton(
-                        padding: EdgeInsets.zero,
-                        icon: Icon(
-                          isFav ? Icons.favorite : Icons.favorite_border,
-                          color: isFav ? Colors.redAccent : Colors.white70,
-                          size: 18,
-                        ),
-                        onPressed: () {
-                          ref.read(favoritesProvider.notifier).toggleFavorite(business.businessId);
-                        },
-                      ),
-                    ),
-                  ),
-                  // Distance / Locality Pill
+                  // Distance Badge (Top Left)
                   Positioned(
                     top: 12,
                     left: 12,
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFFF6B00), // Saffron back
-                        borderRadius: BorderRadius.circular(8),
+                        color: Colors.black.withValues(alpha: 0.7),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
                       ),
                       child: Row(
-                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.navigation_rounded, color: Colors.black, size: 10),
+                          const Icon(Icons.near_me_rounded, color: Color(0xFFFF7A00), size: 12),
                           const SizedBox(width: 4),
                           Text(
                             locationText,
-                            style: const TextStyle(
-                              color: Colors.black,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w900,
-                            ),
+                            style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
                           ),
                         ],
                       ),
                     ),
                   ),
-                  // Category Pill
-                  if (business.categoryName != null)
-                    Positioned(
-                      bottom: 12,
-                      left: 12,
+                  // Favorite Heart Button (Top Right)
+                  Positioned(
+                    top: 12,
+                    right: 12,
+                    child: GestureDetector(
+                      onTap: () {
+                        ref.read(favoritesProvider.notifier).toggleFavorite(business.businessId);
+                      },
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.8),
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: const Color(0xFFFF6B00).withValues(alpha: 0.3)),
+                          color: Colors.black.withValues(alpha: 0.6),
+                          shape: BoxShape.circle,
                         ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.spa_rounded, color: Color(0xFFFF6B00), size: 10), // Lotus
-                            const SizedBox(width: 4),
-                            Text(
-                              business.categoryName!.toUpperCase(),
-                              style: const TextStyle(
-                                color: Color(0xFFFF6B00),
-                                fontSize: 9,
-                                fontWeight: FontWeight.w900,
-                                letterSpacing: 0.5,
-                              ),
-                            ),
-                          ],
+                        child: Icon(
+                          isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                          color: isFav ? const Color(0xFFFF3333) : Colors.white,
+                          size: 18,
                         ),
                       ),
                     ),
+                  ),
                 ],
               ),
 
-              // Title and details
+              // Business Info Body
               Padding(
                 padding: const EdgeInsets.all(16),
                 child: Column(
@@ -738,53 +788,69 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             business.businessName,
                             style: const TextStyle(
                               color: Colors.white,
-                              fontSize: 17,
-                              fontWeight: FontWeight.w800,
+                              fontSize: 16.5,
+                              fontWeight: FontWeight.w900,
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        const SizedBox(width: 8),
-                        Row(
-                          children: [
-                            const Icon(Icons.star_rounded, color: Color(0xFFFFB300), size: 16),
-                            const SizedBox(width: 4),
-                            Text(
-                              business.averageRating.toStringAsFixed(1),
-                              style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
-                            ),
-                            Text(
-                              ' (${business.reviewCount})',
-                              style: const TextStyle(color: Colors.white38, fontSize: 11),
-                            ),
-                          ],
+                        // Verified badge
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF2E7D32).withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: const Color(0xFF2E7D32).withValues(alpha: 0.3)),
+                          ),
+                          child: const Row(
+                            children: [
+                              Icon(Icons.verified_rounded, color: Color(0xFF4CAF50), size: 12),
+                              SizedBox(width: 4),
+                              Text('Verified', style: TextStyle(color: Color(0xFF4CAF50), fontSize: 10, fontWeight: FontWeight.bold)),
+                            ],
+                          ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 6),
                     Text(
                       business.description,
-                      style: const TextStyle(color: Colors.white54, fontSize: 13, height: 1.3),
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.6),
+                        fontSize: 12,
+                      ),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 12),
                     Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Icon(Icons.location_on_rounded, color: Color(0xFFFF6B00), size: 14),
-                        const SizedBox(width: 4),
-                        Expanded(
-                          child: Text(
-                            business.address.isNotEmpty && business.city.isNotEmpty
-                                ? '${business.address}, ${business.city}'
-                                : (business.address.isNotEmpty
-                                    ? business.address
-                                    : (business.city.isNotEmpty ? business.city : 'No address registered')),
-                            style: const TextStyle(color: Colors.white38, fontSize: 12),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
+                        Row(
+                          children: [
+                            const Icon(Icons.star_rounded, color: Colors.amber, size: 16),
+                            const SizedBox(width: 4),
+                            Text(
+                              business.averageRating.toStringAsFixed(1),
+                              style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              '(${business.reviewCount} reviews)',
+                              style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 11),
+                            ),
+                          ],
+                        ),
+                        Row(
+                          children: [
+                            const Icon(Icons.call_rounded, color: Color(0xFFFF7A00), size: 13),
+                            const SizedBox(width: 4),
+                            Text(
+                              business.phoneNumber.isNotEmpty ? business.phoneNumber : 'Contact',
+                              style: const TextStyle(color: Color(0xFFFF7A00), fontSize: 12, fontWeight: FontWeight.bold),
+                            ),
+                          ],
                         ),
                       ],
                     ),
@@ -793,38 +859,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSortChip(WidgetRef ref, String sortVal, String label, String currentSort) {
-    final isSelected = currentSort == sortVal;
-    return ChoiceChip(
-      showCheckmark: false,
-      label: Text(label),
-      selected: isSelected,
-      onSelected: (selected) async {
-        if (selected) {
-          if (sortVal == 'distance') {
-            await _getUserLocation();
-          }
-          ref.read(searchQueryProvider.notifier).setSortBy(sortVal);
-        }
-      },
-      backgroundColor: const Color(0xFF141210),
-      selectedColor: const Color(0xFFFF6B00).withValues(alpha: 0.15),
-      labelStyle: TextStyle(
-        color: isSelected ? const Color(0xFFFF6B00) : Colors.white70,
-        fontSize: 11,
-        fontWeight: isSelected ? FontWeight.w800 : FontWeight.normal,
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(10),
-        side: BorderSide(
-          color: isSelected ? const Color(0xFFFF6B00) : const Color(0xFF25211F),
-          width: isSelected ? 1.2 : 1,
         ),
       ),
     );

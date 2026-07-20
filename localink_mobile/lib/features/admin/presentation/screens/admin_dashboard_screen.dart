@@ -567,7 +567,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0C0C0C),
+      backgroundColor: const Color(0xFF080706),
       body: Column(
         children: [
           // Custom Saffron Sunrise Temple skyline header

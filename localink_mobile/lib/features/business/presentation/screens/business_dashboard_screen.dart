@@ -23,31 +23,37 @@ class BusinessDashboardScreen extends ConsumerWidget {
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0F0F0F),
+      backgroundColor: const Color(0xFF080706),
       appBar: AppBar(
-        backgroundColor: const Color(0xFF161616),
+        backgroundColor: const Color(0xFF141210),
         elevation: 0,
-        centerTitle: true,
-        title: const Text(
-          'Business Dashboard',
-          style: TextStyle(
-            fontFamily: 'Inter',
-            color: Colors.white,
-            fontWeight: FontWeight.w800,
-            fontSize: 18,
-          ),
+        centerTitle: false,
+        title: const Row(
+          children: [
+            Icon(Icons.storefront_rounded, color: Color(0xFFFF7A00), size: 24),
+            SizedBox(width: 10),
+            Text(
+              'Business Owner Hub',
+              style: TextStyle(
+                fontFamily: 'Inter',
+                color: Colors.white,
+                fontWeight: FontWeight.w900,
+                fontSize: 18,
+              ),
+            ),
+          ],
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.person_outline, color: Color(0xFFFF7A00)),
+            icon: const Icon(Icons.person_rounded, color: Color(0xFFFF7A00)),
             onPressed: () => context.push('/owner-profile'),
           ),
           IconButton(
-            icon: const Icon(Icons.refresh, color: Color(0xFFFF7A00)),
+            icon: const Icon(Icons.refresh_rounded, color: Color(0xFFFF7A00)),
             onPressed: () => ref.read(myBusinessesProvider.notifier).refresh(),
           ),
           IconButton(
-            icon: const Icon(Icons.logout_outlined, color: Colors.redAccent),
+            icon: const Icon(Icons.logout_rounded, color: Color(0xFFFF3333)),
             onPressed: () {
               if (authState is AuthAuthenticated) {
                 SignalRService().disconnect(authState.userId);
@@ -74,36 +80,46 @@ class BusinessDashboardScreen extends ConsumerWidget {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Container(
-                      padding: const EdgeInsets.all(20),
+                      padding: const EdgeInsets.all(24),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF1E1E1E),
+                        color: const Color(0xFF141210),
                         shape: BoxShape.circle,
                         border: Border.all(color: const Color(0xFFFF7A00).withValues(alpha: 0.2)),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFFFF7A00).withValues(alpha: 0.15),
+                            blurRadius: 20,
+                          )
+                        ],
                       ),
-                      child: const Icon(Icons.storefront, color: Color(0xFFFF7A00), size: 50),
-                    ),
-                    const SizedBox(height: 20),
-                    const Text(
-                      'No Businesses Registered Yet',
-                      style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Register your business to start displaying it to local users.',
-                      style: TextStyle(color: Colors.white54, fontSize: 14),
-                      textAlign: TextAlign.center,
+                      child: const Icon(Icons.add_business_rounded, color: Color(0xFFFF7A00), size: 50),
                     ),
                     const SizedBox(height: 24),
-                    ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFFF7A00),
-                        foregroundColor: Colors.black,
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    const Text(
+                      'No Businesses Registered Yet',
+                      style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      'Register your store or service to connect with thousands of local users.',
+                      style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 14),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 28),
+                    SizedBox(
+                      width: 220,
+                      height: 50,
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFFF6B00),
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
+                          elevation: 4,
+                        ),
+                        icon: const Icon(Icons.add_rounded, size: 20),
+                        label: const Text('Register Store', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                        onPressed: () => context.push('/register-business'),
                       ),
-                      icon: const Icon(Icons.add),
-                      label: const Text('Register Business', style: TextStyle(fontWeight: FontWeight.bold)),
-                      onPressed: () => context.push('/register-business'),
                     ),
                   ],
                 ),
@@ -111,12 +127,97 @@ class BusinessDashboardScreen extends ConsumerWidget {
             );
           }
 
-          return ListView.builder(
-            padding: const EdgeInsets.all(15),
-            itemCount: businesses.length,
-            itemBuilder: (context, index) {
-              return _buildDashboardCard(context, ref, businesses[index]);
-            },
+          final totalCount = businesses.length;
+          final approvedCount = businesses.where((b) => b.status?.toLowerCase() == 'approved').length;
+
+          return CustomScrollView(
+            physics: const BouncingScrollPhysics(),
+            slivers: [
+              // Top Owner Summary Banner Card
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.all(20.0),
+                  child: Column(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF1C1917), Color(0xFF100F0E)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: const Color(0xFFFF7A00).withValues(alpha: 0.2)),
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'Store Performance Overview',
+                                    style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w900),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    'Manage listings, hours & photos from one hub.',
+                                    style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 12),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Row(
+                                    children: [
+                                      _buildStatBadge('Total', totalCount.toString(), const Color(0xFFFF7A00)),
+                                      const SizedBox(width: 12),
+                                      _buildStatBadge('Live', approvedCount.toString(), const Color(0xFF4CAF50)),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFF7A00).withValues(alpha: 0.1),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(Icons.analytics_rounded, color: Color(0xFFFF7A00), size: 36),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      const Row(
+                        children: [
+                          Icon(Icons.storefront_rounded, color: Color(0xFFFF7A00), size: 18),
+                          SizedBox(width: 8),
+                          Text(
+                            'Your Registered Businesses',
+                            style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w800),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              // Business Cards List
+              SliverPadding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                sliver: SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) {
+                      return _buildDashboardCard(context, ref, businesses[index]);
+                    },
+                    childCount: businesses.length,
+                  ),
+                ),
+              ),
+
+              const SliverToBoxAdapter(child: SizedBox(height: 100)),
+            ],
           );
         },
         loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFFFF7A00))),
@@ -124,25 +225,49 @@ class BusinessDashboardScreen extends ConsumerWidget {
           child: Text('Error: $err', style: const TextStyle(color: Colors.redAccent)),
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: const Color(0xFFFF7A00),
-        child: const Icon(Icons.add, color: Colors.black),
-        onPressed: () => context.push('/register-business'),
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.only(bottom: 20),
+        child: FloatingActionButton.extended(
+          backgroundColor: const Color(0xFFFF6B00),
+          foregroundColor: Colors.white,
+          elevation: 6,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+          icon: const Icon(Icons.add_rounded, size: 20),
+          label: const Text('Add Business', style: TextStyle(fontWeight: FontWeight.bold)),
+          onPressed: () => context.push('/register-business'),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatBadge(String label, String count, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        children: [
+          Text(label, style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.bold)),
+          const SizedBox(width: 6),
+          Text(count, style: TextStyle(color: color, fontSize: 13, fontWeight: FontWeight.w900)),
+        ],
       ),
     );
   }
 
   Widget _buildDashboardCard(BuildContext context, WidgetRef ref, BusinessDto business) {
-    // Determine status color
     final isApproved = business.status?.toLowerCase() == 'approved';
-    Color statusColor = isApproved ? Colors.green : Colors.amber;
+    Color statusColor = isApproved ? const Color(0xFF4CAF50) : Colors.amber;
     var statusText = business.status ?? 'Pending';
 
     if (business.status?.toLowerCase() == 'deletionrequested') {
-      statusColor = Colors.redAccent;
+      statusColor = const Color(0xFFFF3333);
       statusText = 'Deletion Pending';
     } else if (business.isTemporarilyClosed) {
-      statusColor = Colors.redAccent;
+      statusColor = const Color(0xFFFF3333);
       statusText = 'Temp Closed';
     } else if (business.temporaryClosureStatus?.toLowerCase() == 'pending') {
       statusColor = Colors.orangeAccent;
@@ -150,488 +275,158 @@ class BusinessDashboardScreen extends ConsumerWidget {
     }
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 15),
-      padding: const EdgeInsets.all(15),
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF161616),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
-        borderRadius: BorderRadius.circular(16),
+        color: const Color(0xFF141210),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.3),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Column(
         children: [
-          // Left Business Icon
-          Container(
-            width: 50,
-            height: 50,
-            decoration: BoxDecoration(
-              color: Colors.black38,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: const Color(0xFFFF7A00).withValues(alpha: 0.1)),
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: business.photos.isNotEmpty
-                  ? Image.network(
-                      '${Uri.parse(DioClient().dio.options.baseUrl).origin}${business.photos.first}',
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => const Icon(
-                        Icons.store,
-                        color: Color(0xFFFF7A00),
-                        size: 24,
-                      ),
-                    )
-                  : const Icon(
-                      Icons.store,
-                      color: Color(0xFFFF7A00),
-                      size: 24,
-                    ),
-            ),
-          ),
-          const SizedBox(width: 15),
-
-          // Details
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        business.businessName,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    const SizedBox(width: 5),
-                    // Status Badge
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: statusColor.withValues(alpha: 0.15),
-                        border: Border.all(color: statusColor.withValues(alpha: 0.4)),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        statusText,
-                        style: TextStyle(
-                          color: statusColor,
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ],
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 54,
+                height: 54,
+                decoration: BoxDecoration(
+                  color: Colors.black38,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: const Color(0xFFFF7A00).withValues(alpha: 0.2)),
                 ),
-                const SizedBox(height: 6),
-                Text(
-                  business.description,
-                  style: const TextStyle(color: Colors.white54, fontSize: 13),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    const Icon(Icons.location_on, color: Color(0xFFFF7A00), size: 14),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: Text(
-                        '${business.address}, ${business.city}',
-                        style: const TextStyle(color: Colors.white38, fontSize: 12),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Wrap(
-                  alignment: WrapAlignment.end,
-                  spacing: 4,
-                  runSpacing: 4,
-                  children: [
-                    TextButton.icon(
-                      icon: const Icon(Icons.analytics_outlined, size: 14),
-                      label: const Text('Analytics', style: TextStyle(fontSize: 12)),
-                      style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        minimumSize: Size.zero,
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      ),
-                      onPressed: () => context.push('/owner-analytics/${business.businessId}/${Uri.encodeComponent(business.businessName)}'),
-                    ),
-                    TextButton.icon(
-                      icon: const Icon(Icons.visibility, size: 14),
-                      label: const Text('View', style: TextStyle(fontSize: 12)),
-                      style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        minimumSize: Size.zero,
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      ),
-                      onPressed: () => context.push('/business-detail/${business.businessId}'),
-                    ),
-                    if (business.status?.toLowerCase() != 'deletionrequested') ...[
-                      if (isApproved && !business.isTemporarilyClosed && business.temporaryClosureStatus?.toLowerCase() != 'pending')
-                        TextButton.icon(
-                          icon: const Icon(Icons.timer_off_outlined, size: 14, color: Colors.orangeAccent),
-                          label: const Text('Temp Close', style: TextStyle(fontSize: 12, color: Colors.orangeAccent)),
-                          style: TextButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            minimumSize: Size.zero,
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(14),
+                  child: business.photos.isNotEmpty
+                      ? Image.network(
+                          '${Uri.parse(DioClient().dio.options.baseUrl).origin}${business.photos.first}',
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) => const Icon(
+                            Icons.storefront_rounded,
+                            color: Color(0xFFFF7A00),
+                            size: 28,
                           ),
-                          onPressed: () => _showTemporaryClosureDialog(context, ref, business),
+                        )
+                      : const Icon(
+                          Icons.storefront_rounded,
+                          color: Color(0xFFFF7A00),
+                          size: 28,
                         ),
-                      if (business.isTemporarilyClosed || business.temporaryClosureStatus?.toLowerCase() == 'pending')
-                        TextButton.icon(
-                          icon: const Icon(Icons.play_circle_outline, size: 14, color: Colors.green),
-                          label: const Text('Reopen', style: TextStyle(fontSize: 12, color: Colors.green)),
-                          style: TextButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            minimumSize: Size.zero,
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            business.businessName,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w900,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                          onPressed: () => _handleCancelTemporaryClosure(context, ref, business),
                         ),
-                      TextButton.icon(
-                        icon: const Icon(Icons.delete_forever_outlined, size: 14, color: Colors.redAccent),
-                        label: const Text('Delete permanently', style: TextStyle(fontSize: 12, color: Colors.redAccent)),
-                        style: TextButton.styleFrom(
+                        Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          minimumSize: Size.zero,
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          decoration: BoxDecoration(
+                            color: statusColor.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: statusColor.withValues(alpha: 0.3)),
+                          ),
+                          child: Text(
+                            statusText,
+                            style: TextStyle(
+                              color: statusColor,
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
                         ),
-                        onPressed: () => _showDeletePermanentlyDialog(context, ref, business),
-                      ),
-                      ElevatedButton.icon(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFFF7A00),
-                          foregroundColor: Colors.black,
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                          minimumSize: Size.zero,
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-                          textStyle: const TextStyle(fontSize: 12),
-                        ),
-                        icon: const Icon(Icons.edit, size: 14),
-                        label: const Text('Edit'),
-                        onPressed: () => context.push('/register-business', extra: business),
-                      ),
-                    ],
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      business.city.isNotEmpty ? '${business.city}, ${business.state}' : 'Location set',
+                      style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 12),
+                    ),
                   ],
                 ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _showTemporaryClosureDialog(BuildContext context, WidgetRef ref, BusinessDto business) async {
-    final reasonController = TextEditingController();
-    final daysController = TextEditingController(text: '7');
-    final formKey = GlobalKey<FormState>();
-
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF1E1E1E),
-        title: const Text('Request Temporary Closure', style: TextStyle(color: Colors.white)),
-        content: Form(
-          key: formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Specify the reason and duration in days for temporarily closing your business. This will be sent to the admin for approval.',
-                style: TextStyle(color: Colors.white70, fontSize: 13),
-              ),
-              const SizedBox(height: 15),
-              const Text('Closure Reason *', style: TextStyle(color: Color(0xFFFF7A00), fontSize: 12)),
-              const SizedBox(height: 6),
-              TextFormField(
-                controller: reasonController,
-                style: const TextStyle(color: Colors.white, fontSize: 14),
-                decoration: InputDecoration(
-                  hintText: 'e.g., Renovation, personal emergency...',
-                  hintStyle: const TextStyle(color: Colors.white24, fontSize: 13),
-                  filled: true,
-                  fillColor: Colors.black26,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                ),
-                validator: (v) => v == null || v.trim().isEmpty ? 'Reason is required' : null,
-              ),
-              const SizedBox(height: 15),
-              const Text('Duration (in days) *', style: TextStyle(color: Color(0xFFFF7A00), fontSize: 12)),
-              const SizedBox(height: 6),
-              TextFormField(
-                controller: daysController,
-                style: const TextStyle(color: Colors.white, fontSize: 14),
-                keyboardType: TextInputType.number,
-                decoration: InputDecoration(
-                  hintText: 'e.g., 7',
-                  hintStyle: const TextStyle(color: Colors.white24, fontSize: 13),
-                  filled: true,
-                  fillColor: Colors.black26,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                ),
-                validator: (v) {
-                  if (v == null || v.trim().isEmpty) return 'Duration is required';
-                  final val = int.tryParse(v);
-                  if (val == null || val <= 0) return 'Enter a valid positive number of days';
-                  return null;
-                },
               ),
             ],
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFFF7A00),
-              foregroundColor: Colors.black,
-            ),
-            onPressed: () {
-              if (formKey.currentState?.validate() == true) {
-                Navigator.pop(context, true);
-              }
-            },
-            child: const Text('Submit Request'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirm == true) {
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => const Center(child: CircularProgressIndicator(color: Color(0xFFFF7A00))),
-      );
-
-      try {
-        final repo = ref.read(businessRepositoryProvider);
-        final success = await repo.requestTemporaryClosure(
-          business.businessId,
-          reasonController.text.trim(),
-          int.parse(daysController.text.trim()),
-        );
-
-        if (context.mounted) {
-          Navigator.pop(context); // Pop loading
-          if (success) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Temporary closure request submitted successfully for approval!'),
-                backgroundColor: Colors.green,
-              ),
-            );
-            ref.read(myBusinessesProvider.notifier).refresh();
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Failed to submit request. Please try again.'),
-                backgroundColor: Color(0xFFFF4D4F),
-              ),
-            );
-          }
-        }
-      } catch (e) {
-        if (context.mounted) {
-          Navigator.pop(context); // Pop loading
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error submitting request: $e'), backgroundColor: const Color(0xFFFF4D4F)),
-          );
-        }
-      }
-    }
-  }
-
-  Future<void> _handleCancelTemporaryClosure(BuildContext context, WidgetRef ref, BusinessDto business) async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF1E1E1E),
-        title: const Text('Cancel Temporary Closure', style: TextStyle(color: Colors.white)),
-        content: Text(
-          business.temporaryClosureStatus?.toLowerCase() == 'pending'
-              ? 'Are you sure you want to cancel your pending temporary closure request?'
-              : 'Are you sure you want to reopen your business now?',
-          style: const TextStyle(color: Colors.white70),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('No', style: TextStyle(color: Colors.white54)),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFFF7A00),
-              foregroundColor: Colors.black,
-            ),
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Yes, Reopen'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirm == true) {
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => const Center(child: CircularProgressIndicator(color: Color(0xFFFF7A00))),
-      );
-
-      try {
-        final repo = ref.read(businessRepositoryProvider);
-        final success = await repo.cancelTemporaryClosure(business.businessId);
-
-        if (context.mounted) {
-          Navigator.pop(context); // Pop loading
-          if (success) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Business reopened successfully!'),
-                backgroundColor: Colors.green,
-              ),
-            );
-            ref.read(myBusinessesProvider.notifier).refresh();
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Failed to reopen business. Please try again.'),
-                backgroundColor: Color(0xFFFF4D4F),
-              ),
-            );
-          }
-        }
-      } catch (e) {
-        if (context.mounted) {
-          Navigator.pop(context); // Pop loading
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error reopening business: $e'), backgroundColor: const Color(0xFFFF4D4F)),
-          );
-        }
-      }
-    }
-  }
-
-  Future<void> _showDeletePermanentlyDialog(BuildContext context, WidgetRef ref, BusinessDto business) async {
-    final reasonController = TextEditingController();
-    final formKey = GlobalKey<FormState>();
-
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF1E1E1E),
-        title: const Text('Delete Business Permanently', style: TextStyle(color: Colors.white)),
-        content: Form(
-          key: formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
+          const SizedBox(height: 16),
+          const Divider(color: Colors.white10, height: 1),
+          const SizedBox(height: 12),
+          // Action Buttons Toolbar
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              const Text(
-                'Please specify the reason for permanently deleting this business. This will be sent to the admin for approval. Once approved, the business will be permanently deleted from the database.',
-                style: TextStyle(color: Colors.white70, fontSize: 13),
+              _buildActionButton(
+                icon: Icons.edit_note_rounded,
+                label: 'Edit Details',
+                onTap: () => context.push('/edit-business/${business.businessId}', extra: business),
               ),
-              const SizedBox(height: 15),
-              TextFormField(
-                controller: reasonController,
-                style: const TextStyle(color: Colors.white, fontSize: 14),
-                maxLines: 3,
-                decoration: InputDecoration(
-                  hintText: 'Reason for permanent deletion...',
-                  hintStyle: const TextStyle(color: Colors.white24, fontSize: 13),
-                  filled: true,
-                  fillColor: Colors.black26,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                ),
-                validator: (v) => v == null || v.trim().isEmpty ? 'Reason is required' : null,
+              _buildActionButton(
+                icon: Icons.analytics_outlined,
+                label: 'Analytics',
+                onTap: () => context.push('/analytics/${business.businessId}'),
+              ),
+              _buildActionButton(
+                icon: Icons.photo_library_outlined,
+                label: 'Photos',
+                onTap: () => context.push('/manage-photos/${business.businessId}'),
               ),
             ],
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.redAccent,
-              foregroundColor: Colors.white,
-            ),
-            onPressed: () {
-              if (formKey.currentState?.validate() == true) {
-                Navigator.pop(context, true);
-              }
-            },
-            child: const Text('Request Deletion'),
-          ),
         ],
       ),
     );
+  }
 
-    if (confirm == true) {
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => const Center(child: CircularProgressIndicator(color: Color(0xFFFF7A00))),
-      );
-
-      try {
-        final repo = ref.read(businessRepositoryProvider);
-        final success = await repo.requestDeletion(
-          business.businessId,
-          reasonController.text.trim(),
-        );
-
-        if (context.mounted) {
-          Navigator.pop(context); // Pop loading
-          if (success) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Deletion request submitted successfully.'),
-                backgroundColor: Colors.green,
+  Widget _buildActionButton({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.04),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: const Color(0xFFFF7A00), size: 16),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
               ),
-            );
-            ref.read(myBusinessesProvider.notifier).refresh();
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Failed to submit deletion request. Please try again.'),
-                backgroundColor: Colors.redAccent,
-              ),
-            );
-          }
-        }
-      } catch (e) {
-        if (context.mounted) {
-          Navigator.pop(context); // Pop loading
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Error: $e'),
-              backgroundColor: Colors.redAccent,
             ),
-          );
-        }
-      }
-    }
+          ],
+        ),
+      ),
+    );
   }
 }
