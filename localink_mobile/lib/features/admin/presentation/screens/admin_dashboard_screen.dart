@@ -1857,10 +1857,14 @@ class EmblemPainter extends CustomPainter {
     flagPath.moveTo(poleX, center.dy - radius + 4);
     flagPath.lineTo(poleX, center.dy + radius - 4);
 
+    double clothTopY = center.dy - radius + 6;
+    double clothBottomY = center.dy + 2;
+    double tipX = center.dx + radius - 4;
+
     // Flag cloth (triangular)
-    flagPath.moveTo(poleX, center.dy - radius + 6);
-    flagPath.lineTo(center.dx + radius - 4, center.dy - 2);
-    flagPath.lineTo(poleX, center.dy + 2);
+    flagPath.moveTo(poleX, clothTopY);
+    flagPath.lineTo(tipX, (clothTopY + clothBottomY) / 2);
+    flagPath.lineTo(poleX, clothBottomY);
     flagPath.close();
 
     canvas.drawPath(flagPath, flagPaint);
@@ -1871,7 +1875,7 @@ class EmblemPainter extends CustomPainter {
       ..strokeWidth = 1.5;
     canvas.drawLine(Offset(poleX, center.dy - radius + 4), Offset(poleX, center.dy + radius - 4), poleLinePaint);
 
-    // Draw a tiny Om symbol text in black on the flag
+    // Draw a tiny Om symbol text in black centered on the flag cloth
     final textPainter = TextPainter(
       text: const TextSpan(
         text: 'ॐ',
@@ -1880,7 +1884,14 @@ class EmblemPainter extends CustomPainter {
       textDirection: TextDirection.ltr,
     );
     textPainter.layout();
-    textPainter.paint(canvas, Offset(poleX + 3, center.dy - radius + 6));
+
+    double clothCenterX = poleX + ((tipX - poleX) * 0.33);
+    double clothCenterY = (clothTopY + clothBottomY) / 2;
+
+    textPainter.paint(
+      canvas,
+      Offset(clothCenterX - (textPainter.width / 2), clothCenterY - (textPainter.height / 2)),
+    );
   }
 
   @override

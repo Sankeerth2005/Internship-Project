@@ -233,14 +233,21 @@ class SplashEmblemPainter extends CustomPainter {
       ..style = PaintingStyle.fill;
 
     final flagPath = Path();
-    double poleX = center.dx - 6;
-    flagPath.moveTo(poleX, center.dy - radius + 8);
-    flagPath.lineTo(poleX, center.dy + radius - 8);
+    double poleX = center.dx - 8;
+    double topY = center.dy - radius + 10;
+    double bottomY = center.dy + radius - 10;
+    double clothTopY = center.dy - radius + 12;
+    double clothBottomY = center.dy + 6;
+    double tipX = center.dx + radius - 6;
+
+    // Flag pole
+    flagPath.moveTo(poleX, topY);
+    flagPath.lineTo(poleX, bottomY);
 
     // Flag cloth (triangular)
-    flagPath.moveTo(poleX, center.dy - radius + 11);
-    flagPath.lineTo(center.dx + radius - 6, center.dy - 3);
-    flagPath.lineTo(poleX, center.dy + 5);
+    flagPath.moveTo(poleX, clothTopY);
+    flagPath.lineTo(tipX, (clothTopY + clothBottomY) / 2);
+    flagPath.lineTo(poleX, clothBottomY);
     flagPath.close();
 
     canvas.drawPath(flagPath, flagPaint);
@@ -249,9 +256,9 @@ class SplashEmblemPainter extends CustomPainter {
     final poleLinePaint = Paint()
       ..color = const Color(0xFF0C0C0C)
       ..strokeWidth = 2.0;
-    canvas.drawLine(Offset(poleX, center.dy - radius + 8), Offset(poleX, center.dy + radius - 8), poleLinePaint);
+    canvas.drawLine(Offset(poleX, topY), Offset(poleX, bottomY), poleLinePaint);
 
-    // Draw a Om symbol text in black on the flag
+    // Draw Om symbol text centered in the middle of the flag cloth
     final textPainter = TextPainter(
       text: const TextSpan(
         text: 'ॐ',
@@ -260,7 +267,14 @@ class SplashEmblemPainter extends CustomPainter {
       textDirection: TextDirection.ltr,
     );
     textPainter.layout();
-    textPainter.paint(canvas, Offset(poleX + 5, center.dy - radius + 10));
+
+    double clothCenterX = poleX + ((tipX - poleX) * 0.33);
+    double clothCenterY = (clothTopY + clothBottomY) / 2;
+
+    textPainter.paint(
+      canvas,
+      Offset(clothCenterX - (textPainter.width / 2), clothCenterY - (textPainter.height / 2)),
+    );
   }
 
   @override
