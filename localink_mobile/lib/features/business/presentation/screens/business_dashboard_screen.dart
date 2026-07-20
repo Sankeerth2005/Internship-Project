@@ -22,219 +22,223 @@ class BusinessDashboardScreen extends ConsumerWidget {
       });
     }
 
-    return Scaffold(
-      backgroundColor: const Color(0xFF080706),
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF141210),
-        elevation: 0,
-        centerTitle: false,
-        title: const Row(
-          children: [
-            Icon(Icons.storefront_rounded, color: Color(0xFFFF7A00), size: 24),
-            SizedBox(width: 10),
-            Text(
-              'Business Owner Hub',
-              style: TextStyle(
-                fontFamily: 'Inter',
-                color: Colors.white,
-                fontWeight: FontWeight.w900,
-                fontSize: 18,
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.person_rounded, color: Color(0xFFFF7A00)),
-            onPressed: () => context.push('/owner-profile'),
-          ),
-          IconButton(
-            icon: const Icon(Icons.refresh_rounded, color: Color(0xFFFF7A00)),
-            onPressed: () => ref.read(myBusinessesProvider.notifier).refresh(),
-          ),
-          IconButton(
-            icon: const Icon(Icons.logout_rounded, color: Color(0xFFFF3333)),
-            onPressed: () {
-              if (authState is AuthAuthenticated) {
-                SignalRService().disconnect(authState.userId);
-              }
-              ref.read(authProvider.notifier).logout();
-            },
-          ),
-        ],
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(1),
-          child: Container(
-            color: Colors.white.withValues(alpha: 0.05),
-            height: 1,
-          ),
-        ),
-      ),
-      body: myBusinessesAsync.when(
-        data: (businesses) {
-          if (businesses.isEmpty) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(30.0),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(24),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF141210),
-                        shape: BoxShape.circle,
-                        border: Border.all(color: const Color(0xFFFF7A00).withValues(alpha: 0.2)),
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(0xFFFF7A00).withValues(alpha: 0.15),
-                            blurRadius: 20,
-                          )
-                        ],
-                      ),
-                      child: const Icon(Icons.add_business_rounded, color: Color(0xFFFF7A00), size: 50),
-                    ),
-                    const SizedBox(height: 24),
-                    const Text(
-                      'No Businesses Registered Yet',
-                      style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 10),
-                    Text(
-                      'Register your store or service to connect with thousands of local users.',
-                      style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 14),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 28),
-                    SizedBox(
-                      width: 220,
-                      height: 50,
-                      child: ElevatedButton.icon(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFFF6B00),
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
-                          elevation: 4,
-                        ),
-                        icon: const Icon(Icons.add_rounded, size: 20),
-                        label: const Text('Register Store', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                        onPressed: () => context.push('/register-business'),
-                      ),
-                    ),
-                  ],
+    return PopScope(
+      canPop: true,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        if (context.canPop()) {
+          context.pop();
+        } else {
+          context.go('/welcome');
+        }
+      },
+      child: Scaffold(
+        backgroundColor: const Color(0xFF080706),
+        appBar: AppBar(
+          backgroundColor: const Color(0xFF141210),
+          elevation: 0,
+          centerTitle: false,
+          title: const Row(
+            children: [
+              Icon(Icons.storefront_rounded, color: Color(0xFFFF7A00), size: 24),
+              SizedBox(width: 10),
+              Text(
+                'Business Owner Hub',
+                style: TextStyle(
+                  fontFamily: 'Inter',
+                  color: Colors.white,
+                  fontWeight: FontWeight.w900,
+                  fontSize: 18,
                 ),
               ),
-            );
-          }
-
-          final totalCount = businesses.length;
-          final approvedCount = businesses.where((b) => b.status?.toLowerCase() == 'approved').length;
-
-          return CustomScrollView(
-            physics: const BouncingScrollPhysics(),
-            slivers: [
-              // Top Owner Summary Banner Card
-              SliverToBoxAdapter(
+            ],
+          ),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.person_rounded, color: Color(0xFFFF7A00)),
+              onPressed: () => context.push('/owner-profile'),
+            ),
+            IconButton(
+              icon: const Icon(Icons.refresh_rounded, color: Color(0xFFFF7A00)),
+              onPressed: () => ref.read(myBusinessesProvider.notifier).refresh(),
+            ),
+            IconButton(
+              icon: const Icon(Icons.logout_rounded, color: Color(0xFFFF3333)),
+              onPressed: () {
+                if (authState is AuthAuthenticated) {
+                  SignalRService().disconnect(authState.userId);
+                }
+                ref.read(authProvider.notifier).logout();
+              },
+            ),
+          ],
+          bottom: PreferredSize(
+            preferredSize: const Size.fromHeight(1),
+            child: Container(
+              color: Colors.white.withValues(alpha: 0.05),
+              height: 1,
+            ),
+          ),
+        ),
+        body: myBusinessesAsync.when(
+          data: (businesses) {
+            if (businesses.isEmpty) {
+              return Center(
                 child: Padding(
-                  padding: const EdgeInsets.all(20.0),
+                  padding: const EdgeInsets.all(30.0),
                   child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Container(
-                        padding: const EdgeInsets.all(20),
+                        padding: const EdgeInsets.all(24),
                         decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFF1C1917), Color(0xFF100F0E)],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          borderRadius: BorderRadius.circular(20),
+                          color: const Color(0xFF141210),
+                          shape: BoxShape.circle,
                           border: Border.all(color: const Color(0xFFFF7A00).withValues(alpha: 0.2)),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFFFF7A00).withValues(alpha: 0.15),
+                              blurRadius: 20,
+                            )
+                          ],
                         ),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                        child: const Icon(Icons.add_business_rounded, color: Color(0xFFFF7A00), size: 50),
+                      ),
+                      const SizedBox(height: 24),
+                      const Text(
+                        'No Businesses Registered Yet',
+                        style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        'Register your store or service to connect with thousands of local users.',
+                        style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 14),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 28),
+                      SizedBox(
+                        width: 220,
+                        height: 50,
+                        child: ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFFF6B00),
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
+                            elevation: 4,
+                          ),
+                          icon: const Icon(Icons.add_rounded, size: 20),
+                          label: const Text('Register Store', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                          onPressed: () => context.push('/register-business'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }
+
+            final totalCount = businesses.length;
+            final approvedCount = businesses.where((b) => b.status?.toLowerCase() == 'approved').length;
+
+            return CustomScrollView(
+              physics: const BouncingScrollPhysics(),
+              slivers: [
+                // Top Navigation Bar (Store Performance Overview + Quick Add CTA)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.all(20.0),
+                    child: Column(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFF1C1917), Color(0xFF100F0E)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: const Color(0xFFFF7A00).withValues(alpha: 0.2)),
+                          ),
+                          child: Column(
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
                                   const Text(
                                     'Store Performance Overview',
                                     style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w900),
                                   ),
-                                  const SizedBox(height: 6),
-                                  Text(
-                                    'Manage listings, hours & photos from one hub.',
-                                    style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 12),
-                                  ),
-                                  const SizedBox(height: 16),
-                                  Row(
-                                    children: [
-                                      _buildStatBadge('Total', totalCount.toString(), const Color(0xFFFF7A00)),
-                                      const SizedBox(width: 12),
-                                      _buildStatBadge('Live', approvedCount.toString(), const Color(0xFF4CAF50)),
-                                    ],
+                                  ElevatedButton.icon(
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFFFF7A00),
+                                      foregroundColor: Colors.white,
+                                      elevation: 2,
+                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                    ),
+                                    onPressed: () => context.push('/register-business'),
+                                    icon: const Icon(Icons.add_rounded, size: 16),
+                                    label: const Text('Add Business', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
                                   ),
                                 ],
                               ),
-                            ),
-                            Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFFF7A00).withValues(alpha: 0.1),
-                                shape: BoxShape.circle,
+                              const SizedBox(height: 6),
+                              Align(
+                                alignment: Alignment.centerLeft,
+                                child: Text(
+                                  'Manage listings, hours & details from your business hub.',
+                                  style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 12),
+                                ),
                               ),
-                              child: const Icon(Icons.analytics_rounded, color: Color(0xFFFF7A00), size: 36),
+                              const SizedBox(height: 16),
+                              Row(
+                                children: [
+                                  _buildStatBadge('Total Stores', totalCount.toString(), const Color(0xFFFF7A00)),
+                                  const SizedBox(width: 12),
+                                  _buildStatBadge('Live Approved', approvedCount.toString(), const Color(0xFF4CAF50)),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        const Row(
+                          children: [
+                            Icon(Icons.storefront_rounded, color: Color(0xFFFF7A00), size: 18),
+                            SizedBox(width: 8),
+                            Text(
+                              'Your Registered Businesses',
+                              style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w800),
                             ),
                           ],
                         ),
-                      ),
-                      const SizedBox(height: 20),
-                      const Row(
-                        children: [
-                          Icon(Icons.storefront_rounded, color: Color(0xFFFF7A00), size: 18),
-                          SizedBox(width: 8),
-                          Text(
-                            'Your Registered Businesses',
-                            style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w800),
-                          ),
-                        ],
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
-              ),
 
-              // Business Cards List
-              SliverPadding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                sliver: SliverList(
-                  delegate: SliverChildBuilderDelegate(
-                    (context, index) {
-                      return _buildDashboardCard(context, ref, businesses[index]);
-                    },
-                    childCount: businesses.length,
+                // Business Cards List
+                SliverPadding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  sliver: SliverList(
+                    delegate: SliverChildBuilderDelegate(
+                      (context, index) {
+                        return _buildDashboardCard(context, ref, businesses[index]);
+                      },
+                      childCount: businesses.length,
+                    ),
                   ),
                 ),
-              ),
 
-              const SliverToBoxAdapter(child: SizedBox(height: 100)),
-            ],
-          );
-        },
-        loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFFFF7A00))),
-        error: (err, stack) => Center(
-          child: Text('Error: $err', style: const TextStyle(color: Colors.redAccent)),
-        ),
-      ),
-      floatingActionButton: Padding(
-        padding: const EdgeInsets.only(bottom: 20),
-        child: FloatingActionButton.extended(
-          backgroundColor: const Color(0xFFFF6B00),
-          foregroundColor: Colors.white,
-          elevation: 6,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-          icon: const Icon(Icons.add_rounded, size: 20),
-          label: const Text('Add Business', style: TextStyle(fontWeight: FontWeight.bold)),
-          onPressed: () => context.push('/register-business'),
+                const SliverToBoxAdapter(child: SizedBox(height: 100)),
+              ],
+            );
+          },
+          loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFFFF7A00))),
+          error: (err, stack) => Center(
+            child: Text('Error: $err', style: const TextStyle(color: Colors.redAccent)),
+          ),
         ),
       ),
     );
@@ -372,10 +376,15 @@ class BusinessDashboardScreen extends ConsumerWidget {
           const SizedBox(height: 16),
           const Divider(color: Colors.white10, height: 1),
           const SizedBox(height: 12),
-          // Action Buttons Toolbar
+          // Action Buttons Toolbar (View Details, Edit Details, Analytics)
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
+              _buildActionButton(
+                icon: Icons.visibility_rounded,
+                label: 'View Details',
+                onTap: () => context.push('/business-detail/${business.businessId}'),
+              ),
               _buildActionButton(
                 icon: Icons.edit_note_rounded,
                 label: 'Edit Details',
@@ -385,11 +394,6 @@ class BusinessDashboardScreen extends ConsumerWidget {
                 icon: Icons.analytics_outlined,
                 label: 'Analytics',
                 onTap: () => context.push('/analytics/${business.businessId}'),
-              ),
-              _buildActionButton(
-                icon: Icons.photo_library_outlined,
-                label: 'Photos',
-                onTap: () => context.push('/manage-photos/${business.businessId}'),
               ),
             ],
           ),
@@ -406,7 +410,7 @@ class BusinessDashboardScreen extends ConsumerWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         decoration: BoxDecoration(
           color: Colors.white.withValues(alpha: 0.04),
           borderRadius: BorderRadius.circular(12),
@@ -420,7 +424,7 @@ class BusinessDashboardScreen extends ConsumerWidget {
               label,
               style: const TextStyle(
                 color: Colors.white,
-                fontSize: 12,
+                fontSize: 11.5,
                 fontWeight: FontWeight.bold,
               ),
             ),

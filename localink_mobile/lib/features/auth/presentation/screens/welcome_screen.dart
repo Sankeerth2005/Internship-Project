@@ -9,7 +9,7 @@ class WelcomeScreen extends StatefulWidget {
 }
 
 class _WelcomeScreenState extends State<WelcomeScreen> {
-  // Default selected role: 'user' (Customer) or 'businessowner' (Business)
+  // Selected role: 'user', 'businessowner', or 'admin'
   String _selectedRole = 'user';
 
   @override
@@ -26,7 +26,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                   center: const Alignment(-0.5, -0.7),
                   radius: 1.3,
                   colors: [
-                    const Color(0xFFFF7A00).withValues(alpha: 0.1),
+                    const Color(0xFFFF7A00).withValues(alpha: 0.08),
                     Colors.transparent,
                   ],
                 ),
@@ -40,7 +40,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                   center: const Alignment(0.6, 0.7),
                   radius: 1.3,
                   colors: [
-                    const Color(0xFFFF5500).withValues(alpha: 0.08),
+                    const Color(0xFFFF5500).withValues(alpha: 0.06),
                     Colors.transparent,
                   ],
                 ),
@@ -54,16 +54,16 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                 Expanded(
                   child: SingleChildScrollView(
                     physics: const BouncingScrollPhysics(),
-                    padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
+                    padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        const SizedBox(height: 15),
-                        // App Brand Logo Badge
+                        const SizedBox(height: 10),
+                        // Compact App Emblem/Logo Badge
                         Container(
-                          width: 80,
-                          height: 80,
-                          padding: const EdgeInsets.all(4),
+                          width: 64,
+                          height: 64,
+                          padding: const EdgeInsets.all(3),
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             gradient: const LinearGradient(
@@ -73,9 +73,9 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                             ),
                             boxShadow: [
                               BoxShadow(
-                                color: const Color(0xFFFF7A00).withValues(alpha: 0.35),
-                                blurRadius: 20,
-                                spreadRadius: 2,
+                                color: const Color(0xFFFF7A00).withValues(alpha: 0.3),
+                                blurRadius: 16,
+                                spreadRadius: 1,
                               ),
                             ],
                           ),
@@ -89,52 +89,52 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                                 'ॐ',
                                 style: TextStyle(
                                   color: Color(0xFFFF7A00),
-                                  fontSize: 36,
+                                  fontSize: 28,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
                             ),
                           ),
                         ),
-                        const SizedBox(height: 20),
+                        const SizedBox(height: 12),
 
-                        // App Headline & Title
+                        // Title & Header
                         const Text(
                           'Vocal for Sanatan',
                           style: TextStyle(
                             fontFamily: 'Inter',
-                            fontSize: 16,
+                            fontSize: 13,
                             fontWeight: FontWeight.w700,
                             color: Color(0xFFFF7A00),
-                            letterSpacing: 1.5,
+                            letterSpacing: 1.2,
                           ),
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 4),
                         const Text(
                           'Select Your Role',
                           style: TextStyle(
                             fontFamily: 'Inter',
-                            fontSize: 28,
+                            fontSize: 23,
                             fontWeight: FontWeight.w900,
                             color: Colors.white,
-                            letterSpacing: 0.3,
+                            letterSpacing: 0.2,
                           ),
                           textAlign: TextAlign.center,
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 4),
                         Text(
                           'Choose the account type that best describes your needs.',
                           style: TextStyle(
                             fontFamily: 'Inter',
-                            fontSize: 14,
+                            fontSize: 12.5,
                             color: Colors.white.withValues(alpha: 0.6),
-                            height: 1.4,
+                            height: 1.3,
                           ),
                           textAlign: TextAlign.center,
                         ),
-                        const SizedBox(height: 28),
+                        const SizedBox(height: 20),
 
-                        // Two Role Selection Cards Side-by-Side
+                        // 3 Compact Role Selection Cards Side-by-Side
                         Row(
                           children: [
                             // Card 1: User / Customer
@@ -146,7 +146,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                                 isSelected: _selectedRole == 'user',
                               ),
                             ),
-                            const SizedBox(width: 16),
+                            const SizedBox(width: 10),
                             // Card 2: Business Owner / Vendor
                             Expanded(
                               child: _buildRoleCard(
@@ -156,21 +156,31 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                                 isSelected: _selectedRole == 'businessowner',
                               ),
                             ),
+                            const SizedBox(width: 10),
+                            // Card 3: Admin
+                            Expanded(
+                              child: _buildRoleCard(
+                                roleKey: 'admin',
+                                title: 'Admin',
+                                icon: Icons.admin_panel_settings_rounded,
+                                isSelected: _selectedRole == 'admin',
+                              ),
+                            ),
                           ],
                         ),
 
-                        const SizedBox(height: 28),
+                        const SizedBox(height: 18),
 
-                        // Feature Bullets List Card based on selected role
+                        // Dynamic Feature Bullets Box
                         AnimatedSwitcher(
-                          duration: const Duration(milliseconds: 300),
+                          duration: const Duration(milliseconds: 250),
                           child: Container(
                             key: ValueKey(_selectedRole),
                             width: double.infinity,
-                            padding: const EdgeInsets.all(20),
+                            padding: const EdgeInsets.all(16),
                             decoration: BoxDecoration(
                               color: const Color(0xFF141210),
-                              borderRadius: BorderRadius.circular(20),
+                              borderRadius: BorderRadius.circular(16),
                               border: Border.all(
                                 color: const Color(0xFFFF7A00).withValues(alpha: 0.15),
                               ),
@@ -180,35 +190,43 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                               children: _selectedRole == 'user'
                                   ? [
                                       _buildFeatureBullet('Discover local businesses & services easily.'),
-                                      const SizedBox(height: 12),
+                                      const SizedBox(height: 8),
                                       _buildFeatureBullet('Connect with verified local professionals.'),
-                                      const SizedBox(height: 12),
-                                      _buildFeatureBullet('Enjoy AI voice search & smart recommendations.'),
+                                      const SizedBox(height: 8),
+                                      _buildFeatureBullet('AI voice search & smart recommendations.'),
                                     ]
-                                  : [
-                                      _buildFeatureBullet('List & promote your store for 100% free.'),
-                                      const SizedBox(height: 12),
-                                      _buildFeatureBullet('Manage operating hours, photos, and location.'),
-                                      const SizedBox(height: 12),
-                                      _buildFeatureBullet('Receive customer leads, views & ratings.'),
-                                    ],
+                                  : _selectedRole == 'businessowner'
+                                      ? [
+                                          _buildFeatureBullet('List & promote your store for 100% free.'),
+                                          const SizedBox(height: 8),
+                                          _buildFeatureBullet('Manage operating hours, photos, and location.'),
+                                          const SizedBox(height: 8),
+                                          _buildFeatureBullet('Receive customer leads, views & ratings.'),
+                                        ]
+                                      : [
+                                          _buildFeatureBullet('Review and approve business listings.'),
+                                          const SizedBox(height: 8),
+                                          _buildFeatureBullet('Manage categories & system reports.'),
+                                          const SizedBox(height: 8),
+                                          _buildFeatureBullet('Full platform governance & user control.'),
+                                        ],
                             ),
                           ),
                         ),
-                        const SizedBox(height: 20),
+                        const SizedBox(height: 10),
                       ],
                     ),
                   ),
                 ),
 
-                // Floating Full-Width Action Button at Bottom
+                // Floating Action Button at Bottom
                 Padding(
-                  padding: const EdgeInsets.all(24.0),
+                  padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 14.0),
                   child: Column(
                     children: [
                       SizedBox(
                         width: double.infinity,
-                        height: 56,
+                        height: 50,
                         child: ElevatedButton(
                           onPressed: () {
                             context.go('/login', extra: _selectedRole);
@@ -217,54 +235,55 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                             backgroundColor: const Color(0xFFFF6B00),
                             foregroundColor: Colors.white,
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(30),
+                              borderRadius: BorderRadius.circular(25),
                             ),
-                            elevation: 8,
-                            shadowColor: const Color(0xFFFF6B00).withValues(alpha: 0.4),
+                            elevation: 6,
+                            shadowColor: const Color(0xFFFF6B00).withValues(alpha: 0.35),
                           ),
-                          child: const Row(
+                          child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Text(
-                                'Continue',
-                                style: TextStyle(
-                                  fontSize: 17,
+                                _selectedRole == 'admin' ? 'Login as Admin' : 'Continue',
+                                style: const TextStyle(
+                                  fontSize: 15.5,
                                   fontWeight: FontWeight.w800,
-                                  letterSpacing: 0.5,
+                                  letterSpacing: 0.4,
                                 ),
                               ),
-                              SizedBox(width: 8),
-                              Icon(Icons.arrow_forward_rounded, size: 20),
+                              const SizedBox(width: 8),
+                              const Icon(Icons.arrow_forward_rounded, size: 18),
                             ],
                           ),
                         ),
                       ),
-                      const SizedBox(height: 12),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            'New here? ',
-                            style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.6),
-                              fontSize: 14,
-                            ),
-                          ),
-                          GestureDetector(
-                            onTap: () {
-                              context.go('/signup', extra: _selectedRole);
-                            },
-                            child: const Text(
-                              'Create an Account',
+                      const SizedBox(height: 8),
+                      if (_selectedRole != 'admin')
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              'New here? ',
                               style: TextStyle(
-                                color: Color(0xFFFF7A00),
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
+                                color: Colors.white.withValues(alpha: 0.6),
+                                fontSize: 13,
                               ),
                             ),
-                          ),
-                        ],
-                      ),
+                            GestureDetector(
+                              onTap: () {
+                                context.go('/signup', extra: _selectedRole);
+                              },
+                              child: const Text(
+                                'Create an Account',
+                                style: TextStyle(
+                                  color: Color(0xFFFF7A00),
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                     ],
                   ),
                 ),
@@ -289,14 +308,14 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
         });
       },
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 250),
+        duration: const Duration(milliseconds: 200),
         curve: Curves.easeInOut,
-        padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
         decoration: BoxDecoration(
           color: isSelected
               ? const Color(0xFFFF7A00).withValues(alpha: 0.12)
               : const Color(0xFF141210),
-          borderRadius: BorderRadius.circular(24),
+          borderRadius: BorderRadius.circular(18),
           border: Border.all(
             color: isSelected
                 ? const Color(0xFFFF7A00)
@@ -306,22 +325,21 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
           boxShadow: isSelected
               ? [
                   BoxShadow(
-                    color: const Color(0xFFFF7A00).withValues(alpha: 0.25),
-                    blurRadius: 16,
-                    spreadRadius: 1,
+                    color: const Color(0xFFFF7A00).withValues(alpha: 0.2),
+                    blurRadius: 12,
                   )
                 ]
               : [],
         ),
         child: Column(
           children: [
-            // Checked badge indicator
+            // Checkmark indicator
             Align(
               alignment: Alignment.topRight,
               child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                width: 22,
-                height: 22,
+                duration: const Duration(milliseconds: 180),
+                width: 18,
+                height: 18,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: isSelected ? const Color(0xFFFF7A00) : Colors.transparent,
@@ -329,18 +347,18 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                     color: isSelected
                         ? const Color(0xFFFF7A00)
                         : Colors.white.withValues(alpha: 0.2),
-                    width: 1.5,
+                    width: 1.2,
                   ),
                 ),
                 child: isSelected
-                    ? const Icon(Icons.check, size: 14, color: Colors.white)
+                    ? const Icon(Icons.check, size: 12, color: Colors.white)
                     : null,
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 4),
             // Circle Icon Container
             Container(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: isSelected
@@ -349,15 +367,15 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
               ),
               child: Icon(
                 icon,
-                size: 32,
+                size: 24,
                 color: isSelected ? Colors.white : Colors.white60,
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 10),
             Text(
               title,
               style: TextStyle(
-                fontSize: 18,
+                fontSize: 14,
                 fontWeight: FontWeight.w800,
                 color: isSelected ? Colors.white : Colors.white70,
               ),
@@ -372,19 +390,19 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     return Row(
       children: [
         Container(
-          width: 8,
-          height: 8,
+          width: 6,
+          height: 6,
           decoration: const BoxDecoration(
             shape: BoxShape.circle,
             color: Color(0xFFFF7A00),
           ),
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: 10),
         Expanded(
           child: Text(
             text,
             style: TextStyle(
-              fontSize: 13.5,
+              fontSize: 12.5,
               color: Colors.white.withValues(alpha: 0.85),
               height: 1.3,
             ),

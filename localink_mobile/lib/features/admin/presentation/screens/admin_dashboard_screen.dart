@@ -566,8 +566,18 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
       });
     }
 
-    return Scaffold(
-      backgroundColor: const Color(0xFF080706),
+    return PopScope(
+      canPop: true,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        if (context.canPop()) {
+          context.pop();
+        } else {
+          context.go('/welcome');
+        }
+      },
+      child: Scaffold(
+        backgroundColor: const Color(0xFF080706),
       body: Column(
         children: [
           // Custom Saffron Sunrise Temple skyline header
@@ -700,8 +710,9 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildTabContent(AsyncValue<List<AdminBusinessDto>> businessesAsync) {
     switch (_currentTab) {
