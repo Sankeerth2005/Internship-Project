@@ -177,22 +177,8 @@ namespace localink_be.Services.Implementations
 
         if (contact != null)
         {
-            // Phone Number Validation: Check if phone number is already used by another business owner
             var normalizedPhone = dto.PhoneNumber?.Trim();
             var normalizedPhoneCode = dto.PhoneCode?.Trim();
-            if (!string.IsNullOrWhiteSpace(normalizedPhone) && 
-                (contact.PhoneNumber != normalizedPhone || contact.PhoneCode != normalizedPhoneCode))
-            {
-                var phoneExists = await _db.BusinessContacts
-                    .AnyAsync(c => c.PhoneNumber == normalizedPhone && 
-                                   c.PhoneCode == normalizedPhoneCode &&
-                                   c.BusinessId != id &&
-                                   c.Business.UserId != business.UserId);
-                if (phoneExists)
-                {
-                    throw new ArgumentException("This phone number is already registered with another business. Please use your own phone number.");
-                }
-            }
 
             if (dto.Latitude.HasValue || dto.Longitude.HasValue)
             {
@@ -281,20 +267,8 @@ namespace localink_be.Services.Implementations
             throw new ArgumentException("A business with this name has already been registered under your account.");
         }
 
-        // 2. Phone Number Validation: Check if phone number is already used by another business owner
         var normalizedPhone = dto.PhoneNumber?.Trim();
         var normalizedPhoneCode = dto.PhoneCode?.Trim();
-        if (!string.IsNullOrWhiteSpace(normalizedPhone))
-        {
-            var phoneExists = await _db.BusinessContacts
-                .AnyAsync(c => c.PhoneNumber == normalizedPhone && 
-                               c.PhoneCode == normalizedPhoneCode &&
-                               c.Business.UserId != userId);
-            if (phoneExists)
-            {
-                throw new ArgumentException("This phone number is already registered with another business. Please use your own phone number.");
-            }
-        }
 
         var strategy = _db.Database.CreateExecutionStrategy();
         

@@ -495,11 +495,10 @@ class _BusinessRegistrationScreenState
       }
     } catch (e) {
       if (mounted) {
+        final errText = e.toString().replaceAll('Exception: ', '').replaceAll('Registration failed: ', '').replaceAll('Update failed: ', '').trim();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(widget.businessToEdit != null
-                ? 'Update failed: ${e.toString()}'
-                : 'Registration failed: ${e.toString()}'),
+            content: Text(errText),
             backgroundColor: Colors.redAccent,
           ),
         );

@@ -56,9 +56,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Widget build(BuildContext context) {
     ref.listen<AuthState>(authProvider, (previous, next) {
       if (next is AuthError) {
+        final cleanMsg = next.message.replaceAll('Exception: ', '').trim();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(next.message),
+            content: Text(cleanMsg),
             backgroundColor: const Color(0xFFFF4D4F),
           ),
         );

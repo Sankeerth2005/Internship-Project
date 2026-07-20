@@ -245,60 +245,6 @@ class _AnalyticsDashboardScreenState extends ConsumerState<AnalyticsDashboardScr
                                 ],
                               ),
                       ),
-                      const SizedBox(height: 25),
-
-                      // QR Code Marketing Material section
-                      const Text(
-                        'Storefront Marketing Material',
-                        style: TextStyle(
-                          color: Color(0xFFFF7A00),
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 15),
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF1E1E1E),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
-                        ),
-                        child: Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(10),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: const Icon(
-                                Icons.qr_code_2,
-                                color: Colors.black,
-                                size: 80,
-                              ),
-                            ),
-                            const SizedBox(width: 20),
-                            const Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Download Storefront QR Code',
-                                    style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
-                                  ),
-                                  SizedBox(height: 6),
-                                  Text(
-                                    'Print and place this gold-themed QR code on your counter so customers can scan it to instantly open your details page and write reviews.',
-                                    style: TextStyle(color: Colors.white38, fontSize: 11, height: 1.4),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
                     ],
                   ),
                 ),

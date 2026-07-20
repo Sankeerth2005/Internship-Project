@@ -91,42 +91,50 @@ class BusinessRepository {
 
   // REGISTER BUSINESS
   Future<int> registerBusiness(BusinessDto business) async {
-    final options = await _getAuthOptions();
-    final response = await _dio.post(
-      'business/register',
-      data: business.toJson(),
-      options: options,
-    );
-    return response.data['businessId'] as int;
+    try {
+      final options = await _getAuthOptions();
+      final response = await _dio.post(
+        'business/register',
+        data: business.toJson(),
+        options: options,
+      );
+      return response.data['businessId'] as int;
+    } on DioException catch (e) {
+      throw Exception(_handleDioError(e));
+    }
   }
 
   // UPDATE BUSINESS
   Future<bool> updateBusiness(int id, BusinessDto business) async {
-    final options = await _getAuthOptions();
-    final payload = {
-      'businessName': business.businessName,
-      'description': business.description,
-      'categoryId': business.categoryId,
-      'subcategoryId': business.subcategoryId,
-      'phoneCode': business.phoneCode,
-      'phoneNumber': business.phoneNumber,
-      'email': business.email,
-      'city': business.city,
-      'streetAddress': business.address,
-      'state': business.state,
-      'country': business.country,
-      'pincode': business.pincode,
-      'latitude': business.latitude,
-      'longitude': business.longitude,
-      'photo': business.photo,
-      'hours': business.hours.map((h) => h.toJson()).toList(),
-    };
-    final response = await _dio.put(
-      'business/$id',
-      data: payload,
-      options: options,
-    );
-    return response.data['success'] == true;
+    try {
+      final options = await _getAuthOptions();
+      final payload = {
+        'businessName': business.businessName,
+        'description': business.description,
+        'categoryId': business.categoryId,
+        'subcategoryId': business.subcategoryId,
+        'phoneCode': business.phoneCode,
+        'phoneNumber': business.phoneNumber,
+        'email': business.email,
+        'city': business.city,
+        'streetAddress': business.address,
+        'state': business.state,
+        'country': business.country,
+        'pincode': business.pincode,
+        'latitude': business.latitude,
+        'longitude': business.longitude,
+        'photo': business.photo,
+        'hours': business.hours.map((h) => h.toJson()).toList(),
+      };
+      final response = await _dio.put(
+        'business/$id',
+        data: payload,
+        options: options,
+      );
+      return response.data['success'] == true;
+    } on DioException catch (e) {
+      throw Exception(_handleDioError(e));
+    }
   }
 
   // ADD REVIEW
@@ -285,5 +293,22 @@ class BusinessRepository {
       options: options,
     );
     return response.statusCode == 200;
+  }
+
+  String _handleDioError(DioException error) {
+    final data = error.response?.data;
+    if (data is Map) {
+      final msg = data['message']?.toString();
+      final err = data['error']?.toString();
+      if (msg != null && msg.isNotEmpty && msg != "Something went wrong") return msg;
+      if (err != null && err.isNotEmpty) return err;
+      if (msg != null && msg.isNotEmpty) return msg;
+    } else if (data is String && data.isNotEmpty && !data.contains('<!DOCTYPE')) {
+      return data;
+    }
+    if (error.type == DioExceptionType.connectionTimeout || error.type == DioExceptionType.receiveTimeout) {
+      return 'Connection timed out. Please check your internet connection.';
+    }
+    return 'An unexpected error occurred. Please try again.';
   }
 }

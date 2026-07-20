@@ -23,6 +23,11 @@ public class ExceptionMiddleware
             _logger.LogWarning(ex, "Bad Request");
             await HandleException(context, HttpStatusCode.BadRequest, ex.Message);
         }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "Invalid Operation");
+            await HandleException(context, HttpStatusCode.BadRequest, ex.Message);
+        }
         catch (KeyNotFoundException ex)
         {
             _logger.LogWarning(ex, "Resource Not Found");
@@ -36,7 +41,8 @@ public class ExceptionMiddleware
         catch (Exception ex)
         {
             _logger.LogError(ex, "Internal Server Error");
-            await HandleException(context, HttpStatusCode.InternalServerError, "Something went wrong", ex.Message);
+            var userMsg = string.IsNullOrWhiteSpace(ex.Message) ? "Something went wrong" : ex.Message;
+            await HandleException(context, HttpStatusCode.InternalServerError, userMsg, ex.Message);
         }
     }
 

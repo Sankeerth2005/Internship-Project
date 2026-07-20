@@ -38,10 +38,16 @@ class AuthRepository {
     final data = error.response?.data;
     if (data is Map) {
       final msg = data['message']?.toString();
+      final err = data['error']?.toString();
+      if (msg != null && msg.isNotEmpty && msg != "Something went wrong") return msg;
+      if (err != null && err.isNotEmpty) return err;
       if (msg != null && msg.isNotEmpty) return msg;
-    } else if (data is String && data.isNotEmpty) {
+    } else if (data is String && data.isNotEmpty && !data.contains('<!DOCTYPE')) {
       return data;
     }
-    return error.message ?? 'Unknown error occurred';
+    if (error.type == DioExceptionType.connectionTimeout || error.type == DioExceptionType.receiveTimeout) {
+      return 'Connection timed out. Please check your internet connection.';
+    }
+    return 'An unexpected error occurred. Please try again.';
   }
 }
