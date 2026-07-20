@@ -2,7 +2,9 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/auth_state.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
@@ -37,6 +39,19 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with SingleTickerPr
     Timer(const Duration(milliseconds: 2800), () {
       if (mounted) {
         ref.read(splashShownProvider.notifier).setShown(true);
+        final authState = ref.read(authProvider);
+        if (authState is AuthAuthenticated) {
+          final role = authState.userType.toLowerCase().trim();
+          if (role == 'admin') {
+            context.go('/admin-dashboard');
+          } else if (role == 'businessowner' || role == 'client') {
+            context.go('/business-dashboard');
+          } else {
+            context.go('/home');
+          }
+        } else {
+          context.go('/welcome');
+        }
       }
     });
   }

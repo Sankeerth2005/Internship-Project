@@ -51,8 +51,19 @@ final routerProvider = Provider<GoRouter>((ref) {
         return '/splash';
       }
 
+      // If splash has completed but location is still /splash, redirect away from splash
+      if (currentLocation == '/splash') {
+        if (authState is AuthAuthenticated) {
+          final role = authState.userType.toLowerCase().trim();
+          if (role == 'admin') return '/admin-dashboard';
+          if (role == 'businessowner' || role == 'client') return '/business-dashboard';
+          return '/home';
+        }
+        return '/welcome';
+      }
+
       // If the app is still in the initial authentication check,
-      // allow it to stay on the welcome screen.
+      // allow it to stay on current public screen.
       if (authState is AuthInitial) {
         return null; 
       }
@@ -74,9 +85,9 @@ final routerProvider = Provider<GoRouter>((ref) {
 
       // If the user IS authenticated...
       if (authState is AuthAuthenticated) {
-        // ...and they are trying to access the splash screen or any public route,
+        // ...and they are trying to access any public route,
         // redirect them to their appropriate dashboard.
-        if (currentLocation == '/splash' || isPublicRoute) {
+        if (isPublicRoute) {
           final role = authState.userType.toLowerCase().trim();
           if (role == 'admin') {
             return '/admin-dashboard';
