@@ -1,20 +1,12 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/auth_state.dart';
 
-import '../widgets/splash/background_gradient.dart';
-import '../widgets/splash/temple_background.dart';
-import '../widgets/splash/sunrise_glow.dart';
-import '../widgets/splash/energy_waves.dart';
-import '../widgets/splash/floating_particles.dart';
-import '../widgets/splash/animated_logo.dart';
-import '../widgets/splash/app_title.dart';
-import '../widgets/splash/loading_bar.dart';
-
-/// Premium Animated Splash Screen orchestrating 11 independent modular layers
 class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
 
@@ -22,315 +14,514 @@ class SplashScreen extends ConsumerStatefulWidget {
   ConsumerState<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends ConsumerState<SplashScreen>
-    with TickerProviderStateMixin {
-  // ─── ANIMATION CONTROLLERS ───
-  late AnimationController _ambientController;
-  late AnimationController _templeController;
-  late AnimationController _logoScaleController;
-  late AnimationController _ringRotationController;
-  late AnimationController _glowPulseController;
-  late AnimationController _flagWaveController;
-  late AnimationController _omPulseController;
-  late AnimationController _particleController;
-  late AnimationController _energyWaveController;
-  late AnimationController _titleEntranceController;
-  late AnimationController _taglineEntranceController;
-  late AnimationController _loadingBarController;
+class _SplashScreenState extends ConsumerState<SplashScreen> with TickerProviderStateMixin {
+  late AnimationController _mainController;
+  late AnimationController _shimmerController;
+  late AnimationController _pulseController;
+  late AnimationController _progressController;
 
-  // ─── TWEENS & ANIMATIONS ───
-  late Animation<double> _ambientAnimation;
-  late Animation<double> _templeOpacityAnimation;
-  late Animation<double> _logoScaleAnimation;
-  late Animation<double> _ringRotationAnimation;
-  late Animation<double> _glowPulseAnimation;
-  late Animation<double> _flagWaveAnimation;
-  late Animation<double> _omScaleAnimation;
-  late Animation<Color?> _omGlowColorAnimation;
-  late Animation<double> _particleAnimation;
-  late Animation<double> _energyWaveAnimation;
-  late Animation<double> _titleFadeAnimation;
-  late Animation<double> _titleTranslateAnimation;
-  late Animation<double> _taglineFadeAnimation;
-  late Animation<double> _taglineTranslateAnimation;
-  late Animation<double> _loadingProgressAnimation;
+  late Animation<double> _fadeAnimation;
+  late Animation<double> _scaleAnimation;
+  late Animation<double> _shimmerAnimation;
+  late Animation<double> _pulseAnimation;
+  late Animation<double> _progressAnimation;
 
-  bool _isNavigating = false;
+  final List<Particle> _particles = List.generate(35, (index) => Particle());
 
   @override
   void initState() {
     super.initState();
-    _initAnimations();
-    _startAnimationSequence();
-  }
 
-  void _initAnimations() {
-    // 1. Layer 1 & 3: Background Ambient Glow (5s loop forever, 40% -> 60% -> 40%)
-    _ambientController = AnimationController(
+    // Haptic feedback for tactile luxury feel
+    HapticFeedback.lightImpact();
+
+    // 1. Entry Animation (Logo scale + fade)
+    _mainController = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 5),
+      duration: const Duration(milliseconds: 1600),
     );
-    _ambientAnimation = Tween<double>(begin: 0.40, end: 0.60).animate(
-      CurvedAnimation(parent: _ambientController, curve: Curves.easeInOut),
-    );
-    _ambientController.repeat(reverse: true);
 
-    // 2. Layer 2: Temple Silhouette Fade In (0% -> 35% in 1500ms)
-    _templeController = AnimationController(
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _mainController, curve: const Interval(0.0, 0.6, curve: Curves.easeIn)),
+    );
+
+    _scaleAnimation = Tween<double>(begin: 0.75, end: 1.0).animate(
+      CurvedAnimation(parent: _mainController, curve: const Interval(0.0, 0.7, curve: Curves.easeOutBack)),
+    );
+
+    // 2. Continuous Shimmer Sweep (CRED style metallic light pass)
+    _shimmerController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1500),
-    );
-    _templeOpacityAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _templeController, curve: Curves.easeOut),
+      duration: const Duration(milliseconds: 2200),
+    )..repeat();
+
+    _shimmerAnimation = Tween<double>(begin: -1.5, end: 2.5).animate(
+      CurvedAnimation(parent: _shimmerController, curve: Curves.easeInOutSine),
     );
 
-    // 3. Layer 6/7/8: Logo Scale (0.75 -> 1.05 -> 1.00 in 800ms, easeOutBack)
-    _logoScaleController = AnimationController(
+    // 3. Ambient Breathing Pulse Aura
+    _pulseController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 800),
-    );
-    _logoScaleAnimation = TweenSequence<double>([
-      TweenSequenceItem(
-        tween: Tween<double>(begin: 0.75, end: 1.05)
-            .chain(CurveTween(curve: Curves.easeOutBack)),
-        weight: 70,
-      ),
-      TweenSequenceItem(
-        tween: Tween<double>(begin: 1.05, end: 1.00)
-            .chain(CurveTween(curve: Curves.easeInOut)),
-        weight: 30,
-      ),
-    ]).animate(_logoScaleController);
+      duration: const Duration(milliseconds: 2000),
+    )..repeat(reverse: true);
 
-    // 4. Layer 6: Ring Rotation (360° in 20s, Linear, Infinite)
-    _ringRotationController = AnimationController(
+    _pulseAnimation = Tween<double>(begin: 0.85, end: 1.15).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
+
+    // 4. Progress Bar Fill (0% to 100%)
+    _progressController = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 20),
-    );
-    _ringRotationAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _ringRotationController, curve: Curves.linear),
-    );
-    _ringRotationController.repeat();
-
-    // 5. Layer 5/6: Glow Behind Logo (Blur radius 20 -> 45 -> 20 every 2s)
-    _glowPulseController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 2),
-    );
-    _glowPulseAnimation = Tween<double>(begin: 20.0, end: 45.0).animate(
-      CurvedAnimation(parent: _glowPulseController, curve: Curves.easeInOut),
-    );
-    _glowPulseController.repeat(reverse: true);
-
-    // 6. Layer 7: Flag Waving (-3° -> 3° -> -3° in 2.5s)
-    _flagWaveController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 2500),
-    );
-    _flagWaveAnimation = Tween<double>(begin: -3.0, end: 3.0).animate(
-      CurvedAnimation(parent: _flagWaveController, curve: Curves.easeInOut),
-    );
-    _flagWaveController.repeat(reverse: true);
-
-    // 7. Layer 8: Om Symbol Scale & Glow Color (1.0 -> 1.08 -> 1.0 in 2s)
-    _omPulseController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 2),
-    );
-    _omScaleAnimation = Tween<double>(begin: 1.0, end: 1.08).animate(
-      CurvedAnimation(parent: _omPulseController, curve: Curves.easeInOut),
-    );
-    _omGlowColorAnimation = ColorTween(
-      begin: const Color(0xFFFF8C00),
-      end: const Color(0xFFFFC857),
-    ).animate(
-      CurvedAnimation(parent: _omPulseController, curve: Curves.easeInOut),
-    );
-    _omPulseController.repeat(reverse: true);
-
-    // 8. Layer 5: Floating Particles (Slow continuous upward rise)
-    _particleController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 8),
-    );
-    _particleAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _particleController, curve: Curves.linear),
-    );
-    _particleController.repeat();
-
-    // 9. Layer 4: Energy Waves (Slow horizontal sway)
-    _energyWaveController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 6),
-    );
-    _energyWaveAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _energyWaveController, curve: Curves.easeInOut),
-    );
-    _energyWaveController.repeat(reverse: true);
-
-    // 10. Layer 9: Title Entrance (Fade 0->1, Y 30->0 in 800ms, easeOutCubic)
-    _titleEntranceController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 800),
-    );
-    _titleFadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _titleEntranceController, curve: Curves.easeOutCubic),
-    );
-    _titleTranslateAnimation = Tween<double>(begin: 30.0, end: 0.0).animate(
-      CurvedAnimation(parent: _titleEntranceController, curve: Curves.easeOutCubic),
+      duration: const Duration(milliseconds: 2800),
     );
 
-    // 11. Layer 10: Tagline Entrance (Fade 0->1, Y 20->0 in 800ms, 300ms delay)
-    _taglineEntranceController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 800),
-    );
-    _taglineFadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _taglineEntranceController, curve: Curves.easeOutCubic),
-    );
-    _taglineTranslateAnimation = Tween<double>(begin: 20.0, end: 0.0).animate(
-      CurvedAnimation(parent: _taglineEntranceController, curve: Curves.easeOutCubic),
+    _progressAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _progressController, curve: Curves.easeInOutCubic),
     );
 
-    // 12. Layer 11: Loading Indicator Line (0.0 -> 1.0 in 1 second)
-    _loadingBarController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1000),
-    );
-    _loadingProgressAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _loadingBarController, curve: Curves.easeInOut),
-    );
-  }
+    _mainController.forward();
+    _progressController.forward();
 
-  void _startAnimationSequence() {
-    _templeController.forward();
-    _logoScaleController.forward();
-
-    // Timed entrance sequence
-    Timer(const Duration(milliseconds: 200), () {
-      if (mounted) _titleEntranceController.forward();
-    });
-
-    Timer(const Duration(milliseconds: 500), () {
-      if (mounted) _taglineEntranceController.forward();
-    });
-
-    Timer(const Duration(milliseconds: 1000), () {
+    // Navigation timer
+    Timer(const Duration(milliseconds: 3200), () {
       if (mounted) {
-        _loadingBarController.forward().then((_) {
-          _onLoadingCompleted();
-        });
-      }
-    });
-  }
-
-  void _onLoadingCompleted() {
-    if (_isNavigating || !mounted) return;
-    _isNavigating = true;
-
-    // Small breathing pause before seamless transition
-    Timer(const Duration(milliseconds: 300), () {
-      if (!mounted) return;
-
-      ref.read(splashShownProvider.notifier).setShown(true);
-      final authState = ref.read(authProvider);
-
-      String nextRoute = '/welcome';
-      if (authState is AuthAuthenticated) {
-        final role = authState.userType.toLowerCase().trim();
-        if (role == 'admin') {
-          nextRoute = '/admin-dashboard';
-        } else if (role == 'businessowner' || role == 'client') {
-          nextRoute = '/business-dashboard';
+        HapticFeedback.mediumImpact();
+        ref.read(splashShownProvider.notifier).setShown(true);
+        final authState = ref.read(authProvider);
+        if (authState is AuthAuthenticated) {
+          final role = authState.userType.toLowerCase().trim();
+          if (role == 'admin') {
+            context.go('/admin-dashboard');
+          } else if (role == 'businessowner' || role == 'client') {
+            context.go('/business-dashboard');
+          } else {
+            context.go('/home');
+          }
         } else {
-          nextRoute = '/home';
+          context.go('/welcome');
         }
       }
-
-      context.go(nextRoute);
     });
   }
 
   @override
   void dispose() {
-    _ambientController.dispose();
-    _templeController.dispose();
-    _logoScaleController.dispose();
-    _ringRotationController.dispose();
-    _glowPulseController.dispose();
-    _flagWaveController.dispose();
-    _omPulseController.dispose();
-    _particleController.dispose();
-    _energyWaveController.dispose();
-    _titleEntranceController.dispose();
-    _taglineEntranceController.dispose();
-    _loadingBarController.dispose();
+    _mainController.dispose();
+    _shimmerController.dispose();
+    _pulseController.dispose();
+    _progressController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF090909),
-      body: SafeArea(
-        top: false,
-        bottom: false,
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            // Layer 1: Background Gradient & Ambient Radial Glow
-            BackgroundGradient(ambientAnimation: _ambientAnimation),
-
-            // Layer 2: Temple Silhouette Background
-            TempleBackground(templeOpacityAnimation: _templeOpacityAnimation),
-
-            // Layer 3: Bottom Sunrise Horizon Glow
-            SunriseGlow(ambientAnimation: _ambientAnimation),
-
-            // Layer 4: Animated Decorative Energy Waves
-            EnergyWaves(waveAnimation: _energyWaveAnimation),
-
-            // Layer 5: Floating Glowing Particles
-            FloatingParticles(particleAnimation: _particleAnimation),
-
-            // Layer 6, 7, 8 & Glow: Animated Logo Assembly
-            Positioned(
-              top: MediaQuery.of(context).size.height * 0.28,
-              child: AnimatedLogo(
-                logoScaleAnimation: _logoScaleAnimation,
-                ringRotationAnimation: _ringRotationAnimation,
-                glowPulseAnimation: _glowPulseAnimation,
-                flagWaveAnimation: _flagWaveAnimation,
-                omScaleAnimation: _omScaleAnimation,
-                omGlowColorAnimation: _omGlowColorAnimation,
-                size: 180.0,
-              ),
+      backgroundColor: const Color(0xFF080706),
+      body: Stack(
+        children: [
+          // ─── 1. DYNAMIC AMBIENT PARTICLE ENGINE (CRED / SLICE STYLED) ───
+          Positioned.fill(
+            child: AnimatedBuilder(
+              animation: _shimmerController,
+              builder: (context, child) {
+                return CustomPaint(
+                  painter: ParticleSystemPainter(_particles),
+                );
+              },
             ),
+          ),
 
-            // Layer 9 & 10: Title & Tagline Block
-            Positioned(
-              top: MediaQuery.of(context).size.height * 0.55,
-              left: 20,
-              right: 20,
-              child: AppTitle(
-                titleFadeAnimation: _titleFadeAnimation,
-                titleTranslateAnimation: _titleTranslateAnimation,
-                taglineFadeAnimation: _taglineFadeAnimation,
-                taglineTranslateAnimation: _taglineTranslateAnimation,
-              ),
+          // ─── 2. RADIAL AMBIENT BACKGROUND GLOW ───
+          Positioned.fill(
+            child: CustomPaint(
+              painter: SplashBackgroundPainter(),
             ),
+          ),
 
-            // Layer 11: Loading Progress Line
-            Positioned(
-              bottom: MediaQuery.of(context).padding.bottom + 50,
-              child: LoadingBar(
-                progressAnimation: _loadingProgressAnimation,
-                width: 160.0,
-              ),
+          // ─── 3. MAIN EMBLEM & HERO BRANDING BLOCK ───
+          SizedBox.expand(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Spacer(flex: 3),
+
+                AnimatedBuilder(
+                  animation: _mainController,
+                  builder: (context, child) {
+                    return Opacity(
+                      opacity: _fadeAnimation.value,
+                      child: Transform.scale(
+                        scale: _scaleAnimation.value,
+                        child: child,
+                      ),
+                    );
+                  },
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Glowing Outer Ring Aura
+                      AnimatedBuilder(
+                        animation: _pulseController,
+                        builder: (context, child) {
+                          return Container(
+                            width: 155,
+                            height: 155,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: const Color(0xFFFF7A00).withValues(alpha: 0.3 * _pulseAnimation.value),
+                                  blurRadius: 50 * _pulseAnimation.value,
+                                  spreadRadius: 8 * _pulseAnimation.value,
+                                ),
+                                BoxShadow(
+                                  color: const Color(0xFFFF4500).withValues(alpha: 0.2),
+                                  blurRadius: 80,
+                                  spreadRadius: 15,
+                                ),
+                              ],
+                            ),
+                            child: child,
+                          );
+                        },
+                        child: ClipOval(
+                          child: Container(
+                            width: 145,
+                            height: 145,
+                            padding: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              gradient: LinearGradient(
+                                colors: [
+                                  const Color(0xFFFF7A00),
+                                  const Color(0xFFFF3D00).withValues(alpha: 0.4),
+                                ],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                            ),
+                            child: ClipOval(
+                              child: Container(
+                                color: const Color(0xFF100E0D),
+                                child: _buildSplashImageOrVector(),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 36),
+
+                      // Metallic Shimmer Title Text
+                      AnimatedBuilder(
+                        animation: _shimmerController,
+                        builder: (context, child) {
+                          return ShaderMask(
+                            shaderCallback: (bounds) {
+                              return LinearGradient(
+                                colors: const [
+                                  Colors.white,
+                                  Color(0xFFFFD700), // Gold highlight pass
+                                  Colors.white,
+                                ],
+                                stops: const [0.0, 0.5, 1.0],
+                                begin: Alignment(_shimmerAnimation.value - 1, 0),
+                                end: Alignment(_shimmerAnimation.value, 0),
+                              ).createShader(bounds);
+                            },
+                            child: const Text(
+                              'VOCAL FOR SANATAN',
+                              style: TextStyle(
+                                fontFamily: 'Inter',
+                                fontSize: 26,
+                                fontWeight: FontWeight.w900,
+                                color: Colors.white,
+                                letterSpacing: 3.5,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 10),
+
+                      // Premium Subtitle Badge
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFF7A00).withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: const Color(0xFFFF7A00).withValues(alpha: 0.2)),
+                        ),
+                        child: Text(
+                          'DISCOVER & SUPPORT LOCAL HERITAGE',
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: const Color(0xFFFF8C00).withValues(alpha: 0.9),
+                            letterSpacing: 1.8,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const Spacer(flex: 2),
+
+                // ─── 4. CRED-STYLE FUTURISTIC LOADER & PERCENTAGE COUNTER ───
+                AnimatedBuilder(
+                  animation: _progressController,
+                  builder: (context, child) {
+                    final percent = (_progressAnimation.value * 100).toInt();
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 40.0),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                percent < 100 ? 'INITIALIZING APPLICATION...' : 'READY',
+                                style: TextStyle(
+                                  color: Colors.white.withValues(alpha: 0.4),
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 1.5,
+                                ),
+                              ),
+                              Text(
+                                '$percent%',
+                                style: const TextStyle(
+                                  color: Color(0xFFFF7A00),
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: 1.0,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          // Custom Glowing Progress Bar
+                          Container(
+                            height: 3,
+                            width: double.infinity,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(2),
+                            ),
+                            child: FractionallySizedBox(
+                              alignment: Alignment.centerLeft,
+                              widthFactor: _progressAnimation.value,
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  gradient: const LinearGradient(
+                                    colors: [Color(0xFFFF7A00), Color(0xFFFF3D00)],
+                                  ),
+                                  borderRadius: BorderRadius.circular(2),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: const Color(0xFFFF7A00).withValues(alpha: 0.8),
+                                      blurRadius: 6,
+                                      spreadRadius: 1,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+
+                const SizedBox(height: 45),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
+
+  /// Checks if custom user uploaded splash image asset is present, else falls back to vector
+  Widget _buildSplashImageOrVector() {
+    return Image.asset(
+      'assets/images/splash_logo.png',
+      fit: BoxFit.cover,
+      errorBuilder: (context, error, stackTrace) {
+        return Image.asset(
+          'assets/images/splash.png',
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) {
+            return CustomPaint(
+              painter: SplashEmblemPainter(),
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+// ─── AMBIENT FLOATING PARTICLE ENGINE ───
+class Particle {
+  late double x;
+  late double y;
+  late double speed;
+  late double size;
+  late double opacity;
+
+  Particle() {
+    reset();
+  }
+
+  void reset() {
+    final rand = math.Random();
+    x = rand.nextDouble();
+    y = 1.0 + rand.nextDouble() * 0.2;
+    speed = 0.0003 + rand.nextDouble() * 0.0008;
+    size = 1.5 + rand.nextDouble() * 3.5;
+    opacity = 0.15 + rand.nextDouble() * 0.55;
+  }
+
+  void update() {
+    y -= speed;
+    if (y < -0.1) {
+      reset();
+    }
+  }
+}
+
+class ParticleSystemPainter extends CustomPainter {
+  final List<Particle> particles;
+
+  ParticleSystemPainter(this.particles);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..style = PaintingStyle.fill;
+
+    for (var p in particles) {
+      p.update();
+      paint.color = const Color(0xFFFF7A00).withValues(alpha: p.opacity);
+      canvas.drawCircle(
+        Offset(p.x * size.width, p.y * size.height),
+        p.size,
+        paint,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
+}
+
+// ─── SPLASH BACKGROUND PAINTER ───
+class SplashBackgroundPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Rect.fromLTWH(0, 0, size.width, size.height);
+    final bgPaint = Paint()
+      ..shader = LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [
+          const Color(0xFF070605),
+          const Color(0xFF0F0C0A),
+          const Color(0xFF330E00),
+          const Color(0xFF7A2000),
+        ],
+        stops: const [0.0, 0.45, 0.85, 1.0],
+      ).createShader(rect);
+    canvas.drawRect(rect, bgPaint);
+
+    final stripePaint = Paint()
+      ..color = Colors.white.withValues(alpha: 0.015)
+      ..strokeWidth = 1.0;
+
+    double spacing = 14.0;
+    for (double x = 0; x < size.width; x += spacing) {
+      canvas.drawLine(Offset(x, 0), Offset(x, size.height), stripePaint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+// ─── VECTOR FALLBACK EMBLEM PAINTER ───
+class SplashEmblemPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = size.width * 0.35;
+
+    final paint = Paint()
+      ..color = const Color(0xFFFF7A00)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.5;
+    canvas.drawCircle(center, radius, paint);
+
+    final rayPaint = Paint()
+      ..color = const Color(0xFFFF7A00)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.0;
+    for (int i = 0; i < 24; i++) {
+      double angle = (i * 360 / 24) * math.pi / 180;
+      Offset p1 = Offset(center.dx + radius * math.cos(angle), center.dy + radius * math.sin(angle));
+      Offset p2 = Offset(center.dx + (radius + 5) * math.cos(angle), center.dy + (radius + 5) * math.sin(angle));
+      canvas.drawLine(p1, p2, rayPaint);
+    }
+
+    final flagPaint = Paint()
+      ..color = const Color(0xFFFF7A00)
+      ..style = PaintingStyle.fill;
+
+    final flagPath = Path();
+    double poleX = center.dx - 8;
+    double topY = center.dy - radius + 10;
+    double bottomY = center.dy + radius - 10;
+    double clothTopY = center.dy - radius + 12;
+    double clothBottomY = center.dy + 6;
+    double tipX = center.dx + radius - 6;
+
+    flagPath.moveTo(poleX, topY);
+    flagPath.lineTo(poleX, bottomY);
+
+    flagPath.moveTo(poleX, clothTopY);
+    flagPath.lineTo(tipX, (clothTopY + clothBottomY) / 2);
+    flagPath.lineTo(poleX, clothBottomY);
+    flagPath.close();
+
+    canvas.drawPath(flagPath, flagPaint);
+
+    final poleLinePaint = Paint()
+      ..color = const Color(0xFF0C0C0C)
+      ..strokeWidth = 2.0;
+    canvas.drawLine(Offset(poleX, topY), Offset(poleX, bottomY), poleLinePaint);
+
+    final textPainter = TextPainter(
+      text: const TextSpan(
+        text: 'ॐ',
+        style: TextStyle(color: Colors.black, fontSize: 13, fontWeight: FontWeight.bold),
+      ),
+      textDirection: TextDirection.ltr,
+    );
+    textPainter.layout();
+
+    double clothCenterX = poleX + ((tipX - poleX) * 0.33);
+    double clothCenterY = (clothTopY + clothBottomY) / 2;
+
+    textPainter.paint(
+      canvas,
+      Offset(clothCenterX - (textPainter.width / 2), clothCenterY - (textPainter.height / 2)),
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
