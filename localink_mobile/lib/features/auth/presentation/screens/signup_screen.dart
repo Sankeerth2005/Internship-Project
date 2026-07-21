@@ -68,7 +68,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
   // Animation & Ember Particles
   late AnimationController _particleController;
   final List<EmberParticle> _particles =
-      List.generate(35, (index) => EmberParticle());
+      List.generate(30, (index) => EmberParticle());
 
   @override
   void initState() {
@@ -387,21 +387,22 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
       }
     });
 
+
     return Scaffold(
-      backgroundColor: const Color(0xFF070504),
+      backgroundColor: const Color(0xFF060403),
       body: Stack(
         children: [
-          // ─── 1. DYNAMIC TEMPLE & SUNSET BACKGROUND ARTWORK CANVAS ───
+          // ─── 1. AMBIENT BACKGROUND PAINTER WITH EMBER PARTICLES ───
           Positioned.fill(
             child: CustomPaint(
-              painter: SignupHeroPainter(_particles),
+              painter: PremiumBackgroundPainter(_particles),
             ),
           ),
 
-          // ─── 2. TOP BACK BUTTON ───
+          // ─── 2. FLOATING TOP NAV BAR (BACK BUTTON) ───
           Positioned(
-            top: 40,
-            left: 18,
+            top: 44,
+            left: 20,
             child: SafeArea(
               child: GestureDetector(
                 onTap: () {
@@ -409,19 +410,20 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
                   context.pop();
                 },
                 child: Container(
-                  width: 40,
-                  height: 40,
+                  width: 42,
+                  height: 42,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: const Color(0xFF100B08).withValues(alpha: 0.8),
+                    color: const Color(0xFF140F0A).withValues(alpha: 0.85),
                     border: Border.all(
-                      color: const Color(0xFFFF8C00).withValues(alpha: 0.5),
+                      color: const Color(0xFFFF8C00).withValues(alpha: 0.45),
                       width: 1.2,
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(0xFFFF7A00).withValues(alpha: 0.25),
-                        blurRadius: 10,
+                        color: const Color(0xFFFF7A00).withValues(alpha: 0.2),
+                        blurRadius: 12,
+                        spreadRadius: 1,
                       ),
                     ],
                   ),
@@ -435,202 +437,236 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
             ),
           ),
 
-          // ─── 3. FIXED NON-SCROLLABLE CONTENT LAYOUT ───
+          // ─── 3. RESPONSIVE SCROLLABLE CONTENT BODY ───
           SafeArea(
-            child: Padding(
+            child: SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
               padding: const EdgeInsets.symmetric(horizontal: 20.0),
-              child: Column(
-                children: [
-                  // Top clearance so header title sits cleanly below the sun disc & temple peak
-                  const SizedBox(height: 100),
-
-                  // ─── HEADER BRANDING TYPOGRAPHY BLOCK ───
-                  RichText(
-                    textAlign: TextAlign.center,
-                    text: const TextSpan(
-                      children: [
-                        TextSpan(
-                          text: 'Create Your ',
-                          style: TextStyle(
-                            fontFamily: 'serif',
-                            fontSize: 27,
-                            fontWeight: FontWeight.w400,
-                            color: Colors.white,
-                            letterSpacing: 0.3,
-                            shadows: [
-                              Shadow(
-                                color: Colors.black,
-                                blurRadius: 6,
-                                offset: Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                        ),
-                        TextSpan(
-                          text: 'Account',
-                          style: TextStyle(
-                            fontFamily: 'serif',
-                            fontSize: 27,
-                            fontWeight: FontWeight.w700,
-                            color: Color(0xFFFF9D00),
-                            letterSpacing: 0.3,
-                            shadows: [
-                              Shadow(
-                                color: Colors.black,
-                                blurRadius: 6,
-                                offset: Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-
-                  // Lotus Divider: ─── 🪷 ───
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
+              child: Center(
+                child: Container(
+                  constraints: const BoxConstraints(maxWidth: 440),
+                  child: Column(
                     children: [
-                      Container(
-                        width: 38,
-                        height: 1.2,
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              Colors.transparent,
-                              const Color(0xFFFF9D00).withValues(alpha: 0.7),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 6.0),
-                        child: Icon(
-                          Icons.filter_vintage_rounded,
-                          size: 13,
-                          color: Color(0xFFFF9D00),
-                        ),
-                      ),
-                      Container(
-                        width: 38,
-                        height: 1.2,
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              const Color(0xFFFF9D00).withValues(alpha: 0.7),
-                              Colors.transparent,
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
+                      const SizedBox(height: 24),
 
-                  // Subtitle Text
-                  const Text(
-                    'Join Vocal For Sanatan and be a part of\npreserving our heritage.',
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 12,
-                      color: Color(0xFFC4B8AC),
-                      height: 1.3,
-                      shadows: [
-                        Shadow(
-                          color: Colors.black,
-                          blurRadius: 4,
-                          offset: Offset(0, 1),
-                        ),
-                      ],
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 12),
-
-                  // ─── 4. MAIN SIGNUP CARD CONTAINER ───
-                  Expanded(
-                    child: Align(
-                      alignment: Alignment.topCenter,
-                      child: Container(
-                        constraints: const BoxConstraints(maxWidth: 420),
-                        padding: const EdgeInsets.all(14.0),
+                      // ─── HERO EMBLEM BADGE ───
+                      Container(
+                        width: 72,
+                        height: 72,
                         decoration: BoxDecoration(
-                          color: const Color(0xFF0D0A08).withValues(alpha: 0.95),
-                          borderRadius: BorderRadius.circular(22),
+                          shape: BoxShape.circle,
+                          gradient: const LinearGradient(
+                            colors: [
+                              Color(0xFF2A170B),
+                              Color(0xFF140B05),
+                            ],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
                           border: Border.all(
-                            color: const Color(0xFFFF7A00).withValues(alpha: 0.35),
-                            width: 1.0,
+                            color: const Color(0xFFFF8C00).withValues(alpha: 0.5),
+                            width: 1.5,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFFFF7A00).withValues(alpha: 0.3),
+                              blurRadius: 20,
+                              spreadRadius: 2,
+                            ),
+                          ],
+                        ),
+                        child: Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            const Icon(
+                              Icons.synagogue_outlined,
+                              size: 34,
+                              color: Color(0xFFFF9D00),
+                            ),
+                            Positioned(
+                              top: 8,
+                              right: 14,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 4, vertical: 1),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFFF7A00),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: const Text(
+                                  '\u0950',
+                                  style: TextStyle(
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // ─── HEADER BRANDING TYPOGRAPHY BLOCK ───
+                      RichText(
+                        textAlign: TextAlign.center,
+                        text: const TextSpan(
+                          children: [
+                            TextSpan(
+                              text: 'Create Your ',
+                              style: TextStyle(
+                                fontFamily: 'serif',
+                                fontSize: 28,
+                                fontWeight: FontWeight.w400,
+                                color: Colors.white,
+                                letterSpacing: 0.4,
+                              ),
+                            ),
+                            TextSpan(
+                              text: 'Account',
+                              style: TextStyle(
+                                fontFamily: 'serif',
+                                fontSize: 28,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFFFF9D00),
+                                letterSpacing: 0.4,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+
+                      // Lotus & Golden Line Divider: ─── 🪷 ───
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            width: 45,
+                            height: 1.2,
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [
+                                  Colors.transparent,
+                                  const Color(0xFFFF9D00).withValues(alpha: 0.8),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 8.0),
+                            child: Icon(
+                              Icons.filter_vintage_rounded,
+                              size: 14,
+                              color: Color(0xFFFF9D00),
+                            ),
+                          ),
+                          Container(
+                            width: 45,
+                            height: 1.2,
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [
+                                  const Color(0xFFFF9D00).withValues(alpha: 0.8),
+                                  Colors.transparent,
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+
+                      // Subtitle Text
+                      const Text(
+                        'Join Vocal For Sanatan and be a part of\npreserving our heritage.',
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 13,
+                          color: Color(0xFFC8BCB0),
+                          height: 1.4,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 24),
+
+                      // ─── 4. MAIN SIGNUP CARD CONTAINER ───
+                      Container(
+                        padding: const EdgeInsets.all(18.0),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF110D0A).withValues(alpha: 0.92),
+                          borderRadius: BorderRadius.circular(24),
+                          border: Border.all(
+                            color: const Color(0xFFFF7A00).withValues(alpha: 0.30),
+                            width: 1.2,
                           ),
                           boxShadow: [
                             BoxShadow(
                               color: const Color(0xFFFF7A00).withValues(alpha: 0.12),
-                              blurRadius: 20,
-                              spreadRadius: 1,
+                              blurRadius: 28,
+                              spreadRadius: 2,
                             ),
                           ],
                         ),
                         child: Form(
                           key: _formKey,
                           child: Column(
-                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               // Field 1: Full Name
-                              SizedBox(
-                                height: 40,
-                                child: TextFormField(
-                                  controller: _nameController,
-                                  validator: _validateName,
-                                  style: const TextStyle(
-                                    fontFamily: 'Inter',
-                                    fontSize: 13,
-                                    color: Colors.white,
-                                  ),
-                                  decoration: _inputDecoration(
-                                    hint: 'Full Name',
-                                    prefixIcon: Icons.person_outline_rounded,
-                                  ),
+                              TextFormField(
+                                controller: _nameController,
+                                validator: _validateName,
+                                style: const TextStyle(
+                                  fontFamily: 'Inter',
+                                  fontSize: 14,
+                                  color: Colors.white,
+                                ),
+                                decoration: _inputDecoration(
+                                  hint: 'Full Name',
+                                  prefixIcon: Icons.person_outline_rounded,
                                 ),
                               ),
-                              const SizedBox(height: 6),
+                              const SizedBox(height: 12),
 
-                              // Field 2: Phone Number + Code Selector
+                              // Field 2: Phone Number + Country Code Selector
                               Row(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Container(
-                                    height: 40,
-                                    padding:
-                                        const EdgeInsets.symmetric(horizontal: 8),
+                                    height: 50,
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 10),
                                     decoration: BoxDecoration(
-                                      color: const Color(0xFF14110E),
-                                      borderRadius: BorderRadius.circular(12),
+                                      color: const Color(0xFF18130F),
+                                      borderRadius: BorderRadius.circular(14),
                                       border: Border.all(
-                                          color: const Color(0xFF2E241A)),
+                                          color: const Color(0xFF2A2017)),
                                     ),
                                     child: Row(
                                       children: [
                                         const Icon(
                                           Icons.phone_outlined,
                                           color: Color(0xFFFF7A00),
-                                          size: 15,
+                                          size: 18,
                                         ),
                                         const SizedBox(width: 4),
                                         DropdownButtonHideUnderline(
                                           child: DropdownButton<String>(
                                             value: _selectedPhoneCode,
                                             dropdownColor:
-                                                const Color(0xFF16110D),
+                                                const Color(0xFF1B1511),
                                             style: const TextStyle(
                                               fontFamily: 'Inter',
-                                              fontSize: 12.5,
+                                              fontSize: 13,
                                               fontWeight: FontWeight.w600,
                                               color: Colors.white,
                                             ),
                                             icon: const Icon(
                                               Icons.keyboard_arrow_down_rounded,
                                               color: Colors.white54,
-                                              size: 16,
+                                              size: 18,
                                             ),
                                             items: _phoneCountries.map((c) {
                                               return DropdownMenuItem<String>(
@@ -649,311 +685,281 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
                                       ],
                                     ),
                                   ),
-                                  const SizedBox(width: 8),
+                                  const SizedBox(width: 10),
                                   Expanded(
-                                    child: SizedBox(
-                                      height: 40,
-                                      child: TextFormField(
-                                        controller: _phoneController,
-                                        keyboardType: TextInputType.phone,
-                                        validator: _validatePhone,
-                                        style: const TextStyle(
-                                          fontFamily: 'Inter',
-                                          fontSize: 13,
-                                          color: Colors.white,
-                                        ),
-                                        decoration: _inputDecoration(
-                                          hint: 'Phone Number',
-                                          prefixIcon: null,
-                                        ),
+                                    child: TextFormField(
+                                      controller: _phoneController,
+                                      keyboardType: TextInputType.phone,
+                                      validator: _validatePhone,
+                                      style: const TextStyle(
+                                        fontFamily: 'Inter',
+                                        fontSize: 14,
+                                        color: Colors.white,
+                                      ),
+                                      decoration: _inputDecoration(
+                                        hint: 'Phone Number',
+                                        prefixIcon: null,
                                       ),
                                     ),
                                   ),
                                 ],
                               ),
-                              const SizedBox(height: 6),
+                              const SizedBox(height: 12),
 
                               // Field 3: Email Address
-                              SizedBox(
-                                height: 40,
-                                child: TextFormField(
-                                  controller: _emailController,
-                                  keyboardType: TextInputType.emailAddress,
-                                  validator: _validateEmail,
-                                  style: const TextStyle(
-                                    fontFamily: 'Inter',
-                                    fontSize: 13,
-                                    color: Colors.white,
-                                  ),
-                                  decoration: _inputDecoration(
-                                    hint: 'Email Address',
-                                    prefixIcon: Icons.mail_outline_rounded,
-                                  ),
+                              TextFormField(
+                                controller: _emailController,
+                                keyboardType: TextInputType.emailAddress,
+                                validator: _validateEmail,
+                                style: const TextStyle(
+                                  fontFamily: 'Inter',
+                                  fontSize: 14,
+                                  color: Colors.white,
+                                ),
+                                decoration: _inputDecoration(
+                                  hint: 'Email Address',
+                                  prefixIcon: Icons.mail_outline_rounded,
                                 ),
                               ),
-                              const SizedBox(height: 6),
+                              const SizedBox(height: 12),
 
                               // Field 4: Country Dropdown
-                              SizedBox(
-                                height: 40,
-                                child: DropdownButtonFormField<Country>(
-                                  initialValue: _selectedCountry,
-                                  dropdownColor: const Color(0xFF16110D),
-                                  style: const TextStyle(
-                                    fontFamily: 'Inter',
-                                    fontSize: 13,
-                                    color: Colors.white,
-                                  ),
-                                  decoration: _inputDecoration(
-                                    hint: _loadingCountries
-                                        ? 'Loading Countries...'
-                                        : 'Country',
-                                    prefixIcon: Icons.language_rounded,
-                                  ),
-                                  icon: const Icon(
-                                    Icons.keyboard_arrow_down_rounded,
-                                    color: Colors.white54,
-                                    size: 18,
-                                  ),
-                                  items: _countries.map((c) {
-                                    return DropdownMenuItem<Country>(
-                                      value: c,
-                                      child: Text(c.name),
-                                    );
-                                  }).toList(),
-                                  onChanged: (val) {
-                                    if (val != null) {
-                                      setState(() {
-                                        _selectedCountry = val;
-                                        if (val.phoneCode != null &&
-                                            val.phoneCode!.isNotEmpty) {
-                                          _selectedPhoneCode = val.phoneCode!
-                                              .replaceAll('+', '');
-                                        }
-                                      });
-                                      _loadStates(val.iso2);
-                                    }
-                                  },
-                                  validator: (v) =>
-                                      v == null ? 'Country is required' : null,
+                              DropdownButtonFormField<Country>(
+                                initialValue: _selectedCountry,
+                                dropdownColor: const Color(0xFF1B1511),
+                                style: const TextStyle(
+                                  fontFamily: 'Inter',
+                                  fontSize: 14,
+                                  color: Colors.white,
                                 ),
+                                decoration: _inputDecoration(
+                                  hint: _loadingCountries
+                                      ? 'Loading Countries...'
+                                      : 'Country',
+                                  prefixIcon: Icons.language_rounded,
+                                ),
+                                icon: const Icon(
+                                  Icons.keyboard_arrow_down_rounded,
+                                  color: Colors.white54,
+                                  size: 20,
+                                ),
+                                items: _countries.map((c) {
+                                  return DropdownMenuItem<Country>(
+                                    value: c,
+                                    child: Text(c.name),
+                                  );
+                                }).toList(),
+                                onChanged: (val) {
+                                  if (val != null) {
+                                    setState(() {
+                                      _selectedCountry = val;
+                                      if (val.phoneCode != null &&
+                                          val.phoneCode!.isNotEmpty) {
+                                        _selectedPhoneCode =
+                                            val.phoneCode!.replaceAll('+', '');
+                                      }
+                                    });
+                                    _loadStates(val.iso2);
+                                  }
+                                },
+                                validator: (v) =>
+                                    v == null ? 'Country is required' : null,
                               ),
-                              const SizedBox(height: 6),
+                              const SizedBox(height: 12),
 
                               // Fields 5 & 6: State & City Dropdowns (Side-by-Side)
                               Row(
                                 children: [
                                   Expanded(
-                                    child: SizedBox(
-                                      height: 40,
-                                      child: DropdownButtonFormField<StateModel>(
-                                        initialValue: _selectedState,
-                                        dropdownColor: const Color(0xFF16110D),
-                                        isExpanded: true,
-                                        style: const TextStyle(
-                                          fontFamily: 'Inter',
-                                          fontSize: 12.5,
-                                          color: Colors.white,
-                                        ),
-                                        decoration: _inputDecoration(
-                                          hint: _loadingStates
-                                              ? 'Loading...'
-                                              : 'State',
-                                          prefixIcon: Icons
-                                              .account_balance_outlined,
-                                        ),
-                                        icon: const Icon(
-                                          Icons.keyboard_arrow_down_rounded,
-                                          color: Colors.white54,
-                                          size: 16,
-                                        ),
-                                        items: _states.map((s) {
-                                          return DropdownMenuItem<StateModel>(
-                                            value: s,
-                                            child: Text(s.name,
-                                                overflow: TextOverflow.ellipsis),
-                                          );
-                                        }).toList(),
-                                        onChanged: (val) {
-                                          if (val != null &&
-                                              _selectedCountry != null) {
-                                            setState(
-                                                () => _selectedState = val);
-                                            _loadCities(
-                                                _selectedCountry!.iso2, val.iso2);
-                                          }
-                                        },
-                                        validator: (v) =>
-                                            v == null ? 'Required' : null,
+                                    child: DropdownButtonFormField<StateModel>(
+                                      initialValue: _selectedState,
+                                      dropdownColor: const Color(0xFF1B1511),
+                                      isExpanded: true,
+                                      style: const TextStyle(
+                                        fontFamily: 'Inter',
+                                        fontSize: 13,
+                                        color: Colors.white,
                                       ),
+                                      decoration: _inputDecoration(
+                                        hint: _loadingStates
+                                            ? 'Loading...'
+                                            : 'State',
+                                        prefixIcon:
+                                            Icons.account_balance_outlined,
+                                      ),
+                                      icon: const Icon(
+                                        Icons.keyboard_arrow_down_rounded,
+                                        color: Colors.white54,
+                                        size: 18,
+                                      ),
+                                      items: _states.map((s) {
+                                        return DropdownMenuItem<StateModel>(
+                                          value: s,
+                                          child: Text(s.name,
+                                              overflow: TextOverflow.ellipsis),
+                                        );
+                                      }).toList(),
+                                      onChanged: (val) {
+                                        if (val != null &&
+                                            _selectedCountry != null) {
+                                          setState(() => _selectedState = val);
+                                          _loadCities(
+                                              _selectedCountry!.iso2, val.iso2);
+                                        }
+                                      },
+                                      validator: (v) =>
+                                          v == null ? 'Required' : null,
                                     ),
                                   ),
-                                  const SizedBox(width: 8),
+                                  const SizedBox(width: 10),
                                   Expanded(
-                                    child: SizedBox(
-                                      height: 40,
-                                      child: DropdownButtonFormField<CityModel>(
-                                        initialValue: _selectedCity,
-                                        dropdownColor: const Color(0xFF16110D),
-                                        isExpanded: true,
-                                        style: const TextStyle(
-                                          fontFamily: 'Inter',
-                                          fontSize: 12.5,
-                                          color: Colors.white,
-                                        ),
-                                        decoration: _inputDecoration(
-                                          hint: _loadingCities
-                                              ? 'Loading...'
-                                              : 'City',
-                                          prefixIcon:
-                                              Icons.location_city_rounded,
-                                        ),
-                                        icon: const Icon(
-                                          Icons.keyboard_arrow_down_rounded,
-                                          color: Colors.white54,
-                                          size: 16,
-                                        ),
-                                        items: _cities.map((c) {
-                                          return DropdownMenuItem<CityModel>(
-                                            value: c,
-                                            child: Text(c.name,
-                                                overflow: TextOverflow.ellipsis),
-                                          );
-                                        }).toList(),
-                                        onChanged: (val) {
-                                          if (val != null) {
-                                            setState(() => _selectedCity = val);
-                                          }
-                                        },
-                                        validator: (v) =>
-                                            v == null ? 'Required' : null,
+                                    child: DropdownButtonFormField<CityModel>(
+                                      initialValue: _selectedCity,
+                                      dropdownColor: const Color(0xFF1B1511),
+                                      isExpanded: true,
+                                      style: const TextStyle(
+                                        fontFamily: 'Inter',
+                                        fontSize: 13,
+                                        color: Colors.white,
                                       ),
+                                      decoration: _inputDecoration(
+                                        hint: _loadingCities
+                                            ? 'Loading...'
+                                            : 'City',
+                                        prefixIcon: Icons.location_city_rounded,
+                                      ),
+                                      icon: const Icon(
+                                        Icons.keyboard_arrow_down_rounded,
+                                        color: Colors.white54,
+                                        size: 18,
+                                      ),
+                                      items: _cities.map((c) {
+                                        return DropdownMenuItem<CityModel>(
+                                          value: c,
+                                          child: Text(c.name,
+                                              overflow: TextOverflow.ellipsis),
+                                        );
+                                      }).toList(),
+                                      onChanged: (val) {
+                                        if (val != null) {
+                                          setState(() => _selectedCity = val);
+                                        }
+                                      },
+                                      validator: (v) =>
+                                          v == null ? 'Required' : null,
                                     ),
                                   ),
                                 ],
                               ),
-                              const SizedBox(height: 6),
+                              const SizedBox(height: 12),
 
                               // Fields 7 & 8: Pincode & Street Address (Side-by-Side)
                               Row(
                                 children: [
                                   Expanded(
-                                    child: SizedBox(
-                                      height: 40,
-                                      child: TextFormField(
-                                        controller: _pincodeController,
-                                        validator: _validatePincode,
-                                        style: const TextStyle(
-                                          fontFamily: 'Inter',
-                                          fontSize: 12.5,
-                                          color: Colors.white,
-                                        ),
-                                        decoration: _inputDecoration(
-                                          hint: 'Pincode',
-                                          prefixIcon:
-                                              Icons.location_on_outlined,
-                                        ),
+                                    child: TextFormField(
+                                      controller: _pincodeController,
+                                      validator: _validatePincode,
+                                      style: const TextStyle(
+                                        fontFamily: 'Inter',
+                                        fontSize: 13,
+                                        color: Colors.white,
+                                      ),
+                                      decoration: _inputDecoration(
+                                        hint: 'Pincode',
+                                        prefixIcon: Icons.location_on_outlined,
                                       ),
                                     ),
                                   ),
-                                  const SizedBox(width: 8),
+                                  const SizedBox(width: 10),
                                   Expanded(
-                                    child: SizedBox(
-                                      height: 40,
-                                      child: TextFormField(
-                                        controller: _streetController,
-                                        validator: _validateStreet,
-                                        style: const TextStyle(
-                                          fontFamily: 'Inter',
-                                          fontSize: 12.5,
-                                          color: Colors.white,
-                                        ),
-                                        decoration: _inputDecoration(
-                                          hint: 'Street Address',
-                                          prefixIcon: Icons.add_road_rounded,
-                                        ),
+                                    child: TextFormField(
+                                      controller: _streetController,
+                                      validator: _validateStreet,
+                                      style: const TextStyle(
+                                        fontFamily: 'Inter',
+                                        fontSize: 13,
+                                        color: Colors.white,
+                                      ),
+                                      decoration: _inputDecoration(
+                                        hint: 'Street Address',
+                                        prefixIcon: Icons.add_road_rounded,
                                       ),
                                     ),
                                   ),
                                 ],
                               ),
-                              const SizedBox(height: 6),
+                              const SizedBox(height: 12),
 
                               // Field 9: Password
-                              SizedBox(
-                                height: 40,
-                                child: TextFormField(
-                                  controller: _passwordController,
-                                  obscureText: !_showPassword,
-                                  validator: _validatePassword,
-                                  style: const TextStyle(
-                                    fontFamily: 'Inter',
-                                    fontSize: 13,
-                                    color: Colors.white,
-                                  ),
-                                  decoration: _inputDecoration(
-                                    hint: 'Password',
-                                    prefixIcon: Icons.lock_outline_rounded,
-                                  ).copyWith(
-                                    suffixIcon: GestureDetector(
-                                      onTap: () => setState(
-                                          () => _showPassword = !_showPassword),
-                                      child: Icon(
-                                        _showPassword
-                                            ? Icons.visibility_outlined
-                                            : Icons.visibility_off_outlined,
-                                        color: Colors.white54,
-                                        size: 17,
-                                      ),
+                              TextFormField(
+                                controller: _passwordController,
+                                obscureText: !_showPassword,
+                                validator: _validatePassword,
+                                style: const TextStyle(
+                                  fontFamily: 'Inter',
+                                  fontSize: 14,
+                                  color: Colors.white,
+                                ),
+                                decoration: _inputDecoration(
+                                  hint: 'Password',
+                                  prefixIcon: Icons.lock_outline_rounded,
+                                ).copyWith(
+                                  suffixIcon: GestureDetector(
+                                    onTap: () => setState(
+                                        () => _showPassword = !_showPassword),
+                                    child: Icon(
+                                      _showPassword
+                                          ? Icons.visibility_outlined
+                                          : Icons.visibility_off_outlined,
+                                      color: Colors.white54,
+                                      size: 19,
                                     ),
                                   ),
                                 ),
                               ),
-                              const SizedBox(height: 6),
+                              const SizedBox(height: 12),
 
                               // Field 10: Confirm Password
-                              SizedBox(
-                                height: 40,
-                                child: TextFormField(
-                                  controller: _confirmPasswordController,
-                                  obscureText: !_showConfirmPassword,
-                                  validator: _validateConfirmPassword,
-                                  style: const TextStyle(
-                                    fontFamily: 'Inter',
-                                    fontSize: 13,
-                                    color: Colors.white,
-                                  ),
-                                  decoration: _inputDecoration(
-                                    hint: 'Confirm Password',
-                                    prefixIcon: Icons.lock_outline_rounded,
-                                  ).copyWith(
-                                    suffixIcon: GestureDetector(
-                                      onTap: () => setState(() =>
-                                          _showConfirmPassword =
-                                              !_showConfirmPassword),
-                                      child: Icon(
-                                        _showConfirmPassword
-                                            ? Icons.visibility_outlined
-                                            : Icons.visibility_off_outlined,
-                                        color: Colors.white54,
-                                        size: 17,
-                                      ),
+                              TextFormField(
+                                controller: _confirmPasswordController,
+                                obscureText: !_showConfirmPassword,
+                                validator: _validateConfirmPassword,
+                                style: const TextStyle(
+                                  fontFamily: 'Inter',
+                                  fontSize: 14,
+                                  color: Colors.white,
+                                ),
+                                decoration: _inputDecoration(
+                                  hint: 'Confirm Password',
+                                  prefixIcon: Icons.lock_outline_rounded,
+                                ).copyWith(
+                                  suffixIcon: GestureDetector(
+                                    onTap: () => setState(() =>
+                                        _showConfirmPassword =
+                                            !_showConfirmPassword),
+                                    child: Icon(
+                                      _showConfirmPassword
+                                          ? Icons.visibility_outlined
+                                          : Icons.visibility_off_outlined,
+                                      color: Colors.white54,
+                                      size: 19,
                                     ),
                                   ),
                                 ),
                               ),
-                              const SizedBox(height: 8),
+                              const SizedBox(height: 16),
 
-                              // Privacy Info Banner Box
+                              // Privacy Info Shield Banner Box
                               Container(
                                 padding: const EdgeInsets.symmetric(
-                                    horizontal: 10, vertical: 7),
+                                    horizontal: 14, vertical: 10),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFF14100D),
-                                  borderRadius: BorderRadius.circular(12),
+                                  color: const Color(0xFF17120E),
+                                  borderRadius: BorderRadius.circular(14),
                                   border: Border.all(
                                     color: const Color(0xFFFF7A00)
-                                        .withValues(alpha: 0.22),
+                                        .withValues(alpha: 0.25),
                                   ),
                                 ),
                                 child: Row(
@@ -961,9 +967,9 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
                                     const Icon(
                                       Icons.verified_user_outlined,
                                       color: Color(0xFFFF9D00),
-                                      size: 18,
+                                      size: 22,
                                     ),
-                                    const SizedBox(width: 8),
+                                    const SizedBox(width: 12),
                                     const Expanded(
                                       child: Column(
                                         crossAxisAlignment:
@@ -973,18 +979,18 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
                                             'Your privacy is important to us',
                                             style: TextStyle(
                                               fontFamily: 'Inter',
-                                              fontSize: 11.5,
+                                              fontSize: 12.5,
                                               fontWeight: FontWeight.w700,
                                               color: Color(0xFFFF9D00),
                                             ),
                                           ),
-                                          SizedBox(height: 1),
+                                          SizedBox(height: 2),
                                           Text(
                                             'We never share your information with anyone.',
                                             style: TextStyle(
                                               fontFamily: 'Inter',
-                                              fontSize: 10.5,
-                                              color: Color(0xFFA09488),
+                                              fontSize: 11,
+                                              color: Color(0xFFAAA095),
                                             ),
                                           ),
                                         ],
@@ -993,12 +999,12 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
                                   ],
                                 ),
                               ),
-                              const SizedBox(height: 10),
+                              const SizedBox(height: 20),
 
                               // ─── ACTION BUTTON ("Create Account") ───
                               SizedBox(
                                 width: double.infinity,
-                                height: 44,
+                                height: 52,
                                 child: Container(
                                   decoration: BoxDecoration(
                                     borderRadius: BorderRadius.circular(16),
@@ -1013,9 +1019,9 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
                                     boxShadow: [
                                       BoxShadow(
                                         color: const Color(0xFFFF6A00)
-                                            .withValues(alpha: 0.35),
-                                        blurRadius: 12,
-                                        offset: const Offset(0, 3),
+                                            .withValues(alpha: 0.4),
+                                        blurRadius: 16,
+                                        offset: const Offset(0, 4),
                                       ),
                                     ],
                                   ),
@@ -1028,14 +1034,14 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
                                         borderRadius: BorderRadius.circular(16),
                                       ),
                                       padding: const EdgeInsets.symmetric(
-                                          horizontal: 14),
+                                          horizontal: 16),
                                     ),
                                     child: _isSubmitting
                                         ? const SizedBox(
-                                            height: 18,
-                                            width: 18,
+                                            height: 22,
+                                            width: 22,
                                             child: CircularProgressIndicator(
-                                              strokeWidth: 2.0,
+                                              strokeWidth: 2.2,
                                               color: Colors.white,
                                             ),
                                           )
@@ -1046,23 +1052,23 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
                                               const Icon(
                                                 Icons.synagogue_outlined,
                                                 color: Colors.white,
-                                                size: 19,
+                                                size: 22,
                                               ),
                                               const Spacer(),
                                               const Text(
                                                 'Create Account',
                                                 style: TextStyle(
                                                   fontFamily: 'Inter',
-                                                  fontSize: 15,
+                                                  fontSize: 16,
                                                   fontWeight: FontWeight.w700,
                                                   color: Colors.white,
-                                                  letterSpacing: 0.3,
+                                                  letterSpacing: 0.4,
                                                 ),
                                               ),
                                               const Spacer(),
                                               Container(
-                                                width: 26,
-                                                height: 26,
+                                                width: 30,
+                                                height: 30,
                                                 decoration: const BoxDecoration(
                                                   shape: BoxShape.circle,
                                                   color: Color(0xFFFF9E1B),
@@ -1070,7 +1076,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
                                                 child: const Icon(
                                                   Icons.arrow_forward_rounded,
                                                   color: Colors.white,
-                                                  size: 14,
+                                                  size: 16,
                                                 ),
                                               ),
                                             ],
@@ -1082,45 +1088,43 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
                           ),
                         ),
                       ),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
+                      const SizedBox(height: 20),
 
-                  // Footer Link: "Already have an account? Login"
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 8.0),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Text(
-                          'Already have an account? ',
-                          style: TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 13,
-                            color: Color(0xFFC0B5A8),
-                          ),
-                        ),
-                        GestureDetector(
-                          onTap: () {
-                            HapticFeedback.lightImpact();
-                            context.push('/login', extra: _selectedType);
-                          },
-                          child: const Text(
-                            'Login',
+                      // Footer Link: "Already have an account? Login"
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Text(
+                            'Already have an account? ',
                             style: TextStyle(
                               fontFamily: 'Inter',
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                              color: Color(0xFFFF7A00),
-                              decoration: TextDecoration.underline,
-                              decorationStyle: TextDecorationStyle.dashed,
+                              fontSize: 14,
+                              color: Color(0xFFC0B5A8),
                             ),
                           ),
-                        ),
-                      ],
-                    ),
+                          GestureDetector(
+                            onTap: () {
+                              HapticFeedback.lightImpact();
+                              context.push('/login', extra: _selectedType);
+                            },
+                            child: const Text(
+                              'Login',
+                              style: TextStyle(
+                                fontFamily: 'Inter',
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFFFF7A00),
+                                decoration: TextDecoration.underline,
+                                decorationStyle: TextDecorationStyle.dashed,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 32),
+                    ],
                   ),
-                ],
+                ),
               ),
             ),
           ),
@@ -1137,44 +1141,43 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
       hintText: hint,
       hintStyle: const TextStyle(
         fontFamily: 'Inter',
-        fontSize: 12,
-        color: Color(0xFF756A60),
+        fontSize: 13,
+        color: Color(0xFF7B7065),
       ),
       prefixIcon: prefixIcon != null
           ? Icon(
               prefixIcon,
               color: const Color(0xFFFF7A00),
-              size: 16,
+              size: 18,
             )
           : null,
       filled: true,
-      fillColor: const Color(0xFF14110E),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      fillColor: const Color(0xFF18130F),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Color(0xFF2E241A)),
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: Color(0xFF2A2017)),
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Color(0xFF2E241A)),
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: Color(0xFF2A2017)),
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Color(0xFFFF7A00), width: 1.4),
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: Color(0xFFFF7A00), width: 1.5),
       ),
       errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(14),
         borderSide: const BorderSide(color: Color(0xFFFF4D4F)),
       ),
       focusedErrorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Color(0xFFFF4D4F), width: 1.4),
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: Color(0xFFFF4D4F), width: 1.5),
       ),
       errorStyle: const TextStyle(
         fontFamily: 'Inter',
-        fontSize: 10,
+        fontSize: 11,
         color: Color(0xFFFF4D4F),
-        height: 0.8,
       ),
     );
   }
@@ -1214,23 +1217,23 @@ class EmberParticle {
   }
 }
 
-// ─── HIGH-FIDELITY SIGNUP HERO PAINTER ───
+// ─── PREMIUM AMBIENT BACKGROUND PAINTER ───
 
-class SignupHeroPainter extends CustomPainter {
+class PremiumBackgroundPainter extends CustomPainter {
   final List<EmberParticle> particles;
 
-  SignupHeroPainter(this.particles);
+  PremiumBackgroundPainter(this.particles);
 
   @override
   void paint(Canvas canvas, Size size) {
     final rect = Rect.fromLTWH(0, 0, size.width, size.height);
 
-    // 1. Deep Background Gradient
+    // 1. Layered Dark Gradient
     final bgPaint = Paint()
       ..shader = const LinearGradient(
         colors: [
-          Color(0xFF0C0704),
-          Color(0xFF070504),
+          Color(0xFF0A0704),
+          Color(0xFF050302),
         ],
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
@@ -1238,62 +1241,23 @@ class SignupHeroPainter extends CustomPainter {
 
     canvas.drawRect(rect, bgPaint);
 
-    // 2. High Sunset Glow Aura (Radial Saffron Light behind top Spire)
-    final sunCenter = Offset(size.width * 0.5, size.height * 0.11);
+    // 2. Upper Radial Ambient Glow Aura
     final glowPaint = Paint()
       ..shader = RadialGradient(
-        center: const Alignment(0, -0.78),
-        radius: 0.65,
+        center: const Alignment(0, -0.76),
+        radius: 0.70,
         colors: [
-          const Color(0xFFFF6A00).withValues(alpha: 0.60),
-          const Color(0xFFD64000).withValues(alpha: 0.32),
-          const Color(0xFF3D1200).withValues(alpha: 0.10),
+          const Color(0xFFFF7A00).withValues(alpha: 0.38),
+          const Color(0xFFD64000).withValues(alpha: 0.18),
+          const Color(0xFF3D1200).withValues(alpha: 0.06),
           Colors.transparent,
         ],
-        stops: const [0.0, 0.38, 0.7, 1.0],
+        stops: const [0.0, 0.4, 0.75, 1.0],
       ).createShader(rect);
 
     canvas.drawRect(rect, glowPaint);
 
-    // 3. Glowing Sun Disc in Upper Sky
-    final sunPaint = Paint()
-      ..shader = RadialGradient(
-        center: Alignment.center,
-        radius: 1.0,
-        colors: [
-          const Color(0xFFFFF0B3),
-          const Color(0xFFFF9D00).withValues(alpha: 0.85),
-          const Color(0xFFFF5500).withValues(alpha: 0.0),
-        ],
-        stops: const [0.0, 0.45, 1.0],
-      ).createShader(
-          Rect.fromCircle(center: sunCenter, radius: size.width * 0.22));
-
-    canvas.drawCircle(sunCenter, size.width * 0.22, sunPaint);
-
-    // 4. Silhouetted Flying Birds in Sky
-    final birdPaint = Paint()
-      ..color = const Color(0xFF1E1008).withValues(alpha: 0.85)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.2
-      ..strokeCap = StrokeCap.round;
-
-    final birdPositions = [
-      Offset(size.width * 0.25, size.height * 0.05),
-      Offset(size.width * 0.32, size.height * 0.04),
-      Offset(size.width * 0.72, size.height * 0.06),
-      Offset(size.width * 0.78, size.height * 0.045),
-    ];
-
-    for (var pos in birdPositions) {
-      final birdPath = Path()
-        ..moveTo(pos.dx - 6, pos.dy + 2)
-        ..quadraticBezierTo(pos.dx - 3, pos.dy - 3, pos.dx, pos.dy)
-        ..quadraticBezierTo(pos.dx + 3, pos.dy - 3, pos.dx + 6, pos.dy + 2);
-      canvas.drawPath(birdPath, birdPaint);
-    }
-
-    // 5. Floating Ember Particles
+    // 3. Floating Ember Particles
     final particlePaint = Paint()..style = PaintingStyle.fill;
     for (var p in particles) {
       particlePaint.color =
@@ -1305,176 +1269,27 @@ class SignupHeroPainter extends CustomPainter {
       );
     }
 
-    // 6. Golden Glowing Light Swooshes
+    // 4. Subtle Golden Wave Swooshes
     final wavePaint = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.2;
+      ..strokeWidth = 1.0;
 
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < 3; i++) {
       wavePaint.color =
-          const Color(0xFFFF8C00).withValues(alpha: 0.16 + i * 0.04);
+          const Color(0xFFFF8C00).withValues(alpha: 0.12 + i * 0.03);
       final path = Path();
-      double yOffset = size.height * (0.08 + i * 0.03);
+      double yOffset = size.height * (0.05 + i * 0.04);
       path.moveTo(0, yOffset);
       path.cubicTo(
-        size.width * 0.28,
-        yOffset - 20 + i * 8,
-        size.width * 0.72,
-        yOffset + 25 - i * 6,
+        size.width * 0.3,
+        yOffset - 18 + i * 6,
+        size.width * 0.7,
+        yOffset + 20 - i * 5,
         size.width,
-        yOffset - 10,
+        yOffset - 8,
       );
       canvas.drawPath(path, wavePaint);
     }
-
-    // 7. Sanatan Temple Spires Silhouette Artwork positioned high up in header
-    final templeHeight = size.height * 0.22;
-    final templePaint = Paint()
-      ..shader = LinearGradient(
-        colors: [
-          const Color(0xFF1E1008),
-          const Color(0xFF0F0804),
-          const Color(0xFF070504),
-        ],
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-      ).createShader(Rect.fromLTWH(0, 0, size.width, templeHeight));
-
-    final templePath = Path();
-    templePath.moveTo(0, templeHeight);
-
-    // Left outer spire
-    templePath.lineTo(size.width * 0.05, templeHeight * 0.85);
-    templePath.lineTo(size.width * 0.12, templeHeight * 0.55);
-    templePath.lineTo(size.width * 0.18, templeHeight * 0.85);
-
-    // Left inner spire
-    templePath.lineTo(size.width * 0.25, templeHeight * 0.42);
-    templePath.lineTo(size.width * 0.32, templeHeight * 0.75);
-
-    // Central Main Shikhara Spire
-    templePath.lineTo(size.width * 0.40, templeHeight * 0.35);
-    templePath.lineTo(size.width * 0.47, templeHeight * 0.14);
-    templePath.lineTo(size.width * 0.50, templeHeight * 0.08); // Main pinnacle
-    templePath.lineTo(size.width * 0.53, templeHeight * 0.14);
-    templePath.lineTo(size.width * 0.60, templeHeight * 0.35);
-
-    // Right inner spire
-    templePath.lineTo(size.width * 0.68, templeHeight * 0.75);
-    templePath.lineTo(size.width * 0.75, templeHeight * 0.42);
-
-    // Right outer spire
-    templePath.lineTo(size.width * 0.82, templeHeight * 0.85);
-    templePath.lineTo(size.width * 0.88, templeHeight * 0.55);
-    templePath.lineTo(size.width * 0.95, templeHeight * 0.85);
-    templePath.lineTo(size.width, templeHeight);
-
-    templePath.close();
-    canvas.drawPath(templePath, templePaint);
-
-    // Draw Saffron Flying Flag atop Main Temple Spire
-    final mainPeakX = size.width * 0.50;
-    final mainPeakY = templeHeight * 0.08;
-
-    final polePaint = Paint()
-      ..color = const Color(0xFFFF9D00)
-      ..strokeWidth = 1.5;
-
-    canvas.drawLine(
-        Offset(mainPeakX, mainPeakY), Offset(mainPeakX, mainPeakY - 14), polePaint);
-
-    final flagPath = Path()
-      ..moveTo(mainPeakX, mainPeakY - 14)
-      ..lineTo(mainPeakX + 13, mainPeakY - 8.5)
-      ..lineTo(mainPeakX, mainPeakY - 3)
-      ..close();
-
-    final flagPaint = Paint()
-      ..color = const Color(0xFFFF7700)
-      ..style = PaintingStyle.fill;
-
-    canvas.drawPath(flagPath, flagPaint);
-
-    // Draw small ॐ text on main flag
-    const flagOmSpan = TextSpan(
-      text: '\u0950',
-      style: TextStyle(
-        fontSize: 6.0,
-        fontWeight: FontWeight.bold,
-        color: Color(0xFFFFF0B3),
-      ),
-    );
-    final flagOmPainter = TextPainter(
-      text: flagOmSpan,
-      textDirection: TextDirection.ltr,
-    );
-    flagOmPainter.layout();
-    flagOmPainter.paint(canvas, Offset(mainPeakX + 2.0, mainPeakY - 11.5));
-
-    // 8. Central Gear Ring Emblem & Om Flag Logo positioned on the upper central spire
-    final emblemX = size.width * 0.5;
-    final emblemY = templeHeight * 0.48;
-
-    const gearRadius = 22.0;
-    final gearPaint = Paint()
-      ..color = const Color(0xFFFF9D00)
-      ..strokeWidth = 1.8
-      ..style = PaintingStyle.stroke;
-
-    // Gear teeth outer ring
-    canvas.drawCircle(Offset(emblemX, emblemY), gearRadius, gearPaint);
-
-    final toothPaint = Paint()
-      ..color = const Color(0xFFFF7A00)
-      ..style = PaintingStyle.fill;
-
-    for (int i = 0; i < 18; i++) {
-      final angle = (i * 20) * math.pi / 180;
-      final dx = emblemX + (gearRadius + 3.0) * math.cos(angle);
-      final dy = emblemY + (gearRadius + 3.0) * math.sin(angle);
-      canvas.drawCircle(Offset(dx, dy), 1.2, toothPaint);
-    }
-
-    // Inner dark circle container
-    final innerBgPaint = Paint()
-      ..color = const Color(0xFF0F0905)
-      ..style = PaintingStyle.fill;
-
-    canvas.drawCircle(Offset(emblemX, emblemY), gearRadius - 2, innerBgPaint);
-
-    // Flag + Om inside Central Emblem
-    final emblemFlagPath = Path()
-      ..moveTo(emblemX - 4, emblemY - 9)
-      ..lineTo(emblemX + 8, emblemY - 4)
-      ..lineTo(emblemX - 4, emblemY + 1)
-      ..close();
-
-    canvas.drawLine(
-      Offset(emblemX - 4, emblemY - 11),
-      Offset(emblemX - 4, emblemY + 9),
-      polePaint,
-    );
-
-    canvas.drawPath(emblemFlagPath, flagPaint);
-
-    const omSpan = TextSpan(
-      text: '\u0950',
-      style: TextStyle(
-        fontSize: 9.5,
-        fontWeight: FontWeight.bold,
-        color: Color(0xFFFFD166),
-      ),
-    );
-
-    final omPainter = TextPainter(
-      text: omSpan,
-      textDirection: TextDirection.ltr,
-    );
-    omPainter.layout();
-    omPainter.paint(
-      canvas,
-      Offset(emblemX - omPainter.width / 2 + 1, emblemY + 0.2),
-    );
   }
 
   @override

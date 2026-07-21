@@ -47,374 +47,445 @@ class _WelcomeScreenState extends State<WelcomeScreen>
       backgroundColor: const Color(0xFF070504),
       body: Stack(
         children: [
-          // ─── 1. DYNAMIC TEMPLE & SUNSET BACKGROUND ARTWORK CANVAS ───
+          // ─── 1. DYNAMIC DIVINE SOLAR HALO & PARTICLE CANVAS ───
           Positioned.fill(
             child: CustomPaint(
-              painter: WelcomeHeroPainter(_particles),
+              painter: WelcomeBackgroundPainter(_particles),
             ),
           ),
 
-          // ─── 2. FIXED NON-SCROLLABLE CONTENT LAYOUT ───
+          // ─── 2. ADAPTIVE RESPONSIVE CONTENT LAYOUT ───
           SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 4.0),
-              child: Column(
-                children: [
-                  // Clearance below Top Temple Artwork & Gear Emblem
-                  const SizedBox(height: 150),
-
-                  // ─── HEADER TYPOGRAPHY BLOCK ───
-                  // Title 1: "Welcome to" (Elegant Serif)
-                  const Text(
-                    'Welcome to',
-                    style: TextStyle(
-                      fontFamily: 'serif',
-                      fontSize: 21,
-                      fontWeight: FontWeight.w400,
-                      color: Color(0xFFF2E6D8),
-                      letterSpacing: 0.4,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                return SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      minHeight: constraints.maxHeight,
                     ),
-                  ),
-                  const SizedBox(height: 2),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          // ─── TOP BADGE & HERO HEADER ───
+                          Column(
+                            children: [
+                              const SizedBox(height: 12),
+                              // Glassmorphic Luxury Badge
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF181008).withValues(alpha: 0.75),
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(
+                                    color: const Color(0xFFFF9D00).withValues(alpha: 0.4),
+                                    width: 1.0,
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: const Color(0xFFFF9D00).withValues(alpha: 0.15),
+                                      blurRadius: 10,
+                                    ),
+                                  ],
+                                ),
+                                child: const Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.auto_awesome_rounded,
+                                      size: 12,
+                                      color: Color(0xFFFFB300),
+                                    ),
+                                    SizedBox(width: 6),
+                                    Text(
+                                      'VOCAL FOR SANATAN',
+                                      style: TextStyle(
+                                        fontFamily: 'Inter',
+                                        fontSize: 10.5,
+                                        fontWeight: FontWeight.w800,
+                                        color: Color(0xFFFFB300),
+                                        letterSpacing: 1.4,
+                                      ),
+                                    ),
+                                    SizedBox(width: 6),
+                                    Icon(
+                                      Icons.auto_awesome_rounded,
+                                      size: 12,
+                                      color: Color(0xFFFFB300),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 80),
 
-                  // Title 2: "Vocal for Sanatan" (Rich Golden Serif Gradient)
-                  ShaderMask(
-                    shaderCallback: (bounds) {
-                      return const LinearGradient(
-                        colors: [
-                          Color(0xFFFFF9E6),
-                          Color(0xFFFFD166),
-                          Color(0xFFFF8800),
-                          Color(0xFFE65C00),
-                        ],
-                        stops: [0.0, 0.35, 0.75, 1.0],
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                      ).createShader(bounds);
-                    },
-                    child: const Text(
-                      'Vocal for Sanatan',
-                      style: TextStyle(
-                        fontFamily: 'serif',
-                        fontSize: 34,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white,
-                        letterSpacing: 0.4,
-                        shadows: [
-                          Shadow(
-                            color: Color(0x99FF6A00),
-                            blurRadius: 14,
-                            offset: Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
+                              // Title 1: "Welcome to" (Serif)
+                              const Text(
+                                'Welcome to',
+                                style: TextStyle(
+                                  fontFamily: 'serif',
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w400,
+                                  color: Color(0xFFF5EFE6),
+                                  letterSpacing: 0.4,
+                                ),
+                              ),
+                              const SizedBox(height: 3),
 
-                  // Ornamental Lotus Line Divider: ─── 🪷 ───
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Container(
-                        width: 50,
-                        height: 1.2,
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              Colors.transparent,
-                              const Color(0xFFFF9D00).withValues(alpha: 0.7),
+                              // Title 2: "Vocal for Sanatan" (Metallic Golden Serif Gradient)
+                              ShaderMask(
+                                shaderCallback: (bounds) {
+                                  return const LinearGradient(
+                                    colors: [
+                                      Color(0xFFFFFDF0),
+                                      Color(0xFFFFE082),
+                                      Color(0xFFFF9100),
+                                      Color(0xFFE65100),
+                                    ],
+                                    stops: [0.0, 0.35, 0.75, 1.0],
+                                    begin: Alignment.topCenter,
+                                    end: Alignment.bottomCenter,
+                                  ).createShader(bounds);
+                                },
+                                child: const Text(
+                                  'Vocal for Sanatan',
+                                  style: TextStyle(
+                                    fontFamily: 'serif',
+                                    fontSize: 33,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.white,
+                                    letterSpacing: 0.5,
+                                    shadows: [
+                                      Shadow(
+                                        color: Color(0xAAFF6A00),
+                                        blurRadius: 16,
+                                        offset: Offset(0, 3),
+                                      ),
+                                    ],
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+
+                              // Ornamental Lotus Line Divider: ─── 🪷 ───
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Container(
+                                    width: 50,
+                                    height: 1.2,
+                                    decoration: BoxDecoration(
+                                      gradient: LinearGradient(
+                                        colors: [
+                                          Colors.transparent,
+                                          const Color(0xFFFF9D00).withValues(alpha: 0.7),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                  const Padding(
+                                    padding: EdgeInsets.symmetric(horizontal: 8.0),
+                                    child: Icon(
+                                      Icons.filter_vintage_rounded,
+                                      size: 15,
+                                      color: Color(0xFFFF9100),
+                                    ),
+                                  ),
+                                  Container(
+                                    width: 50,
+                                    height: 1.2,
+                                    decoration: BoxDecoration(
+                                      gradient: LinearGradient(
+                                        colors: [
+                                          const Color(0xFFFF9D00).withValues(alpha: 0.7),
+                                          Colors.transparent,
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 10),
+
+                              // Subtitle Paragraph
+                              const Text(
+                                'One platform, many roles.\nConnect, contribute and empower\nour Sanatan heritage.',
+                                style: TextStyle(
+                                  fontFamily: 'Inter',
+                                  fontSize: 13.5,
+                                  color: Color(0xFFD4C7B8),
+                                  height: 1.45,
+                                  fontWeight: FontWeight.w400,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
                             ],
                           ),
-                        ),
-                      ),
-                      const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 8.0),
-                        child: Icon(
-                          Icons.filter_vintage_rounded,
-                          size: 14,
-                          color: Color(0xFFFF9D00),
-                        ),
-                      ),
-                      Container(
-                        width: 50,
-                        height: 1.2,
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              const Color(0xFFFF9D00).withValues(alpha: 0.7),
-                              Colors.transparent,
+
+                          const SizedBox(height: 18),
+
+                          // ─── ROLE SELECTOR SECTION ───
+                          Column(
+                            children: [
+                              // Section Header: ❖ CHOOSE YOUR ROLE ❖
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Container(
+                                      height: 1,
+                                      decoration: BoxDecoration(
+                                        gradient: LinearGradient(
+                                          colors: [
+                                            Colors.transparent,
+                                            const Color(0xFFFF8C00).withValues(alpha: 0.5),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const Padding(
+                                    padding: EdgeInsets.only(right: 6.0),
+                                    child: Icon(Icons.diamond_rounded, size: 7, color: Color(0xFFFF9100)),
+                                  ),
+                                  const Text(
+                                    'CHOOSE YOUR ROLE',
+                                    style: TextStyle(
+                                      fontFamily: 'Inter',
+                                      fontSize: 13.5,
+                                      fontWeight: FontWeight.w800,
+                                      color: Color(0xFFFF9100),
+                                      letterSpacing: 1.4,
+                                    ),
+                                  ),
+                                  const Padding(
+                                    padding: EdgeInsets.only(left: 6.0),
+                                    child: Icon(Icons.diamond_rounded, size: 7, color: Color(0xFFFF9100)),
+                                  ),
+                                  Expanded(
+                                    child: Container(
+                                      height: 1,
+                                      decoration: BoxDecoration(
+                                        gradient: LinearGradient(
+                                          colors: [
+                                            const Color(0xFFFF8C00).withValues(alpha: 0.5),
+                                            Colors.transparent,
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+
+                              const SizedBox(height: 14),
+
+                              // 3 Glassmorphic Role Cards (User, Client, Admin)
+                              SizedBox(
+                                height: 205,
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                                  children: [
+                                    // Card 1: User
+                                    Expanded(
+                                      child: _buildRoleCard(
+                                        roleKey: 'user',
+                                        title: 'User',
+                                        description: 'Discover local businesses, explore services and support your community.',
+                                        icon: Icons.person_outline_rounded,
+                                        isSelected: _selectedRole == 'user',
+                                        artPainter: UserCardArtPainter(),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+
+                                    // Card 2: Client
+                                    Expanded(
+                                      child: _buildRoleCard(
+                                        roleKey: 'client',
+                                        title: 'Client',
+                                        description: 'Manage your business, connect with customers and grow your brand with AI insights.',
+                                        icon: Icons.storefront_rounded,
+                                        isSelected: _selectedRole == 'client',
+                                        artPainter: BusinessCardArtPainter(),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+
+                                    // Card 3: Admin
+                                    Expanded(
+                                      child: _buildRoleCard(
+                                        roleKey: 'admin',
+                                        title: 'Admin',
+                                        description: 'Oversee platform operations, manage users and ensure quality & trust.',
+                                        icon: Icons.shield_outlined,
+                                        isSelected: _selectedRole == 'admin',
+                                        artPainter: AdminCardArtPainter(),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
                             ],
                           ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
 
-                  // Subtitle Paragraph Text
-                  const Text(
-                    'One platform, many roles.\nConnect, contribute and empower\nour Sanatan heritage.',
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 13,
-                      color: Color(0xFFD6CBC0),
-                      height: 1.35,
-                      fontWeight: FontWeight.w400,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
+                          const SizedBox(height: 18),
 
-                  const Spacer(flex: 8),
+                          // ─── ACTION CTA BUTTON & TRUST FOOTER ───
+                          Column(
+                            children: [
+                              // Primary Action Button ("Continue ->")
+                              SizedBox(
+                                width: double.infinity,
+                                height: 52,
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(26),
+                                    gradient: const LinearGradient(
+                                      colors: [
+                                        Color(0xFFFF7700),
+                                        Color(0xFFD63800),
+                                      ],
+                                      begin: Alignment.topCenter,
+                                      end: Alignment.bottomCenter,
+                                    ),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: const Color(0x77FF6A00),
+                                        blurRadius: 16,
+                                        offset: const Offset(0, 4),
+                                      ),
+                                    ],
+                                  ),
+                                  child: ElevatedButton(
+                                    onPressed: () {
+                                      HapticFeedback.mediumImpact();
+                                      context.go('/login', extra: _selectedRole);
+                                    },
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.transparent,
+                                      shadowColor: Colors.transparent,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(26),
+                                      ),
+                                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                                    ),
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        const Spacer(),
+                                        const Text(
+                                          'Continue',
+                                          style: TextStyle(
+                                            fontFamily: 'Inter',
+                                            fontSize: 16.5,
+                                            fontWeight: FontWeight.w800,
+                                            color: Colors.white,
+                                            letterSpacing: 0.5,
+                                          ),
+                                        ),
+                                        const Spacer(),
+                                        Container(
+                                          width: 34,
+                                          height: 34,
+                                          decoration: const BoxDecoration(
+                                            shape: BoxShape.circle,
+                                            color: Color(0xFFFF9E1B),
+                                          ),
+                                          child: const Icon(
+                                            Icons.arrow_forward_rounded,
+                                            color: Colors.white,
+                                            size: 18,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
 
-                  // ─── SECTION HEADER: ❖ Choose Your Role ❖ ───
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Container(
-                          height: 1,
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [
-                                Colors.transparent,
-                                const Color(0xFFFF8C00).withValues(alpha: 0.5),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                      const Padding(
-                        padding: EdgeInsets.only(right: 6.0),
-                        child: Icon(Icons.diamond_rounded, size: 7, color: Color(0xFFFF9D00)),
-                      ),
-                      const Text(
-                        'Choose Your Role',
-                        style: TextStyle(
-                          fontFamily: 'Inter',
-                          fontSize: 14.5,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFFFF9D00),
-                          letterSpacing: 0.6,
-                        ),
-                      ),
-                      const Padding(
-                        padding: EdgeInsets.only(left: 6.0),
-                        child: Icon(Icons.diamond_rounded, size: 7, color: Color(0xFFFF9D00)),
-                      ),
-                      Expanded(
-                        child: Container(
-                          height: 1,
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [
-                                const Color(0xFFFF8C00).withValues(alpha: 0.5),
-                                Colors.transparent,
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+                              const SizedBox(height: 10),
 
-                  const SizedBox(height: 10),
+                              // Trust Subtext: Shield + "Trusted. Verified. Secure."
+                              const Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.shield_outlined,
+                                    size: 14,
+                                    color: Color(0xFFFF9100),
+                                  ),
+                                  SizedBox(width: 6),
+                                  Text(
+                                    'Trusted. Verified. Secure.',
+                                    style: TextStyle(
+                                      fontFamily: 'Inter',
+                                      fontSize: 12,
+                                      color: Color(0xFFB5A99B),
+                                      letterSpacing: 0.3,
+                                    ),
+                                  ),
+                                ],
+                              ),
 
-                  // ─── 3 ROLE CARDS SIDE-BY-SIDE (USER, CLIENT, ADMIN) ───
-                  SizedBox(
-                    height: 196,
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        // Card 1: User
-                        Expanded(
-                          child: _buildRoleCard(
-                            roleKey: 'user',
-                            title: 'User',
-                            description: 'Discover local businesses, explore services and support your community.',
-                            icon: Icons.person_outline_rounded,
-                            isSelected: _selectedRole == 'user',
-                            artPainter: UserCardArtPainter(),
-                          ),
-                        ),
-                        const SizedBox(width: 6),
+                              const SizedBox(height: 10),
 
-                        // Card 2: Client
-                        Expanded(
-                          child: _buildRoleCard(
-                            roleKey: 'client',
-                            title: 'Client',
-                            description: 'Manage your business, connect with customers and grow your brand with AI insights.',
-                            icon: Icons.storefront_rounded,
-                            isSelected: _selectedRole == 'client',
-                            artPainter: BusinessCardArtPainter(),
-                          ),
-                        ),
-                        const SizedBox(width: 6),
+                              // Accent Line Divider: ─── ◆ ───
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Container(
+                                      height: 0.8,
+                                      color: const Color(0xFFFF8C00).withValues(alpha: 0.25),
+                                    ),
+                                  ),
+                                  const Padding(
+                                    padding: EdgeInsets.symmetric(horizontal: 8.0),
+                                    child: Icon(Icons.diamond_rounded, size: 6, color: Color(0xFFFF9100)),
+                                  ),
+                                  Expanded(
+                                    child: Container(
+                                      height: 0.8,
+                                      color: const Color(0xFFFF8C00).withValues(alpha: 0.25),
+                                    ),
+                                  ),
+                                ],
+                              ),
 
-                        // Card 3: Admin
-                        Expanded(
-                          child: _buildRoleCard(
-                            roleKey: 'admin',
-                            title: 'Admin',
-                            description: 'Oversee platform operations, manage users and ensure quality & trust.',
-                            icon: Icons.shield_outlined,
-                            isSelected: _selectedRole == 'admin',
-                            artPainter: AdminCardArtPainter(),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                              const SizedBox(height: 10),
 
-                  const Spacer(flex: 8),
-
-                  // ─── PRIMARY ACTION BUTTON ("Continue ->") ───
-                  SizedBox(
-                    width: double.infinity,
-                    height: 48,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(24),
-                        gradient: const LinearGradient(
-                          colors: [
-                            Color(0xFFFF7700),
-                            Color(0xFFD63B00),
-                          ],
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(0xFFFF6A00).withValues(alpha: 0.45),
-                            blurRadius: 12,
-                            offset: const Offset(0, 4),
+                              // 4 Glass Feature Tiles
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                children: [
+                                  _buildBottomFeature(
+                                    icon: Icons.account_balance_rounded,
+                                    label: 'Preserve\nHeritage',
+                                  ),
+                                  _buildBottomFeature(
+                                    icon: Icons.groups_rounded,
+                                    label: 'Empower\nCommunities',
+                                  ),
+                                  _buildBottomFeature(
+                                    icon: Icons.verified_user_rounded,
+                                    label: 'Secure &\nVerified',
+                                  ),
+                                  _buildBottomFeature(
+                                    icon: Icons.auto_awesome_rounded,
+                                    label: 'AI Powered\nPlatform',
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 6),
+                            ],
                           ),
                         ],
                       ),
-                      child: ElevatedButton(
-                        onPressed: () {
-                          HapticFeedback.mediumImpact();
-                          context.go('/login', extra: _selectedRole);
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.transparent,
-                          shadowColor: Colors.transparent,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(24),
-                          ),
-                          padding: const EdgeInsets.symmetric(horizontal: 8),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Spacer(),
-                            const Text(
-                              'Continue',
-                              style: TextStyle(
-                                fontFamily: 'Inter',
-                                fontSize: 16,
-                                fontWeight: FontWeight.w800,
-                                color: Colors.white,
-                                letterSpacing: 0.5,
-                              ),
-                            ),
-                            const Spacer(),
-                            Container(
-                              width: 32,
-                              height: 32,
-                              decoration: const BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: Color(0xFFFF9E1B),
-                              ),
-                              child: const Icon(
-                                Icons.arrow_forward_rounded,
-                                color: Colors.white,
-                                size: 17,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
                     ),
                   ),
-
-                  const SizedBox(height: 8),
-
-                  // Trust Badge Subtext: Shield + "Trusted. Verified. Secure."
-                  const Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.shield_outlined,
-                        size: 13,
-                        color: Color(0xFFFF9D00),
-                      ),
-                      SizedBox(width: 5),
-                      Text(
-                        'Trusted. Verified. Secure.',
-                        style: TextStyle(
-                          fontFamily: 'Inter',
-                          fontSize: 11.5,
-                          color: Color(0xFFB5A99B),
-                          letterSpacing: 0.3,
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 8),
-
-                  // Divider Line: ─── ◆ ───
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Container(
-                          height: 0.8,
-                          color: const Color(0xFFFF8C00).withValues(alpha: 0.25),
-                        ),
-                      ),
-                      const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 8.0),
-                        child: Icon(Icons.diamond_rounded, size: 6, color: Color(0xFFFF9D00)),
-                      ),
-                      Expanded(
-                        child: Container(
-                          height: 0.8,
-                          color: const Color(0xFFFF8C00).withValues(alpha: 0.25),
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 8),
-
-                  // ─── 4 BOTTOM FEATURE TILES ───
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      _buildBottomFeature(
-                        icon: Icons.account_balance_rounded,
-                        label: 'Preserve\nHeritage',
-                      ),
-                      _buildBottomFeature(
-                        icon: Icons.groups_rounded,
-                        label: 'Empower\nCommunities',
-                      ),
-                      _buildBottomFeature(
-                        icon: Icons.verified_user_rounded,
-                        label: 'Secure &\nVerified',
-                      ),
-                      _buildBottomFeature(
-                        icon: Icons.auto_awesome_rounded,
-                        label: 'AI Powered\nPlatform',
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 2),
-                ],
-              ),
+                );
+              },
             ),
           ),
         ],
@@ -443,26 +514,28 @@ class _WelcomeScreenState extends State<WelcomeScreen>
           AnimatedContainer(
             duration: const Duration(milliseconds: 220),
             curve: Curves.easeOutCubic,
-            padding: const EdgeInsets.fromLTRB(4, 10, 4, 6),
+            padding: const EdgeInsets.fromLTRB(6, 12, 6, 8),
             decoration: BoxDecoration(
-              color: isSelected ? const Color(0xFF16110B) : const Color(0xFF0D0B0A),
-              borderRadius: BorderRadius.circular(16),
+              color: isSelected
+                  ? const Color(0xFF16110B)
+                  : const Color(0xFF0E0B09).withValues(alpha: 0.85),
+              borderRadius: BorderRadius.circular(18),
               border: Border.all(
                 color: isSelected
                     ? const Color(0xFFFF7A00)
-                    : const Color(0xFF261F18),
+                    : const Color(0xFF281F17),
                 width: isSelected ? 2.0 : 1.0,
               ),
               boxShadow: isSelected
                   ? [
                       BoxShadow(
-                        color: const Color(0xFFFF7A00).withValues(alpha: 0.55),
-                        blurRadius: 18,
+                        color: const Color(0x66FF7A00),
+                        blurRadius: 20,
                         spreadRadius: 2.0,
                       ),
                       BoxShadow(
-                        color: const Color(0xFFFF4500).withValues(alpha: 0.30),
-                        blurRadius: 30,
+                        color: const Color(0x33FF4500),
+                        blurRadius: 36,
                         spreadRadius: 4.0,
                       ),
                     ]
@@ -473,15 +546,15 @@ class _WelcomeScreenState extends State<WelcomeScreen>
               children: [
                 Column(
                   children: [
-                    // Top Icon Container with Glowing Saffron Ring when Selected
+                    // Top Icon Container
                     AnimatedContainer(
                       duration: const Duration(milliseconds: 200),
-                      width: 40,
-                      height: 40,
+                      width: 42,
+                      height: 42,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         color: isSelected
-                            ? const Color(0xFF2B1A0A)
+                            ? const Color(0xFF2C1A0A)
                             : const Color(0xFF1A140E),
                         border: Border.all(
                           color: const Color(0xFFFF7A00).withValues(alpha: isSelected ? 1.0 : 0.4),
@@ -504,10 +577,10 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                                 children: [
                                   Icon(
                                     Icons.shield_rounded,
-                                    size: 20,
+                                    size: 21,
                                     color: isSelected
-                                        ? const Color(0xFFFF9D00)
-                                        : const Color(0xFFFF9D00).withValues(alpha: 0.7),
+                                        ? const Color(0xFFFF9100)
+                                        : const Color(0xFFFF9100).withValues(alpha: 0.7),
                                   ),
                                   Icon(
                                     Icons.star_rounded,
@@ -518,23 +591,23 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                               )
                             : Icon(
                                 icon,
-                                size: 20,
+                                size: 21,
                                 color: isSelected
-                                    ? const Color(0xFFFF9D00)
-                                    : const Color(0xFFFF9D00).withValues(alpha: 0.7),
+                                    ? const Color(0xFFFF9100)
+                                    : const Color(0xFFFF9100).withValues(alpha: 0.7),
                               ),
                       ),
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 8),
 
-                    // Role Title (Glowing when Selected)
+                    // Role Title
                     Text(
                       title,
                       style: TextStyle(
                         fontFamily: 'Inter',
                         fontSize: 13.5,
                         fontWeight: FontWeight.w700,
-                        color: isSelected ? const Color(0xFFFF9D00) : Colors.white,
+                        color: isSelected ? const Color(0xFFFF9100) : Colors.white,
                         shadows: isSelected
                             ? [
                                 const Shadow(
@@ -549,12 +622,12 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                     ),
                     const SizedBox(height: 3),
 
-                    // Subtle Orange Underline
+                    // Indicator Line Under Title
                     Container(
                       width: 16,
                       height: 1.5,
                       decoration: BoxDecoration(
-                        color: const Color(0xFFFF9D00).withValues(alpha: isSelected ? 1.0 : 0.4),
+                        color: const Color(0xFFFF9100).withValues(alpha: isSelected ? 1.0 : 0.4),
                         borderRadius: BorderRadius.circular(1),
                         boxShadow: isSelected
                             ? [
@@ -568,14 +641,14 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                     ),
                     const SizedBox(height: 6),
 
-                    // Card Description
+                    // Card Description (Full visibility on all screen sizes)
                     Text(
                       description,
                       style: const TextStyle(
                         fontFamily: 'Inter',
                         fontSize: 9.0,
                         color: Color(0xFFA59B90),
-                        height: 1.25,
+                        height: 1.28,
                       ),
                       textAlign: TextAlign.center,
                       maxLines: 4,
@@ -636,11 +709,11 @@ class _WelcomeScreenState extends State<WelcomeScreen>
       mainAxisSize: MainAxisSize.min,
       children: [
         Container(
-          width: 34,
-          height: 34,
+          width: 36,
+          height: 36,
           decoration: BoxDecoration(
             color: const Color(0xFF16110B),
-            borderRadius: BorderRadius.circular(9),
+            borderRadius: BorderRadius.circular(10),
             border: Border.all(
               color: const Color(0xFFFF7A00).withValues(alpha: 0.3),
               width: 0.8,
@@ -648,11 +721,11 @@ class _WelcomeScreenState extends State<WelcomeScreen>
           ),
           child: Icon(
             icon,
-            size: 17,
-            color: const Color(0xFFFF9D00),
+            size: 18,
+            color: const Color(0xFFFF9100),
           ),
         ),
-        const SizedBox(height: 3),
+        const SizedBox(height: 4),
         Text(
           label,
           style: const TextStyle(
@@ -702,22 +775,22 @@ class EmberParticle {
   }
 }
 
-// ─── HIGH-FIDELITY AUTHENTIC SANATAN TEMPLE HERO PAINTER ───
+// ─── ULTRA-PREMIUM DIVINE SOLAR HALO BACKGROUND PAINTER ───
 
-class WelcomeHeroPainter extends CustomPainter {
+class WelcomeBackgroundPainter extends CustomPainter {
   final List<EmberParticle> particles;
 
-  WelcomeHeroPainter(this.particles);
+  WelcomeBackgroundPainter(this.particles);
 
   @override
   void paint(Canvas canvas, Size size) {
     final rect = Rect.fromLTWH(0, 0, size.width, size.height);
 
-    // 1. Deep Background Base Gradient
+    // 1. Deep Obsidian Base Gradient
     final bgPaint = Paint()
       ..shader = const LinearGradient(
         colors: [
-          Color(0xFF0C0704),
+          Color(0xFF090604),
           Color(0xFF070504),
         ],
         begin: Alignment.topCenter,
@@ -726,42 +799,42 @@ class WelcomeHeroPainter extends CustomPainter {
 
     canvas.drawRect(rect, bgPaint);
 
-    // 2. Sunset Glow Aura (Radial Saffron Light centered behind Central Temple Spire)
-    final sunCenter = Offset(size.width * 0.5, 95.0);
+    // 2. Solar Halo Radiant Aura (Multi-Stop Soft Radial Gradient)
+    final sunCenter = Offset(size.width * 0.5, 80.0);
     final glowPaint = Paint()
       ..shader = RadialGradient(
-        center: const Alignment(0, -0.75),
+        center: const Alignment(0, -0.78),
         radius: 0.70,
         colors: [
-          const Color(0xFFFF6A00).withValues(alpha: 0.65),
-          const Color(0xFFD64000).withValues(alpha: 0.35),
-          const Color(0xFF3D1200).withValues(alpha: 0.12),
+          const Color(0xFFFF7700).withValues(alpha: 0.50),
+          const Color(0xFFE65100).withValues(alpha: 0.32),
+          const Color(0xFF3E1400).withValues(alpha: 0.15),
           Colors.transparent,
         ],
-        stops: const [0.0, 0.4, 0.7, 1.0],
+        stops: const [0.0, 0.35, 0.65, 1.0],
       ).createShader(rect);
 
     canvas.drawRect(rect, glowPaint);
 
-    // 3. Glowing Sun Disc
+    // 3. Glowing Sun Core Disc
     final sunPaint = Paint()
       ..shader = RadialGradient(
         center: Alignment.center,
         radius: 1.0,
         colors: [
-          const Color(0xFFFFF2B2),
-          const Color(0xFFFF9500).withValues(alpha: 0.85),
+          const Color(0xFFFFF8DC),
+          const Color(0xFFFF9100).withValues(alpha: 0.85),
           const Color(0xFFFF5500).withValues(alpha: 0.0),
         ],
         stops: const [0.0, 0.48, 1.0],
-      ).createShader(Rect.fromCircle(center: sunCenter, radius: size.width * 0.30));
+      ).createShader(Rect.fromCircle(center: sunCenter, radius: size.width * 0.28));
 
-    canvas.drawCircle(sunCenter, size.width * 0.30, sunPaint);
+    canvas.drawCircle(sunCenter, size.width * 0.28, sunPaint);
 
-    // 4. Floating Ember Particles
+    // 4. Floating Golden Ember Particles
     final particlePaint = Paint()..style = PaintingStyle.fill;
     for (var p in particles) {
-      particlePaint.color = const Color(0xFFFF9D00).withValues(alpha: p.opacity);
+      particlePaint.color = const Color(0xFFFF9100).withValues(alpha: p.opacity);
       canvas.drawCircle(
         Offset(p.x * size.width, p.y * size.height),
         p.size,
@@ -769,7 +842,7 @@ class WelcomeHeroPainter extends CustomPainter {
       );
     }
 
-    // 5. Golden Glowing Light Swooshes (Curved Arcs across Sky)
+    // 5. Golden Glowing Light Swooshes (Curved Light Arcs across Sky)
     final wavePaint = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.2;
@@ -777,7 +850,7 @@ class WelcomeHeroPainter extends CustomPainter {
     for (int i = 0; i < 4; i++) {
       wavePaint.color = const Color(0xFFFF8C00).withValues(alpha: 0.18 + i * 0.05);
       final path = Path();
-      double yOffset = 70.0 + i * 14;
+      double yOffset = 60.0 + i * 14;
       path.moveTo(0, yOffset);
       path.cubicTo(
         size.width * 0.28,
@@ -790,113 +863,13 @@ class WelcomeHeroPainter extends CustomPainter {
       canvas.drawPath(path, wavePaint);
     }
 
-    // 6. DETAILED MULTI-TIERED SANATAN TEMPLE SILHOUETTE (AUTHENTIC SHIKHARA ARCHITECTURE)
-    final heroHeight = 150.0;
-    final templePaint = Paint()
-      ..shader = LinearGradient(
-        colors: [
-          const Color(0xFF22120A),
-          const Color(0xFF120A05),
-          const Color(0xFF070504),
-        ],
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-      ).createShader(Rect.fromLTWH(0, 0, size.width, heroHeight));
-
-    // Outer Temple Silhouette Path with stepped Shikharas, Kalash finials & Amalakas
-    final templePath = Path();
-    templePath.moveTo(0, heroHeight);
-
-    // Leftmost Outer Spire (Small Mandapa Shikhara)
-    templePath.lineTo(size.width * 0.04, heroHeight * 0.90);
-    _drawSpireSteps(templePath, size.width * 0.04, heroHeight * 0.90, size.width * 0.10, heroHeight * 0.62);
-    templePath.lineTo(size.width * 0.10, heroHeight * 0.60); // Peak
-    _drawSpireSteps(templePath, size.width * 0.10, heroHeight * 0.62, size.width * 0.16, heroHeight * 0.90);
-
-    // Left Secondary Spire
-    templePath.lineTo(size.width * 0.20, heroHeight * 0.85);
-    _drawSpireSteps(templePath, size.width * 0.20, heroHeight * 0.85, size.width * 0.28, heroHeight * 0.45);
-    templePath.lineTo(size.width * 0.28, heroHeight * 0.42); // Peak
-    _drawSpireSteps(templePath, size.width * 0.28, heroHeight * 0.45, size.width * 0.36, heroHeight * 0.80);
-
-    // CENTRAL MAIN SHIKHARA (Grand Temple Tower with Amalaka Peak)
-    templePath.lineTo(size.width * 0.38, heroHeight * 0.70);
-    _drawSpireSteps(templePath, size.width * 0.38, heroHeight * 0.70, size.width * 0.50, heroHeight * 0.12);
-    templePath.lineTo(size.width * 0.49, heroHeight * 0.08);
-    templePath.lineTo(size.width * 0.50, heroHeight * 0.05); // Top Crown Peak
-    templePath.lineTo(size.width * 0.51, heroHeight * 0.08);
-    _drawSpireSteps(templePath, size.width * 0.50, heroHeight * 0.12, size.width * 0.62, heroHeight * 0.70);
-
-    // Right Secondary Spire
-    templePath.lineTo(size.width * 0.64, heroHeight * 0.80);
-    _drawSpireSteps(templePath, size.width * 0.64, heroHeight * 0.80, size.width * 0.72, heroHeight * 0.45);
-    templePath.lineTo(size.width * 0.72, heroHeight * 0.42); // Peak
-    _drawSpireSteps(templePath, size.width * 0.72, heroHeight * 0.45, size.width * 0.80, heroHeight * 0.85);
-
-    // Rightmost Outer Spire
-    templePath.lineTo(size.width * 0.84, heroHeight * 0.90);
-    _drawSpireSteps(templePath, size.width * 0.84, heroHeight * 0.90, size.width * 0.90, heroHeight * 0.62);
-    templePath.lineTo(size.width * 0.90, heroHeight * 0.60); // Peak
-    _drawSpireSteps(templePath, size.width * 0.90, heroHeight * 0.62, size.width * 0.96, heroHeight * 0.90);
-
-    templePath.lineTo(size.width, heroHeight);
-    templePath.close();
-
-    canvas.drawPath(templePath, templePaint);
-
-    // Draw Temple Inner Architectural Ridge Lines for Authentic Depth
-    final strokePaint = Paint()
-      ..color = const Color(0xFFFF9D00).withValues(alpha: 0.18)
-      ..strokeWidth = 0.9
-      ..style = PaintingStyle.stroke;
-
-    canvas.drawPath(templePath, strokePaint);
-
-    // Draw Saffron Flying Flag atop Main Temple Spire
-    final mainPeakX = size.width * 0.50;
-    final mainPeakY = heroHeight * 0.05;
-
-    final polePaint = Paint()
-      ..color = const Color(0xFFFF9D00)
-      ..strokeWidth = 1.5;
-
-    canvas.drawLine(Offset(mainPeakX, mainPeakY), Offset(mainPeakX, mainPeakY - 16), polePaint);
-
-    final flagPath = Path()
-      ..moveTo(mainPeakX, mainPeakY - 16)
-      ..lineTo(mainPeakX + 15, mainPeakY - 11)
-      ..lineTo(mainPeakX, mainPeakY - 6)
-      ..close();
-
-    final flagPaint = Paint()
-      ..color = const Color(0xFFFF7700)
-      ..style = PaintingStyle.fill;
-
-    canvas.drawPath(flagPath, flagPaint);
-
-    // Draw small ॐ text on main flag
-    const flagOmSpan = TextSpan(
-      text: 'ॐ',
-      style: TextStyle(
-        fontSize: 6.5,
-        fontWeight: FontWeight.bold,
-        color: Color(0xFFFFF0B3),
-      ),
-    );
-    final flagOmPainter = TextPainter(
-      text: flagOmSpan,
-      textDirection: TextDirection.ltr,
-    );
-    flagOmPainter.layout();
-    flagOmPainter.paint(canvas, Offset(mainPeakX + 3, mainPeakY - 14));
-
-    // 7. Central Gear Ring Emblem & Om Flag Logo (CENTERED AT TOP 122px)
+    // 6. SACRED OM EMBLEM RING (CENTERED AT TOP ~100px)
     final emblemX = size.width * 0.5;
-    final emblemY = 122.0;
+    final emblemY = 100.0;
 
     final gearRadius = 26.0;
     final gearPaint = Paint()
-      ..color = const Color(0xFFFF9D00)
+      ..color = const Color(0xFFFFB300)
       ..strokeWidth = 1.8
       ..style = PaintingStyle.stroke;
 
@@ -922,6 +895,14 @@ class WelcomeHeroPainter extends CustomPainter {
     canvas.drawCircle(Offset(emblemX, emblemY), gearRadius - 2, innerBgPaint);
 
     // Flag + Om inside Central Emblem
+    final polePaint = Paint()
+      ..color = const Color(0xFFFFB300)
+      ..strokeWidth = 1.5;
+
+    final flagPaint = Paint()
+      ..color = const Color(0xFFFF7700)
+      ..style = PaintingStyle.fill;
+
     final emblemFlagPath = Path()
       ..moveTo(emblemX - 5, emblemY - 10)
       ..lineTo(emblemX + 9, emblemY - 5)
@@ -954,23 +935,6 @@ class WelcomeHeroPainter extends CustomPainter {
       canvas,
       Offset(emblemX - omPainter.width / 2 + 1, emblemY + 1),
     );
-  }
-
-  // Helper method to draw stepped Sanatan Shikhara tier curves
-  void _drawSpireSteps(Path path, double startX, double startY, double endX, double endY) {
-    int steps = 5;
-    double dx = (endX - startX) / steps;
-    double dy = (endY - startY) / steps;
-
-    for (int i = 1; i <= steps; i++) {
-      double cx = startX + dx * i;
-      double cy = startY + dy * i;
-      if (i % 2 == 1) {
-        path.lineTo(cx + (endX > startX ? 2 : -2), cy - 3);
-      } else {
-        path.lineTo(cx, cy);
-      }
-    }
   }
 
   @override
@@ -1031,7 +995,7 @@ class BusinessCardArtPainter extends CustomPainter {
       ..lineTo(size.width * 0.53, size.height - h3 - 4)
       ..lineTo(size.width * 0.85, size.height - h4 - 6);
 
-    paint.color = const Color(0xFFFF9D00).withValues(alpha: 0.75);
+    paint.color = const Color(0xFFFF9100).withValues(alpha: 0.75);
     paint.strokeWidth = 1.2;
     canvas.drawPath(linePath, paint);
 
@@ -1067,7 +1031,7 @@ class AdminCardArtPainter extends CustomPainter {
     canvas.drawPath(shieldPath, paint);
 
     // Inner shield emblem star
-    paint.color = const Color(0xFFFF9D00).withValues(alpha: 0.5);
+    paint.color = const Color(0xFFFF9100).withValues(alpha: 0.5);
     canvas.drawCircle(Offset(size.width * 0.33, size.height * 0.5), 2.5, paint);
 
     // Dashboard card window on right
