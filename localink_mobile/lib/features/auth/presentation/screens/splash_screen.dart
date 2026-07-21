@@ -26,7 +26,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with TickerProvider
   late Animation<double> _pulseAnimation;
   late Animation<double> _progressAnimation;
 
-  final List<Particle> _particles = List.generate(35, (index) => Particle());
+  final List<Particle> _particles = List.generate(40, (index) => Particle());
 
   @override
   void initState() {
@@ -138,7 +138,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with TickerProvider
             ),
           ),
 
-          // ─── 3. MAIN EMBLEM & HERO BRANDING BLOCK ───
+          // ─── 3. MAIN HERO IMAGE DISPLAY (ASSETS/IMAGES/SPLASH_SCREEN.PNG) ───
           SizedBox.expand(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -159,54 +159,79 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with TickerProvider
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      // Glowing Outer Ring Aura
+                      // Ambient Glowing Halo Container wrapping assets/images/splash_screen.png
                       AnimatedBuilder(
                         animation: _pulseController,
                         builder: (context, child) {
                           return Container(
-                            width: 155,
-                            height: 155,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
                               boxShadow: [
                                 BoxShadow(
-                                  color: const Color(0xFFFF7A00).withValues(alpha: 0.3 * _pulseAnimation.value),
-                                  blurRadius: 50 * _pulseAnimation.value,
-                                  spreadRadius: 8 * _pulseAnimation.value,
+                                  color: const Color(0xFFFF7A00).withValues(alpha: 0.35 * _pulseAnimation.value),
+                                  blurRadius: 55 * _pulseAnimation.value,
+                                  spreadRadius: 10 * _pulseAnimation.value,
                                 ),
                                 BoxShadow(
-                                  color: const Color(0xFFFF4500).withValues(alpha: 0.2),
-                                  blurRadius: 80,
-                                  spreadRadius: 15,
+                                  color: const Color(0xFFFF4500).withValues(alpha: 0.25),
+                                  blurRadius: 90,
+                                  spreadRadius: 20,
                                 ),
                               ],
                             ),
                             child: child,
                           );
                         },
-                        child: ClipOval(
-                          child: Container(
-                            width: 145,
-                            height: 145,
-                            padding: const EdgeInsets.all(4),
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              gradient: LinearGradient(
-                                colors: [
-                                  const Color(0xFFFF7A00),
-                                  const Color(0xFFFF3D00).withValues(alpha: 0.4),
-                                ],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              ),
-                            ),
-                            child: ClipOval(
+                        child: AnimatedBuilder(
+                          animation: _shimmerController,
+                          builder: (context, child) {
+                            return ShaderMask(
+                              shaderCallback: (bounds) {
+                                return LinearGradient(
+                                  colors: const [
+                                    Colors.white,
+                                    Color(0xFFFFD700), // Gold metallic light pass
+                                    Colors.white,
+                                  ],
+                                  stops: const [0.0, 0.5, 1.0],
+                                  begin: Alignment(_shimmerAnimation.value - 1, 0),
+                                  end: Alignment(_shimmerAnimation.value, 0),
+                                ).createShader(bounds);
+                              },
                               child: Container(
-                                color: const Color(0xFF100E0D),
-                                child: _buildSplashImageOrVector(),
+                                width: 220,
+                                height: 220,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: const Color(0xFFFF7A00).withValues(alpha: 0.4),
+                                    width: 2.5,
+                                  ),
+                                ),
+                                padding: const EdgeInsets.all(8),
+                                child: ClipOval(
+                                  child: Image.asset(
+                                    'assets/images/splash_screen.png',
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (context, error, stackTrace) {
+                                      // Secondary fallback if splash_screen.png path variant differs
+                                      return Image.asset(
+                                        'assets/images/splash_logo.png',
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (context, error, stackTrace) {
+                                          return const Icon(
+                                            Icons.shield_outlined,
+                                            size: 90,
+                                            color: Color(0xFFFF7A00),
+                                          );
+                                        },
+                                      );
+                                    },
+                                  ),
+                                ),
                               ),
-                            ),
-                          ),
+                            );
+                          },
                         ),
                       ),
                       const SizedBox(height: 36),
@@ -346,25 +371,6 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with TickerProvider
       ),
     );
   }
-
-  /// Checks if custom user uploaded splash image asset is present, else falls back to vector
-  Widget _buildSplashImageOrVector() {
-    return Image.asset(
-      'assets/images/splash_logo.png',
-      fit: BoxFit.cover,
-      errorBuilder: (context, error, stackTrace) {
-        return Image.asset(
-          'assets/images/splash.png',
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) {
-            return CustomPaint(
-              painter: SplashEmblemPainter(),
-            );
-          },
-        );
-      },
-    );
-  }
 }
 
 // ─── AMBIENT FLOATING PARTICLE ENGINE ───
@@ -447,79 +453,6 @@ class SplashBackgroundPainter extends CustomPainter {
     for (double x = 0; x < size.width; x += spacing) {
       canvas.drawLine(Offset(x, 0), Offset(x, size.height), stripePaint);
     }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-// ─── VECTOR FALLBACK EMBLEM PAINTER ───
-class SplashEmblemPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
-    final radius = size.width * 0.35;
-
-    final paint = Paint()
-      ..color = const Color(0xFFFF7A00)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.5;
-    canvas.drawCircle(center, radius, paint);
-
-    final rayPaint = Paint()
-      ..color = const Color(0xFFFF7A00)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.0;
-    for (int i = 0; i < 24; i++) {
-      double angle = (i * 360 / 24) * math.pi / 180;
-      Offset p1 = Offset(center.dx + radius * math.cos(angle), center.dy + radius * math.sin(angle));
-      Offset p2 = Offset(center.dx + (radius + 5) * math.cos(angle), center.dy + (radius + 5) * math.sin(angle));
-      canvas.drawLine(p1, p2, rayPaint);
-    }
-
-    final flagPaint = Paint()
-      ..color = const Color(0xFFFF7A00)
-      ..style = PaintingStyle.fill;
-
-    final flagPath = Path();
-    double poleX = center.dx - 8;
-    double topY = center.dy - radius + 10;
-    double bottomY = center.dy + radius - 10;
-    double clothTopY = center.dy - radius + 12;
-    double clothBottomY = center.dy + 6;
-    double tipX = center.dx + radius - 6;
-
-    flagPath.moveTo(poleX, topY);
-    flagPath.lineTo(poleX, bottomY);
-
-    flagPath.moveTo(poleX, clothTopY);
-    flagPath.lineTo(tipX, (clothTopY + clothBottomY) / 2);
-    flagPath.lineTo(poleX, clothBottomY);
-    flagPath.close();
-
-    canvas.drawPath(flagPath, flagPaint);
-
-    final poleLinePaint = Paint()
-      ..color = const Color(0xFF0C0C0C)
-      ..strokeWidth = 2.0;
-    canvas.drawLine(Offset(poleX, topY), Offset(poleX, bottomY), poleLinePaint);
-
-    final textPainter = TextPainter(
-      text: const TextSpan(
-        text: 'ॐ',
-        style: TextStyle(color: Colors.black, fontSize: 13, fontWeight: FontWeight.bold),
-      ),
-      textDirection: TextDirection.ltr,
-    );
-    textPainter.layout();
-
-    double clothCenterX = poleX + ((tipX - poleX) * 0.33);
-    double clothCenterY = (clothTopY + clothBottomY) / 2;
-
-    textPainter.paint(
-      canvas,
-      Offset(clothCenterX - (textPainter.width / 2), clothCenterY - (textPainter.height / 2)),
-    );
   }
 
   @override
