@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dio/dio.dart';
 import '../../../core/network/dio_client.dart';
+import '../../../core/network/signalr_service.dart';
 import '../../../core/storage/secure_storage_service.dart';
 import '../data/models/login_request.dart';
 import '../data/models/register_request.dart';
@@ -134,6 +135,8 @@ class AuthNotifier extends Notifier<AuthState> {
 
 
   Future<void> logout() async {
+    final currentUserId = (state is AuthAuthenticated) ? (state as AuthAuthenticated).userId : null;
+    await SignalRService().disconnect(currentUserId);
     await SecureStorageService.clearAll();
     ref.read(userRepositoryProvider).clearCache();
     ref.invalidate(userProfileProvider);

@@ -71,15 +71,17 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
 
         if (mounted) {
           Navigator.pop(context); // Pop loading
+          final messenger = ScaffoldMessenger.of(context);
+          messenger.clearSnackBars();
           if (success) {
-            ScaffoldMessenger.of(context).showSnackBar(
+            messenger.showSnackBar(
               SnackBar(
                 content: Text('"${business.name}" has been permanently deleted.'),
                 backgroundColor: Colors.green,
               ),
             );
           } else {
-            ScaffoldMessenger.of(context).showSnackBar(
+            messenger.showSnackBar(
               const SnackBar(
                 content: Text('Failed to delete business. Please try again.'),
                 backgroundColor: Colors.redAccent,
@@ -90,7 +92,9 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
       } catch (e) {
         if (mounted) {
           Navigator.pop(context); // Pop loading
-          ScaffoldMessenger.of(context).showSnackBar(
+          final messenger = ScaffoldMessenger.of(context);
+          messenger.clearSnackBars();
+          messenger.showSnackBar(
             SnackBar(content: Text('Error: $e'), backgroundColor: Colors.redAccent),
           );
         }
@@ -138,15 +142,17 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
 
         if (mounted) {
           Navigator.pop(context); // Pop loading
+          final messenger = ScaffoldMessenger.of(context);
+          messenger.clearSnackBars();
           if (success) {
-            ScaffoldMessenger.of(context).showSnackBar(
+            messenger.showSnackBar(
               SnackBar(
                 content: Text('Deletion request for "${business.name}" has been rejected. Business restored to Approved.'),
                 backgroundColor: Colors.green,
               ),
             );
           } else {
-            ScaffoldMessenger.of(context).showSnackBar(
+            messenger.showSnackBar(
               const SnackBar(
                 content: Text('Failed to reject deletion request. Please try again.'),
                 backgroundColor: Colors.redAccent,
@@ -157,7 +163,9 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
       } catch (e) {
         if (mounted) {
           Navigator.pop(context); // Pop loading
-          ScaffoldMessenger.of(context).showSnackBar(
+          final messenger = ScaffoldMessenger.of(context);
+          messenger.clearSnackBars();
+          messenger.showSnackBar(
             SnackBar(content: Text('Error: $e'), backgroundColor: Colors.redAccent),
           );
         }
@@ -209,6 +217,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
       
       if (mounted) {
         Navigator.pop(context); // Pop loading HUD
+        messenger.clearSnackBars();
         if (success) {
           messenger.showSnackBar(
             SnackBar(
@@ -317,6 +326,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
 
       if (mounted) {
         Navigator.pop(context); // Pop loading HUD
+        messenger.clearSnackBars();
         if (success) {
           messenger.showSnackBar(
             SnackBar(

@@ -163,7 +163,7 @@ class BusinessRepository {
   Future<List<BusinessDto>> voiceSearchText(
     String query, {
     bool openNow = false,
-    int radius = 5,
+    int radius = 30,
     String? category,
     double? lat,
     double? lng,

@@ -567,7 +567,9 @@ class BusinessDashboardScreen extends ConsumerWidget {
                 Navigator.pop(dialogCtx);
                 final success = await ref.read(myBusinessesProvider.notifier).cancelTemporaryClosure(business.businessId);
                 if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
+                  final messenger = ScaffoldMessenger.of(context);
+                  messenger.clearSnackBars();
+                  messenger.showSnackBar(
                     SnackBar(content: Text(success ? 'Business reopened successfully.' : 'Failed to reopen business.')),
                   );
                 }
@@ -695,7 +697,9 @@ class BusinessDashboardScreen extends ConsumerWidget {
                     closureDays,
                   );
                   if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
+                    final messenger = ScaffoldMessenger.of(context);
+                    messenger.clearSnackBars();
+                    messenger.showSnackBar(
                       SnackBar(
                         content: Text(success ? 'Temporary closure submitted successfully.' : 'Failed to submit closure request.'),
                       ),
@@ -791,7 +795,9 @@ class BusinessDashboardScreen extends ConsumerWidget {
                     reason,
                   );
                   if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
+                    final messenger = ScaffoldMessenger.of(context);
+                    messenger.clearSnackBars();
+                    messenger.showSnackBar(
                       SnackBar(
                         content: Text(success ? 'Deletion request submitted to admin successfully.' : 'Failed to submit deletion request.'),
                       ),

@@ -1,4 +1,6 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
 class WelcomeScreen extends StatefulWidget {
@@ -8,286 +10,411 @@ class WelcomeScreen extends StatefulWidget {
   State<WelcomeScreen> createState() => _WelcomeScreenState();
 }
 
-class _WelcomeScreenState extends State<WelcomeScreen> {
-  // Selected role: 'user', 'businessowner', or 'admin'
-  String _selectedRole = 'user';
+class _WelcomeScreenState extends State<WelcomeScreen>
+    with SingleTickerProviderStateMixin {
+  // Selected role: 'user', 'client', or 'admin'
+  String _selectedRole = 'client';
+
+  late AnimationController _particleController;
+  final List<EmberParticle> _particles =
+      List.generate(45, (index) => EmberParticle());
+
+  @override
+  void initState() {
+    super.initState();
+    _particleController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 10),
+    )..addListener(() {
+        setState(() {
+          for (var p in _particles) {
+            p.update();
+          }
+        });
+      });
+    _particleController.repeat();
+  }
+
+  @override
+  void dispose() {
+    _particleController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF080706),
+      backgroundColor: const Color(0xFF070504),
       body: Stack(
         children: [
-          // Background ambient gradient lighting
+          // ─── 1. DYNAMIC TEMPLE & SUNSET BACKGROUND ARTWORK CANVAS ───
           Positioned.fill(
-            child: Container(
-              decoration: BoxDecoration(
-                gradient: RadialGradient(
-                  center: const Alignment(-0.5, -0.7),
-                  radius: 1.3,
-                  colors: [
-                    const Color(0xFFFF7A00).withValues(alpha: 0.08),
-                    Colors.transparent,
-                  ],
-                ),
-              ),
-            ),
-          ),
-          Positioned.fill(
-            child: Container(
-              decoration: BoxDecoration(
-                gradient: RadialGradient(
-                  center: const Alignment(0.6, 0.7),
-                  radius: 1.3,
-                  colors: [
-                    const Color(0xFFFF5500).withValues(alpha: 0.06),
-                    Colors.transparent,
-                  ],
-                ),
-              ),
+            child: CustomPaint(
+              painter: WelcomeHeroPainter(_particles),
             ),
           ),
 
+          // ─── 2. FIXED NON-SCROLLABLE CONTENT LAYOUT ───
           SafeArea(
-            child: Column(
-              children: [
-                Expanded(
-                  child: SingleChildScrollView(
-                    physics: const BouncingScrollPhysics(),
-                    padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        const SizedBox(height: 10),
-                        // Compact App Emblem/Logo Badge
-                        Container(
-                          width: 64,
-                          height: 64,
-                          padding: const EdgeInsets.all(3),
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            gradient: const LinearGradient(
-                              colors: [Color(0xFFFF9F00), Color(0xFFFF5500)],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: const Color(0xFFFF7A00).withValues(alpha: 0.3),
-                                blurRadius: 16,
-                                spreadRadius: 1,
-                              ),
-                            ],
-                          ),
-                          child: Container(
-                            decoration: const BoxDecoration(
-                              color: Color(0xFF141210),
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Center(
-                              child: Text(
-                                'ॐ',
-                                style: TextStyle(
-                                  color: Color(0xFFFF7A00),
-                                  fontSize: 28,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 4.0),
+              child: Column(
+                children: [
+                  // Clearance below Top Temple Artwork & Gear Emblem
+                  const SizedBox(height: 150),
 
-                        // Title & Header
-                        const Text(
-                          'Vocal for Sanatan',
-                          style: TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                            color: Color(0xFFFF7A00),
-                            letterSpacing: 1.2,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        const Text(
-                          'Select Your Role',
-                          style: TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 23,
-                            fontWeight: FontWeight.w900,
-                            color: Colors.white,
-                            letterSpacing: 0.2,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Choose the account type that best describes your needs.',
-                          style: TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 12.5,
-                            color: Colors.white.withValues(alpha: 0.6),
-                            height: 1.3,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 20),
-
-                        // 3 Compact Role Selection Cards Side-by-Side
-                        Row(
-                          children: [
-                            // Card 1: User / Customer
-                            Expanded(
-                              child: _buildRoleCard(
-                                roleKey: 'user',
-                                title: 'User',
-                                icon: Icons.person_rounded,
-                                isSelected: _selectedRole == 'user',
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            // Card 2: Business Owner / Vendor
-                            Expanded(
-                              child: _buildRoleCard(
-                                roleKey: 'businessowner',
-                                title: 'Business',
-                                icon: Icons.storefront_rounded,
-                                isSelected: _selectedRole == 'businessowner',
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            // Card 3: Admin
-                            Expanded(
-                              child: _buildRoleCard(
-                                roleKey: 'admin',
-                                title: 'Admin',
-                                icon: Icons.admin_panel_settings_rounded,
-                                isSelected: _selectedRole == 'admin',
-                              ),
-                            ),
-                          ],
-                        ),
-
-                        const SizedBox(height: 18),
-
-                        // Dynamic Feature Bullets Box
-                        AnimatedSwitcher(
-                          duration: const Duration(milliseconds: 250),
-                          child: Container(
-                            key: ValueKey(_selectedRole),
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF141210),
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(
-                                color: const Color(0xFFFF7A00).withValues(alpha: 0.15),
-                              ),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: _selectedRole == 'user'
-                                  ? [
-                                      _buildFeatureBullet('Discover local businesses & services easily.'),
-                                      const SizedBox(height: 8),
-                                      _buildFeatureBullet('Connect with verified local professionals.'),
-                                      const SizedBox(height: 8),
-                                      _buildFeatureBullet('AI voice search & smart recommendations.'),
-                                    ]
-                                  : _selectedRole == 'businessowner'
-                                      ? [
-                                          _buildFeatureBullet('List & promote your store for 100% free.'),
-                                          const SizedBox(height: 8),
-                                          _buildFeatureBullet('Manage operating hours, photos, and location.'),
-                                          const SizedBox(height: 8),
-                                          _buildFeatureBullet('Receive customer leads, views & ratings.'),
-                                        ]
-                                      : [
-                                          _buildFeatureBullet('Review and approve business listings.'),
-                                          const SizedBox(height: 8),
-                                          _buildFeatureBullet('Manage categories & system reports.'),
-                                          const SizedBox(height: 8),
-                                          _buildFeatureBullet('Full platform governance & user control.'),
-                                        ],
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                      ],
+                  // ─── HEADER TYPOGRAPHY BLOCK ───
+                  // Title 1: "Welcome to" (Elegant Serif)
+                  const Text(
+                    'Welcome to',
+                    style: TextStyle(
+                      fontFamily: 'serif',
+                      fontSize: 21,
+                      fontWeight: FontWeight.w400,
+                      color: Color(0xFFF2E6D8),
+                      letterSpacing: 0.4,
                     ),
                   ),
-                ),
+                  const SizedBox(height: 2),
 
-                // Floating Action Button at Bottom
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 14.0),
-                  child: Column(
-                    children: [
-                      SizedBox(
-                        width: double.infinity,
-                        height: 50,
-                        child: ElevatedButton(
-                          onPressed: () {
-                            context.go('/login', extra: _selectedRole);
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFFFF6B00),
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(25),
-                            ),
-                            elevation: 6,
-                            shadowColor: const Color(0xFFFF6B00).withValues(alpha: 0.35),
+                  // Title 2: "Vocal for Sanatan" (Rich Golden Serif Gradient)
+                  ShaderMask(
+                    shaderCallback: (bounds) {
+                      return const LinearGradient(
+                        colors: [
+                          Color(0xFFFFF9E6),
+                          Color(0xFFFFD166),
+                          Color(0xFFFF8800),
+                          Color(0xFFE65C00),
+                        ],
+                        stops: [0.0, 0.35, 0.75, 1.0],
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                      ).createShader(bounds);
+                    },
+                    child: const Text(
+                      'Vocal for Sanatan',
+                      style: TextStyle(
+                        fontFamily: 'serif',
+                        fontSize: 34,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                        letterSpacing: 0.4,
+                        shadows: [
+                          Shadow(
+                            color: Color(0x99FF6A00),
+                            blurRadius: 14,
+                            offset: Offset(0, 2),
                           ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(
-                                _selectedRole == 'admin' ? 'Login as Admin' : 'Continue',
-                                style: const TextStyle(
-                                  fontSize: 15.5,
-                                  fontWeight: FontWeight.w800,
-                                  letterSpacing: 0.4,
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              const Icon(Icons.arrow_forward_rounded, size: 18),
+                        ],
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+
+                  // Ornamental Lotus Line Divider: ─── 🪷 ───
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                        width: 50,
+                        height: 1.2,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              Colors.transparent,
+                              const Color(0xFFFF9D00).withValues(alpha: 0.7),
                             ],
                           ),
                         ),
                       ),
-                      const SizedBox(height: 8),
-                      if (_selectedRole != 'admin')
-                        Row(
+                      const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 8.0),
+                        child: Icon(
+                          Icons.filter_vintage_rounded,
+                          size: 14,
+                          color: Color(0xFFFF9D00),
+                        ),
+                      ),
+                      Container(
+                        width: 50,
+                        height: 1.2,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              const Color(0xFFFF9D00).withValues(alpha: 0.7),
+                              Colors.transparent,
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+
+                  // Subtitle Paragraph Text
+                  const Text(
+                    'One platform, many roles.\nConnect, contribute and empower\nour Sanatan heritage.',
+                    style: TextStyle(
+                      fontFamily: 'Inter',
+                      fontSize: 13,
+                      color: Color(0xFFD6CBC0),
+                      height: 1.35,
+                      fontWeight: FontWeight.w400,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+
+                  const Spacer(flex: 8),
+
+                  // ─── SECTION HEADER: ❖ Choose Your Role ❖ ───
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Container(
+                          height: 1,
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                Colors.transparent,
+                                const Color(0xFFFF8C00).withValues(alpha: 0.5),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      const Padding(
+                        padding: EdgeInsets.only(right: 6.0),
+                        child: Icon(Icons.diamond_rounded, size: 7, color: Color(0xFFFF9D00)),
+                      ),
+                      const Text(
+                        'Choose Your Role',
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFFFF9D00),
+                          letterSpacing: 0.6,
+                        ),
+                      ),
+                      const Padding(
+                        padding: EdgeInsets.only(left: 6.0),
+                        child: Icon(Icons.diamond_rounded, size: 7, color: Color(0xFFFF9D00)),
+                      ),
+                      Expanded(
+                        child: Container(
+                          height: 1,
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                const Color(0xFFFF8C00).withValues(alpha: 0.5),
+                                Colors.transparent,
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 10),
+
+                  // ─── 3 ROLE CARDS SIDE-BY-SIDE (USER, CLIENT, ADMIN) ───
+                  SizedBox(
+                    height: 196,
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        // Card 1: User
+                        Expanded(
+                          child: _buildRoleCard(
+                            roleKey: 'user',
+                            title: 'User',
+                            description: 'Discover local businesses, explore services and support your community.',
+                            icon: Icons.person_outline_rounded,
+                            isSelected: _selectedRole == 'user',
+                            artPainter: UserCardArtPainter(),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+
+                        // Card 2: Client
+                        Expanded(
+                          child: _buildRoleCard(
+                            roleKey: 'client',
+                            title: 'Client',
+                            description: 'Manage your business, connect with customers and grow your brand with AI insights.',
+                            icon: Icons.storefront_rounded,
+                            isSelected: _selectedRole == 'client',
+                            artPainter: BusinessCardArtPainter(),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+
+                        // Card 3: Admin
+                        Expanded(
+                          child: _buildRoleCard(
+                            roleKey: 'admin',
+                            title: 'Admin',
+                            description: 'Oversee platform operations, manage users and ensure quality & trust.',
+                            icon: Icons.shield_outlined,
+                            isSelected: _selectedRole == 'admin',
+                            artPainter: AdminCardArtPainter(),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const Spacer(flex: 8),
+
+                  // ─── PRIMARY ACTION BUTTON ("Continue ->") ───
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(24),
+                        gradient: const LinearGradient(
+                          colors: [
+                            Color(0xFFFF7700),
+                            Color(0xFFD63B00),
+                          ],
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFFFF6A00).withValues(alpha: 0.45),
+                            blurRadius: 12,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: ElevatedButton(
+                        onPressed: () {
+                          HapticFeedback.mediumImpact();
+                          context.go('/login', extra: _selectedRole);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.transparent,
+                          shadowColor: Colors.transparent,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(24),
+                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                        ),
+                        child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Text(
-                              'New here? ',
+                            const Spacer(),
+                            const Text(
+                              'Continue',
                               style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.6),
-                                fontSize: 13,
+                                fontFamily: 'Inter',
+                                fontSize: 16,
+                                fontWeight: FontWeight.w800,
+                                color: Colors.white,
+                                letterSpacing: 0.5,
                               ),
                             ),
-                            GestureDetector(
-                              onTap: () {
-                                context.go('/signup', extra: _selectedRole);
-                              },
-                              child: const Text(
-                                'Create an Account',
-                                style: TextStyle(
-                                  color: Color(0xFFFF7A00),
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.bold,
-                                ),
+                            const Spacer(),
+                            Container(
+                              width: 32,
+                              height: 32,
+                              decoration: const BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: Color(0xFFFF9E1B),
+                              ),
+                              child: const Icon(
+                                Icons.arrow_forward_rounded,
+                                color: Colors.white,
+                                size: 17,
                               ),
                             ),
                           ],
                         ),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 8),
+
+                  // Trust Badge Subtext: Shield + "Trusted. Verified. Secure."
+                  const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.shield_outlined,
+                        size: 13,
+                        color: Color(0xFFFF9D00),
+                      ),
+                      SizedBox(width: 5),
+                      Text(
+                        'Trusted. Verified. Secure.',
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 11.5,
+                          color: Color(0xFFB5A99B),
+                          letterSpacing: 0.3,
+                        ),
+                      ),
                     ],
                   ),
-                ),
-              ],
+
+                  const SizedBox(height: 8),
+
+                  // Divider Line: ─── ◆ ───
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Container(
+                          height: 0.8,
+                          color: const Color(0xFFFF8C00).withValues(alpha: 0.25),
+                        ),
+                      ),
+                      const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 8.0),
+                        child: Icon(Icons.diamond_rounded, size: 6, color: Color(0xFFFF9D00)),
+                      ),
+                      Expanded(
+                        child: Container(
+                          height: 0.8,
+                          color: const Color(0xFFFF8C00).withValues(alpha: 0.25),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 8),
+
+                  // ─── 4 BOTTOM FEATURE TILES ───
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      _buildBottomFeature(
+                        icon: Icons.account_balance_rounded,
+                        label: 'Preserve\nHeritage',
+                      ),
+                      _buildBottomFeature(
+                        icon: Icons.groups_rounded,
+                        label: 'Empower\nCommunities',
+                      ),
+                      _buildBottomFeature(
+                        icon: Icons.verified_user_rounded,
+                        label: 'Secure &\nVerified',
+                      ),
+                      _buildBottomFeature(
+                        icon: Icons.auto_awesome_rounded,
+                        label: 'AI Powered\nPlatform',
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 2),
+                ],
+              ),
             ),
           ),
         ],
@@ -298,117 +425,674 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   Widget _buildRoleCard({
     required String roleKey,
     required String title,
+    required String description,
     required IconData icon,
     required bool isSelected,
+    required CustomPainter artPainter,
   }) {
     return GestureDetector(
       onTap: () {
+        HapticFeedback.selectionClick();
         setState(() {
           _selectedRole = roleKey;
         });
       },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        curve: Curves.easeInOut,
-        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? const Color(0xFFFF7A00).withValues(alpha: 0.12)
-              : const Color(0xFF141210),
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(
-            color: isSelected
-                ? const Color(0xFFFF7A00)
-                : Colors.white.withValues(alpha: 0.08),
-            width: isSelected ? 2 : 1,
-          ),
-          boxShadow: isSelected
-              ? [
-                  BoxShadow(
-                    color: const Color(0xFFFF7A00).withValues(alpha: 0.2),
-                    blurRadius: 12,
-                  )
-                ]
-              : [],
-        ),
-        child: Column(
-          children: [
-            // Checkmark indicator
-            Align(
-              alignment: Alignment.topRight,
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 180),
-                width: 18,
-                height: 18,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: isSelected ? const Color(0xFFFF7A00) : Colors.transparent,
-                  border: Border.all(
-                    color: isSelected
-                        ? const Color(0xFFFF7A00)
-                        : Colors.white.withValues(alpha: 0.2),
-                    width: 1.2,
-                  ),
-                ),
-                child: isSelected
-                    ? const Icon(Icons.check, size: 12, color: Colors.white)
-                    : null,
-              ),
-            ),
-            const SizedBox(height: 4),
-            // Circle Icon Container
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOutCubic,
+            padding: const EdgeInsets.fromLTRB(4, 10, 4, 6),
+            decoration: BoxDecoration(
+              color: isSelected ? const Color(0xFF16110B) : const Color(0xFF0D0B0A),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
                 color: isSelected
                     ? const Color(0xFFFF7A00)
-                    : Colors.white.withValues(alpha: 0.05),
+                    : const Color(0xFF261F18),
+                width: isSelected ? 2.0 : 1.0,
               ),
-              child: Icon(
-                icon,
-                size: 24,
-                color: isSelected ? Colors.white : Colors.white60,
+              boxShadow: isSelected
+                  ? [
+                      BoxShadow(
+                        color: const Color(0xFFFF7A00).withValues(alpha: 0.55),
+                        blurRadius: 18,
+                        spreadRadius: 2.0,
+                      ),
+                      BoxShadow(
+                        color: const Color(0xFFFF4500).withValues(alpha: 0.30),
+                        blurRadius: 30,
+                        spreadRadius: 4.0,
+                      ),
+                    ]
+                  : [],
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  children: [
+                    // Top Icon Container with Glowing Saffron Ring when Selected
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: isSelected
+                            ? const Color(0xFF2B1A0A)
+                            : const Color(0xFF1A140E),
+                        border: Border.all(
+                          color: const Color(0xFFFF7A00).withValues(alpha: isSelected ? 1.0 : 0.4),
+                          width: isSelected ? 1.6 : 1.2,
+                        ),
+                        boxShadow: isSelected
+                            ? [
+                                BoxShadow(
+                                  color: const Color(0xFFFF7A00).withValues(alpha: 0.45),
+                                  blurRadius: 10,
+                                  spreadRadius: 1,
+                                ),
+                              ]
+                            : [],
+                      ),
+                      child: Center(
+                        child: roleKey == 'admin'
+                            ? Stack(
+                                alignment: Alignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.shield_rounded,
+                                    size: 20,
+                                    color: isSelected
+                                        ? const Color(0xFFFF9D00)
+                                        : const Color(0xFFFF9D00).withValues(alpha: 0.7),
+                                  ),
+                                  Icon(
+                                    Icons.star_rounded,
+                                    size: 9,
+                                    color: isSelected ? Colors.black : const Color(0xFF1A140E),
+                                  ),
+                                ],
+                              )
+                            : Icon(
+                                icon,
+                                size: 20,
+                                color: isSelected
+                                    ? const Color(0xFFFF9D00)
+                                    : const Color(0xFFFF9D00).withValues(alpha: 0.7),
+                              ),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+
+                    // Role Title (Glowing when Selected)
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w700,
+                        color: isSelected ? const Color(0xFFFF9D00) : Colors.white,
+                        shadows: isSelected
+                            ? [
+                                const Shadow(
+                                  color: Color(0x99FF7A00),
+                                  blurRadius: 8,
+                                ),
+                              ]
+                            : [],
+                      ),
+                      textAlign: TextAlign.center,
+                      maxLines: 1,
+                    ),
+                    const SizedBox(height: 3),
+
+                    // Subtle Orange Underline
+                    Container(
+                      width: 16,
+                      height: 1.5,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFF9D00).withValues(alpha: isSelected ? 1.0 : 0.4),
+                        borderRadius: BorderRadius.circular(1),
+                        boxShadow: isSelected
+                            ? [
+                                BoxShadow(
+                                  color: const Color(0xFFFF7A00).withValues(alpha: 0.6),
+                                  blurRadius: 6,
+                                ),
+                              ]
+                            : [],
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+
+                    // Card Description
+                    Text(
+                      description,
+                      style: const TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 9.0,
+                        color: Color(0xFFA59B90),
+                        height: 1.25,
+                      ),
+                      textAlign: TextAlign.center,
+                      maxLines: 4,
+                    ),
+                  ],
+                ),
+
+                // Card Bottom Custom Line-Art
+                SizedBox(
+                  height: 22,
+                  width: double.infinity,
+                  child: CustomPaint(
+                    painter: artPainter,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Top-Right Orange Star Badge when Selected
+          if (isSelected)
+            Positioned(
+              top: -5,
+              right: -5,
+              child: Container(
+                width: 20,
+                height: 20,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: const Color(0xFFFF7A00),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFFFF7A00).withValues(alpha: 0.75),
+                      blurRadius: 8,
+                      spreadRadius: 1,
+                    ),
+                  ],
+                ),
+                child: const Center(
+                  child: Icon(
+                    Icons.star_rounded,
+                    size: 13,
+                    color: Colors.black,
+                  ),
+                ),
               ),
             ),
-            const SizedBox(height: 10),
-            Text(
-              title,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w800,
-                color: isSelected ? Colors.white : Colors.white70,
-              ),
-            ),
-          ],
-        ),
+        ],
       ),
     );
   }
 
-  Widget _buildFeatureBullet(String text) {
-    return Row(
+  Widget _buildBottomFeature({
+    required IconData icon,
+    required String label,
+  }) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
         Container(
-          width: 6,
-          height: 6,
-          decoration: const BoxDecoration(
-            shape: BoxShape.circle,
-            color: Color(0xFFFF7A00),
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Text(
-            text,
-            style: TextStyle(
-              fontSize: 12.5,
-              color: Colors.white.withValues(alpha: 0.85),
-              height: 1.3,
+          width: 34,
+          height: 34,
+          decoration: BoxDecoration(
+            color: const Color(0xFF16110B),
+            borderRadius: BorderRadius.circular(9),
+            border: Border.all(
+              color: const Color(0xFFFF7A00).withValues(alpha: 0.3),
+              width: 0.8,
             ),
           ),
+          child: Icon(
+            icon,
+            size: 17,
+            color: const Color(0xFFFF9D00),
+          ),
+        ),
+        const SizedBox(height: 3),
+        Text(
+          label,
+          style: const TextStyle(
+            fontFamily: 'Inter',
+            fontSize: 9.0,
+            color: Color(0xFFB0A59A),
+            height: 1.2,
+          ),
+          textAlign: TextAlign.center,
         ),
       ],
     );
   }
+}
+
+// ─── AMBIENT EMBER PARTICLE MODEL ───
+
+class EmberParticle {
+  late double x;
+  late double y;
+  late double speedY;
+  late double speedX;
+  late double size;
+  late double opacity;
+
+  EmberParticle() {
+    reset(isInitial: true);
+  }
+
+  void reset({bool isInitial = false}) {
+    final rand = math.Random();
+    x = rand.nextDouble();
+    y = isInitial ? rand.nextDouble() : 1.05;
+    speedY = 0.0005 + rand.nextDouble() * 0.0015;
+    speedX = (rand.nextDouble() - 0.5) * 0.0004;
+    size = 1.0 + rand.nextDouble() * 2.5;
+    opacity = 0.2 + rand.nextDouble() * 0.65;
+  }
+
+  void update() {
+    y -= speedY;
+    x += speedX + math.sin(y * 12) * 0.0003;
+
+    if (y < -0.05 || x < -0.05 || x > 1.05) {
+      reset();
+    }
+  }
+}
+
+// ─── HIGH-FIDELITY AUTHENTIC SANATAN TEMPLE HERO PAINTER ───
+
+class WelcomeHeroPainter extends CustomPainter {
+  final List<EmberParticle> particles;
+
+  WelcomeHeroPainter(this.particles);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Rect.fromLTWH(0, 0, size.width, size.height);
+
+    // 1. Deep Background Base Gradient
+    final bgPaint = Paint()
+      ..shader = const LinearGradient(
+        colors: [
+          Color(0xFF0C0704),
+          Color(0xFF070504),
+        ],
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+      ).createShader(rect);
+
+    canvas.drawRect(rect, bgPaint);
+
+    // 2. Sunset Glow Aura (Radial Saffron Light centered behind Central Temple Spire)
+    final sunCenter = Offset(size.width * 0.5, 95.0);
+    final glowPaint = Paint()
+      ..shader = RadialGradient(
+        center: const Alignment(0, -0.75),
+        radius: 0.70,
+        colors: [
+          const Color(0xFFFF6A00).withValues(alpha: 0.65),
+          const Color(0xFFD64000).withValues(alpha: 0.35),
+          const Color(0xFF3D1200).withValues(alpha: 0.12),
+          Colors.transparent,
+        ],
+        stops: const [0.0, 0.4, 0.7, 1.0],
+      ).createShader(rect);
+
+    canvas.drawRect(rect, glowPaint);
+
+    // 3. Glowing Sun Disc
+    final sunPaint = Paint()
+      ..shader = RadialGradient(
+        center: Alignment.center,
+        radius: 1.0,
+        colors: [
+          const Color(0xFFFFF2B2),
+          const Color(0xFFFF9500).withValues(alpha: 0.85),
+          const Color(0xFFFF5500).withValues(alpha: 0.0),
+        ],
+        stops: const [0.0, 0.48, 1.0],
+      ).createShader(Rect.fromCircle(center: sunCenter, radius: size.width * 0.30));
+
+    canvas.drawCircle(sunCenter, size.width * 0.30, sunPaint);
+
+    // 4. Floating Ember Particles
+    final particlePaint = Paint()..style = PaintingStyle.fill;
+    for (var p in particles) {
+      particlePaint.color = const Color(0xFFFF9D00).withValues(alpha: p.opacity);
+      canvas.drawCircle(
+        Offset(p.x * size.width, p.y * size.height),
+        p.size,
+        particlePaint,
+      );
+    }
+
+    // 5. Golden Glowing Light Swooshes (Curved Arcs across Sky)
+    final wavePaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.2;
+
+    for (int i = 0; i < 4; i++) {
+      wavePaint.color = const Color(0xFFFF8C00).withValues(alpha: 0.18 + i * 0.05);
+      final path = Path();
+      double yOffset = 70.0 + i * 14;
+      path.moveTo(0, yOffset);
+      path.cubicTo(
+        size.width * 0.28,
+        yOffset - 25 + i * 10,
+        size.width * 0.72,
+        yOffset + 30 - i * 8,
+        size.width,
+        yOffset - 12,
+      );
+      canvas.drawPath(path, wavePaint);
+    }
+
+    // 6. DETAILED MULTI-TIERED SANATAN TEMPLE SILHOUETTE (AUTHENTIC SHIKHARA ARCHITECTURE)
+    final heroHeight = 150.0;
+    final templePaint = Paint()
+      ..shader = LinearGradient(
+        colors: [
+          const Color(0xFF22120A),
+          const Color(0xFF120A05),
+          const Color(0xFF070504),
+        ],
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+      ).createShader(Rect.fromLTWH(0, 0, size.width, heroHeight));
+
+    // Outer Temple Silhouette Path with stepped Shikharas, Kalash finials & Amalakas
+    final templePath = Path();
+    templePath.moveTo(0, heroHeight);
+
+    // Leftmost Outer Spire (Small Mandapa Shikhara)
+    templePath.lineTo(size.width * 0.04, heroHeight * 0.90);
+    _drawSpireSteps(templePath, size.width * 0.04, heroHeight * 0.90, size.width * 0.10, heroHeight * 0.62);
+    templePath.lineTo(size.width * 0.10, heroHeight * 0.60); // Peak
+    _drawSpireSteps(templePath, size.width * 0.10, heroHeight * 0.62, size.width * 0.16, heroHeight * 0.90);
+
+    // Left Secondary Spire
+    templePath.lineTo(size.width * 0.20, heroHeight * 0.85);
+    _drawSpireSteps(templePath, size.width * 0.20, heroHeight * 0.85, size.width * 0.28, heroHeight * 0.45);
+    templePath.lineTo(size.width * 0.28, heroHeight * 0.42); // Peak
+    _drawSpireSteps(templePath, size.width * 0.28, heroHeight * 0.45, size.width * 0.36, heroHeight * 0.80);
+
+    // CENTRAL MAIN SHIKHARA (Grand Temple Tower with Amalaka Peak)
+    templePath.lineTo(size.width * 0.38, heroHeight * 0.70);
+    _drawSpireSteps(templePath, size.width * 0.38, heroHeight * 0.70, size.width * 0.50, heroHeight * 0.12);
+    templePath.lineTo(size.width * 0.49, heroHeight * 0.08);
+    templePath.lineTo(size.width * 0.50, heroHeight * 0.05); // Top Crown Peak
+    templePath.lineTo(size.width * 0.51, heroHeight * 0.08);
+    _drawSpireSteps(templePath, size.width * 0.50, heroHeight * 0.12, size.width * 0.62, heroHeight * 0.70);
+
+    // Right Secondary Spire
+    templePath.lineTo(size.width * 0.64, heroHeight * 0.80);
+    _drawSpireSteps(templePath, size.width * 0.64, heroHeight * 0.80, size.width * 0.72, heroHeight * 0.45);
+    templePath.lineTo(size.width * 0.72, heroHeight * 0.42); // Peak
+    _drawSpireSteps(templePath, size.width * 0.72, heroHeight * 0.45, size.width * 0.80, heroHeight * 0.85);
+
+    // Rightmost Outer Spire
+    templePath.lineTo(size.width * 0.84, heroHeight * 0.90);
+    _drawSpireSteps(templePath, size.width * 0.84, heroHeight * 0.90, size.width * 0.90, heroHeight * 0.62);
+    templePath.lineTo(size.width * 0.90, heroHeight * 0.60); // Peak
+    _drawSpireSteps(templePath, size.width * 0.90, heroHeight * 0.62, size.width * 0.96, heroHeight * 0.90);
+
+    templePath.lineTo(size.width, heroHeight);
+    templePath.close();
+
+    canvas.drawPath(templePath, templePaint);
+
+    // Draw Temple Inner Architectural Ridge Lines for Authentic Depth
+    final strokePaint = Paint()
+      ..color = const Color(0xFFFF9D00).withValues(alpha: 0.18)
+      ..strokeWidth = 0.9
+      ..style = PaintingStyle.stroke;
+
+    canvas.drawPath(templePath, strokePaint);
+
+    // Draw Saffron Flying Flag atop Main Temple Spire
+    final mainPeakX = size.width * 0.50;
+    final mainPeakY = heroHeight * 0.05;
+
+    final polePaint = Paint()
+      ..color = const Color(0xFFFF9D00)
+      ..strokeWidth = 1.5;
+
+    canvas.drawLine(Offset(mainPeakX, mainPeakY), Offset(mainPeakX, mainPeakY - 16), polePaint);
+
+    final flagPath = Path()
+      ..moveTo(mainPeakX, mainPeakY - 16)
+      ..lineTo(mainPeakX + 15, mainPeakY - 11)
+      ..lineTo(mainPeakX, mainPeakY - 6)
+      ..close();
+
+    final flagPaint = Paint()
+      ..color = const Color(0xFFFF7700)
+      ..style = PaintingStyle.fill;
+
+    canvas.drawPath(flagPath, flagPaint);
+
+    // Draw small ॐ text on main flag
+    const flagOmSpan = TextSpan(
+      text: 'ॐ',
+      style: TextStyle(
+        fontSize: 6.5,
+        fontWeight: FontWeight.bold,
+        color: Color(0xFFFFF0B3),
+      ),
+    );
+    final flagOmPainter = TextPainter(
+      text: flagOmSpan,
+      textDirection: TextDirection.ltr,
+    );
+    flagOmPainter.layout();
+    flagOmPainter.paint(canvas, Offset(mainPeakX + 3, mainPeakY - 14));
+
+    // 7. Central Gear Ring Emblem & Om Flag Logo (CENTERED AT TOP 122px)
+    final emblemX = size.width * 0.5;
+    final emblemY = 122.0;
+
+    final gearRadius = 26.0;
+    final gearPaint = Paint()
+      ..color = const Color(0xFFFF9D00)
+      ..strokeWidth = 1.8
+      ..style = PaintingStyle.stroke;
+
+    // Gear teeth outer ring
+    canvas.drawCircle(Offset(emblemX, emblemY), gearRadius, gearPaint);
+
+    final toothPaint = Paint()
+      ..color = const Color(0xFFFF7A00)
+      ..style = PaintingStyle.fill;
+
+    for (int i = 0; i < 20; i++) {
+      final angle = (i * 18) * math.pi / 180;
+      final dx = emblemX + (gearRadius + 3.5) * math.cos(angle);
+      final dy = emblemY + (gearRadius + 3.5) * math.sin(angle);
+      canvas.drawCircle(Offset(dx, dy), 1.4, toothPaint);
+    }
+
+    // Inner dark circle container
+    final innerBgPaint = Paint()
+      ..color = const Color(0xFF0F0905)
+      ..style = PaintingStyle.fill;
+
+    canvas.drawCircle(Offset(emblemX, emblemY), gearRadius - 2, innerBgPaint);
+
+    // Flag + Om inside Central Emblem
+    final emblemFlagPath = Path()
+      ..moveTo(emblemX - 5, emblemY - 10)
+      ..lineTo(emblemX + 9, emblemY - 5)
+      ..lineTo(emblemX - 5, emblemY)
+      ..close();
+
+    canvas.drawLine(
+      Offset(emblemX - 5, emblemY - 12),
+      Offset(emblemX - 5, emblemY + 10),
+      polePaint,
+    );
+
+    canvas.drawPath(emblemFlagPath, flagPaint);
+
+    const omSpan = TextSpan(
+      text: 'ॐ',
+      style: TextStyle(
+        fontSize: 11,
+        fontWeight: FontWeight.bold,
+        color: Color(0xFFFFD166),
+      ),
+    );
+
+    final omPainter = TextPainter(
+      text: omSpan,
+      textDirection: TextDirection.ltr,
+    );
+    omPainter.layout();
+    omPainter.paint(
+      canvas,
+      Offset(emblemX - omPainter.width / 2 + 1, emblemY + 1),
+    );
+  }
+
+  // Helper method to draw stepped Sanatan Shikhara tier curves
+  void _drawSpireSteps(Path path, double startX, double startY, double endX, double endY) {
+    int steps = 5;
+    double dx = (endX - startX) / steps;
+    double dy = (endY - startY) / steps;
+
+    for (int i = 1; i <= steps; i++) {
+      double cx = startX + dx * i;
+      double cy = startY + dy * i;
+      if (i % 2 == 1) {
+        path.lineTo(cx + (endX > startX ? 2 : -2), cy - 3);
+      } else {
+        path.lineTo(cx, cy);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
+}
+
+// ─── CARD BOTTOM LINE-ART CUSTOM PAINTERS ───
+
+class UserCardArtPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = const Color(0xFFFF7A00).withValues(alpha: 0.3)
+      ..strokeWidth = 1.0
+      ..style = PaintingStyle.stroke;
+
+    final path = Path();
+    path.moveTo(0, size.height);
+    path.lineTo(size.width * 0.15, size.height * 0.65);
+    path.lineTo(size.width * 0.3, size.height * 0.8);
+    path.lineTo(size.width * 0.5, size.height * 0.25);
+    path.lineTo(size.width * 0.7, size.height * 0.8);
+    path.lineTo(size.width * 0.85, size.height * 0.65);
+    path.lineTo(size.width, size.height);
+
+    canvas.drawPath(path, paint);
+
+    paint.style = PaintingStyle.fill;
+    canvas.drawCircle(Offset(size.width * 0.5, size.height * 0.2), 1.6, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+class BusinessCardArtPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = const Color(0xFFFF7A00).withValues(alpha: 0.35)
+      ..strokeWidth = 1.0
+      ..style = PaintingStyle.stroke;
+
+    double barWidth = size.width * 0.11;
+    double h1 = size.height * 0.3;
+    double h2 = size.height * 0.52;
+    double h3 = size.height * 0.75;
+    double h4 = size.height * 0.92;
+
+    canvas.drawRect(Rect.fromLTWH(size.width * 0.08, size.height - h1, barWidth, h1), paint);
+    canvas.drawRect(Rect.fromLTWH(size.width * 0.28, size.height - h2, barWidth, h2), paint);
+    canvas.drawRect(Rect.fromLTWH(size.width * 0.48, size.height - h3, barWidth, h3), paint);
+    canvas.drawRect(Rect.fromLTWH(size.width * 0.68, size.height - h4, barWidth, h4), paint);
+
+    final linePath = Path()
+      ..moveTo(size.width * 0.08, size.height - h1 - 4)
+      ..lineTo(size.width * 0.33, size.height - h2 - 4)
+      ..lineTo(size.width * 0.53, size.height - h3 - 4)
+      ..lineTo(size.width * 0.85, size.height - h4 - 6);
+
+    paint.color = const Color(0xFFFF9D00).withValues(alpha: 0.75);
+    paint.strokeWidth = 1.2;
+    canvas.drawPath(linePath, paint);
+
+    // Arrow tip
+    final arrowPath = Path()
+      ..moveTo(size.width * 0.78, size.height - h4 - 6)
+      ..lineTo(size.width * 0.85, size.height - h4 - 6)
+      ..lineTo(size.width * 0.85, size.height - h4 + 1);
+
+    canvas.drawPath(arrowPath, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+class AdminCardArtPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = const Color(0xFFFF7A00).withValues(alpha: 0.3)
+      ..strokeWidth = 1.0
+      ..style = PaintingStyle.stroke;
+
+    final shieldPath = Path()
+      ..moveTo(size.width * 0.22, size.height * 0.25)
+      ..lineTo(size.width * 0.44, size.height * 0.25)
+      ..lineTo(size.width * 0.44, size.height * 0.68)
+      ..cubicTo(size.width * 0.44, size.height * 0.9, size.width * 0.33, size.height, size.width * 0.33, size.height)
+      ..cubicTo(size.width * 0.33, size.height, size.width * 0.22, size.height * 0.9, size.width * 0.22, size.height * 0.68)
+      ..close();
+
+    canvas.drawPath(shieldPath, paint);
+
+    // Inner shield emblem star
+    paint.color = const Color(0xFFFF9D00).withValues(alpha: 0.5);
+    canvas.drawCircle(Offset(size.width * 0.33, size.height * 0.5), 2.5, paint);
+
+    // Dashboard card window on right
+    paint.color = const Color(0xFFFF7A00).withValues(alpha: 0.3);
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(size.width * 0.52, size.height * 0.3, size.width * 0.42, size.height * 0.6),
+        const Radius.circular(4),
+      ),
+      paint,
+    );
+
+    // Sub-lines in dashboard
+    canvas.drawLine(
+      Offset(size.width * 0.58, size.height * 0.5),
+      Offset(size.width * 0.86, size.height * 0.5),
+      paint,
+    );
+    canvas.drawLine(
+      Offset(size.width * 0.58, size.height * 0.7),
+      Offset(size.width * 0.76, size.height * 0.7),
+      paint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

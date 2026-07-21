@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:signalr_netcore/signalr_client.dart';
-import 'dart:io';
-import 'package:flutter/foundation.dart';
 import 'dio_client.dart';
 import '../../main.dart';
 
@@ -9,6 +7,9 @@ class SignalRService {
   HubConnection? _hubConnection;
   final List<Function(String)> _notificationListeners = [];
   
+  String? _lastNotificationMessage;
+  DateTime? _lastNotificationTime;
+
   static final SignalRService _instance = SignalRService._internal();
   factory SignalRService() => _instance;
   SignalRService._internal();
@@ -16,15 +17,23 @@ class SignalRService {
   bool get isConnected => _hubConnection?.state == HubConnectionState.Connected;
 
   void addNotificationListener(Function(String) listener) {
-    _notificationListeners.add(listener);
+    if (!_notificationListeners.contains(listener)) {
+      _notificationListeners.add(listener);
+    }
   }
 
   void removeNotificationListener(Function(String) listener) {
     _notificationListeners.remove(listener);
   }
 
+  void clearNotificationListeners() {
+    _notificationListeners.clear();
+  }
+
   Future<void> connect(int userId, String role, BuildContext context) async {
-    if (_hubConnection != null && _hubConnection!.state == HubConnectionState.Connected) {
+    if (_hubConnection != null && 
+        (_hubConnection!.state == HubConnectionState.Connected || 
+         _hubConnection!.state == HubConnectionState.Connecting)) {
       return;
     }
 
@@ -40,10 +49,23 @@ class SignalRService {
     _hubConnection!.on('ReceiveNotification', (arguments) {
       if (arguments != null && arguments.isNotEmpty) {
         final message = arguments[0] as String;
+
+        // Deduplicate notifications received within 3 seconds
+        final now = DateTime.now();
+        if (_lastNotificationMessage == message &&
+            _lastNotificationTime != null &&
+            now.difference(_lastNotificationTime!) < const Duration(seconds: 3)) {
+          debugPrint('SignalR Notification (Duplicate Ignored): $message');
+          return;
+        }
+
+        _lastNotificationMessage = message;
+        _lastNotificationTime = now;
         debugPrint('SignalR Notification: $message');
-        
-        // Notify all registered listeners
-        for (final listener in _notificationListeners) {
+
+        // Notify all registered listeners (take a snapshot copy to prevent concurrent modification)
+        final listenersSnapshot = List<Function(String)>.from(_notificationListeners);
+        for (final listener in listenersSnapshot) {
           try {
             listener(message);
           } catch (e) {
@@ -51,7 +73,8 @@ class SignalRService {
           }
         }
         
-        // Show real-time SnackBar using global scaffoldMessengerState
+        // Show real-time SnackBar using global scaffoldMessengerState (clear existing first)
+        scaffoldMessengerKey.currentState?.clearSnackBars();
         scaffoldMessengerKey.currentState?.showSnackBar(
           SnackBar(
             content: Row(
@@ -87,15 +110,23 @@ class SignalRService {
     }
   }
 
-  Future<void> disconnect(int userId) async {
-    if (_hubConnection != null && _hubConnection!.state == HubConnectionState.Connected) {
+  Future<void> disconnect([int? userId]) async {
+    _notificationListeners.clear();
+    _lastNotificationMessage = null;
+    _lastNotificationTime = null;
+    scaffoldMessengerKey.currentState?.clearSnackBars();
+
+    if (_hubConnection != null) {
       try {
-        await _hubConnection!.invoke('LeaveGroup', args: ['client_$userId']);
+        if (userId != null && _hubConnection!.state == HubConnectionState.Connected) {
+          await _hubConnection!.invoke('LeaveGroup', args: ['client_$userId']);
+        }
         await _hubConnection!.stop();
-        _hubConnection = null;
         debugPrint('SignalR: Disconnected');
       } catch (e) {
         debugPrint('SignalR disconnect error: $e');
+      } finally {
+        _hubConnection = null;
       }
     }
   }
