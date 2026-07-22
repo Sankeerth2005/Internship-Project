@@ -53,7 +53,9 @@ class BusinessRepository {
       'business/search',
       queryParameters: {
         'query': query,
+        // ignore: use_null_aware_elements
         if (sortBy != null) 'sortBy': sortBy,
+        // ignore: use_null_aware_elements
         if (userPincode != null) 'userPincode': userPincode,
       },
       options: Options(
@@ -146,6 +148,7 @@ class BusinessRepository {
         'businessId': businessId,
         'rating': rating.toInt(),
         'comment': comment,
+        // ignore: use_null_aware_elements
         if (image != null) 'image': image,
       },
       options: options,

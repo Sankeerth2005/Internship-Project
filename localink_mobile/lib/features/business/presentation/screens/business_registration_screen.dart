@@ -1666,6 +1666,13 @@ class _BusinessRegistrationScreenState extends ConsumerState<BusinessRegistratio
   }
 
   Future<void> _generateAIDescription() async {
+    if (_selectedCategoryId == null || _selectedSubcategoryId == null) {
+      AppFeedback.showWarning(
+        context,
+        'Please select Category and Subcategory before generating an AI description.',
+      );
+      return;
+    }
     final keywordController = TextEditingController();
     final formKey = GlobalKey<FormState>();
 

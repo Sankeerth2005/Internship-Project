@@ -226,7 +226,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
           Positioned.fill(
             child: AnimatedBuilder(
               animation: _floatAnim,
-              builder: (_, __) => CustomPaint(
+              builder: (context, child) => CustomPaint(
                 painter: _OrbPainter(_orbs, _floatAnim.value),
               ),
             ),
@@ -334,7 +334,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                   // ── Progress Loader ────────────────────────────────────────
                   AnimatedBuilder(
                     animation: _progressCtrl,
-                    builder: (_, __) {
+                    builder: (context, child) {
                       return Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 48.0),
                         child: Column(
@@ -397,10 +397,10 @@ class _LogoStack extends StatelessWidget {
           // ── Outer ambient ring (slow pulse) ─────────────────────────────
           AnimatedBuilder(
             animation: pulseCtrl,
-            builder: (_, __) {
+            builder: (context, pulseChild) {
               return AnimatedBuilder(
                 animation: entranceCtrl,
-                builder: (_, child) => Opacity(
+                builder: (context, child) => Opacity(
                   opacity: ringOpacity.value,
                   child: Transform.scale(
                     scale: ringScale.value * pulseAnim.value,
@@ -425,10 +425,10 @@ class _LogoStack extends StatelessWidget {
           // ── Mid ring ────────────────────────────────────────────────────
           AnimatedBuilder(
             animation: pulseCtrl,
-            builder: (_, __) {
+            builder: (context, pulseChild) {
               return AnimatedBuilder(
                 animation: entranceCtrl,
-                builder: (_, child) => Opacity(
+                builder: (context, child) => Opacity(
                   opacity: ringOpacity.value * 0.7,
                   child: Transform.scale(
                     scale: ringScale.value * (0.85 + (pulseAnim.value - 0.92) * 0.5),
@@ -459,7 +459,7 @@ class _LogoStack extends StatelessWidget {
           // ── Inner glow halo ──────────────────────────────────────────────
           AnimatedBuilder(
             animation: pulseCtrl,
-            builder: (_, __) => Container(
+            builder: (context, child) => Container(
               width: 148,
               height: 148,
               decoration: BoxDecoration(
@@ -509,10 +509,10 @@ class _LogoStack extends StatelessWidget {
               child: Image.asset(
                 'assets/images/splash_screen.png',
                 fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => Image.asset(
+                errorBuilder: (context, error, stackTrace) => Image.asset(
                   'assets/images/splash_logo.png',
                   fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => const Center(
+                  errorBuilder: (context, error2, stackTrace2) => const Center(
                     child: Text(
                       'ॐ',
                       style: TextStyle(

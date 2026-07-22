@@ -430,52 +430,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
               onPressed: isLoading ? null : _login,
             ),
           ),
-          const SizedBox(height: _Tok.lg),
-          Semantics(
-            button: true,
-            label: 'Biometric fingerprint login placeholder',
-            child: InkWell(
-              onTap: () {
-                HapticFeedback.lightImpact();
-                AppFeedback.showInfo(
-                  context,
-                  'Biometric login coming soon. Use password above.',
-                );
-              },
-              borderRadius: BorderRadius.circular(_Tok.rRound),
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: _Tok.xl,
-                  vertical: _Tok.md,
-                ),
-                decoration: BoxDecoration(
-                  color: _Tok.surface,
-                  borderRadius: BorderRadius.circular(_Tok.rRound),
-                  border: Border.all(color: _Tok.border),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      Icons.fingerprint_rounded,
-                      size: 22,
-                      color: _Tok.primary,
-                    ),
-                    const SizedBox(width: _Tok.sm),
-                    Text(
-                      'Use Biometrics',
-                      style: TextStyle(
-                        fontFamily: 'Inter',
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: _Tok.medText,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
           const SizedBox(height: _Tok.xl),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,

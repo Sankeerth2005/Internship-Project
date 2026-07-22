@@ -26,10 +26,15 @@ final subcategoriesProvider = FutureProvider.family<List<SubcategoryDto>, int>((
 class MyBusinessesNotifier extends AsyncNotifier<List<BusinessDto>> {
   @override
   Future<List<BusinessDto>> build() async {
+    ref.watch(authProvider); // Automatically rebuild on login/logout state changes
     return _fetch();
   }
 
   Future<List<BusinessDto>> _fetch() async {
+    final authState = ref.read(authProvider);
+    if (authState is! AuthAuthenticated) {
+      return [];
+    }
     final repo = ref.read(businessRepositoryProvider);
     return await repo.getMyBusinesses();
   }
@@ -320,4 +325,22 @@ final singleBusinessProvider = FutureProvider.family<BusinessDto, int>((ref, id)
 final allBusinessesProvider = FutureProvider<List<BusinessDto>>((ref) async {
   final repo = ref.watch(businessRepositoryProvider);
   return await repo.getAllBusinesses();
+});
+
+// Fetch specific business metrics provider
+final businessMetricsProvider = FutureProvider.family<Map<String, int>, int>((ref, businessId) async {
+  ref.watch(authProvider); // Reset metric values if authentication state changes
+  try {
+    final response = await DioClient().dio.get('analytics/business/$businessId');
+    final data = response.data;
+    if (data != null && data['success'] == true) {
+      final metrics = data['data'];
+      return {
+        'views': (metrics['views'] as num?)?.toInt() ?? 0,
+        'favorites': (metrics['favorites'] as num?)?.toInt() ?? 0,
+        'clicks': (metrics['clicks'] as num?)?.toInt() ?? 0,
+      };
+    }
+  } catch (_) {}
+  return {'views': 0, 'favorites': 0, 'clicks': 0};
 });

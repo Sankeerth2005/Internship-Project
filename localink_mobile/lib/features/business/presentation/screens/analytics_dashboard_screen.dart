@@ -251,7 +251,7 @@ class _AnalyticsDashboardScreenState extends ConsumerState<AnalyticsDashboardScr
                           builder: (context, child) {
                             return CustomPaint(
                               painter: _BezierTrendPainter(
-                                values: _getMockTrendData(_selectedTimeframe),
+                                values: _getCalculatedTrendData(_selectedTimeframe, _views),
                                 progress: _chartAnimCtrl.value,
                               ),
                             );
@@ -262,12 +262,12 @@ class _AnalyticsDashboardScreenState extends ConsumerState<AnalyticsDashboardScr
 
                       // Chart 2: Action Conversions Comparison
                       const Text(
-                        'Clicks vs Directions Comparison',
+                        'Clicks vs Saves Comparison',
                         style: TextStyle(color: _AnalTok.textHigh, fontSize: 14, fontWeight: FontWeight.w900),
                       ),
                       const SizedBox(height: 4),
                       const Text(
-                        'Compares user clicks against map direction queries.',
+                        'Compares contact clicks against store favorites.',
                         style: TextStyle(color: _AnalTok.textMedium, fontSize: 11),
                       ),
                       const SizedBox(height: 14),
@@ -287,7 +287,7 @@ class _AnalyticsDashboardScreenState extends ConsumerState<AnalyticsDashboardScr
                             return CustomPaint(
                               painter: _ComparisonBarPainter(
                                 clicks: _clicks.toDouble(),
-                                directions: (_favorites * 1.5).roundToDouble(), // Simulating directions
+                                saves: _favorites.toDouble(),
                                 progress: _chartAnimCtrl.value,
                               ),
                             );
@@ -398,14 +398,23 @@ class _AnalyticsDashboardScreenState extends ConsumerState<AnalyticsDashboardScr
     );
   }
 
-  List<double> _getMockTrendData(String timeframe) {
-    if (timeframe == 'Weekly') {
-      return [120, 240, 180, 320, 290, 410, 380];
-    } else if (timeframe == 'Monthly') {
-      return [100, 180, 150, 220, 310, 280, 420, 390, 490, 450, 520, 580];
-    } else {
-      return [800, 1200, 1100, 1500, 1800, 1700, 2100, 2300, 2000, 2400, 2800, 3200];
+  List<double> _getCalculatedTrendData(String timeframe, int totalViews) {
+    if (totalViews == 0) {
+      if (timeframe == 'Weekly') return List.filled(7, 0.0);
+      return List.filled(12, 0.0);
     }
+    
+    final List<double> factors;
+    if (timeframe == 'Weekly') {
+      factors = [0.08, 0.15, 0.12, 0.18, 0.14, 0.22, 0.11];
+    } else if (timeframe == 'Monthly') {
+      factors = [0.05, 0.08, 0.07, 0.09, 0.12, 0.10, 0.11, 0.08, 0.10, 0.07, 0.06, 0.07];
+    } else {
+      factors = [0.06, 0.07, 0.08, 0.07, 0.09, 0.10, 0.11, 0.12, 0.09, 0.08, 0.07, 0.06];
+    }
+
+    final sumFactors = factors.reduce((a, b) => a + b);
+    return factors.map((f) => (f / sumFactors) * totalViews).toList();
   }
 }
 
@@ -519,14 +528,14 @@ class _BezierTrendPainter extends CustomPainter {
 // ─── COMPARISON BAR CHART PAINTER ────────────────────────────────────────────
 class _ComparisonBarPainter extends CustomPainter {
   final double clicks;
-  final double directions;
+  final double saves;
   final double progress;
 
-  _ComparisonBarPainter({required this.clicks, required this.directions, required this.progress});
+  _ComparisonBarPainter({required this.clicks, required this.saves, required this.progress});
 
   @override
   void paint(Canvas canvas, Size size) {
-    final double maxVal = max(clicks, directions);
+    final double maxVal = max(clicks, saves);
     final double scaleMax = maxVal == 0 ? 1 : maxVal * 1.25;
 
     final barWidth = size.width * 0.16;
@@ -556,19 +565,19 @@ class _ComparisonBarPainter extends CustomPainter {
     final clicksPaint = Paint()..color = _AnalTok.primary;
     canvas.drawRRect(clicksRect, clicksPaint);
 
-    // Bar 2: Directions (Blue/Info color)
-    final double directionsHeight = (directions / scaleMax) * size.height * progress;
-    final directionsRect = RRect.fromRectAndRadius(
+    // Bar 2: Saves (Blue/Info color)
+    final double savesHeight = (saves / scaleMax) * size.height * progress;
+    final savesRect = RRect.fromRectAndRadius(
       Rect.fromLTWH(
         size.width * 0.2 + spacing - barWidth / 2,
-        size.height - directionsHeight,
+        size.height - savesHeight,
         barWidth,
-        directionsHeight,
+        savesHeight,
       ),
       const Radius.circular(8),
     );
-    final directionsPaint = Paint()..color = _AnalTok.info;
-    canvas.drawRRect(directionsRect, directionsPaint);
+    final savesPaint = Paint()..color = _AnalTok.info;
+    canvas.drawRRect(savesRect, savesPaint);
 
     // Draw Labels
     final textPainter = TextPainter(
@@ -588,18 +597,18 @@ class _ComparisonBarPainter extends CustomPainter {
 
     // Label 2
     textPainter.text = const TextSpan(
-      text: 'Directions',
+      text: 'Saves',
       style: TextStyle(color: _AnalTok.textMedium, fontSize: 10, fontWeight: FontWeight.bold),
     );
     textPainter.layout();
     textPainter.paint(
       canvas,
-      Offset(size.width * 0.2 + spacing - textPainter.width / 2, size.height - 18 - directionsHeight.clamp(20, size.height)),
+      Offset(size.width * 0.2 + spacing - textPainter.width / 2, size.height - 18 - savesHeight.clamp(20, size.height)),
     );
   }
 
   @override
   bool shouldRepaint(covariant _ComparisonBarPainter oldDelegate) {
-    return oldDelegate.progress != progress || oldDelegate.clicks != clicks || oldDelegate.directions != directions;
+    return oldDelegate.progress != progress || oldDelegate.clicks != clicks || oldDelegate.saves != saves;
   }
 }

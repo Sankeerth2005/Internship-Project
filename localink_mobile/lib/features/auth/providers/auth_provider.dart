@@ -8,6 +8,7 @@ import '../data/models/register_request.dart';
 import '../data/repositories/auth_repository.dart';
 import 'auth_state.dart';
 import 'user_provider.dart';
+import '../../business/providers/business_provider.dart';
 
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
   return AuthRepository(dio: DioClient().dio);
@@ -77,6 +78,7 @@ class AuthNotifier extends Notifier<AuthState> {
 
       ref.read(userRepositoryProvider).clearCache();
       ref.invalidate(userProfileProvider);
+      ref.invalidate(myBusinessesProvider);
       state = AuthAuthenticated(response.user.userType, parsedUserId);
     } catch (e) {
       state = AuthError(AppErrorFormatter.format(e));
@@ -104,6 +106,7 @@ class AuthNotifier extends Notifier<AuthState> {
     await SecureStorageService.clearAll();
     ref.read(userRepositoryProvider).clearCache();
     ref.invalidate(userProfileProvider);
+    ref.invalidate(myBusinessesProvider);
     state = const AuthUnauthenticated();
   }
 }

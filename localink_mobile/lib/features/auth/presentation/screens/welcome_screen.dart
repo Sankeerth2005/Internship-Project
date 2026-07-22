@@ -230,7 +230,6 @@ class _OnboardingView extends StatelessWidget {
   final VoidCallback onNext;
 
   const _OnboardingView({
-    super.key,
     required this.slides,
     required this.currentPage,
     required this.pageController,
@@ -703,7 +702,6 @@ class _RoleSelectionView extends StatefulWidget {
   final VoidCallback onExplore;
 
   const _RoleSelectionView({
-    super.key,
     required this.selectedRole,
     required this.showAdmin,
     required this.fadeAnim,
