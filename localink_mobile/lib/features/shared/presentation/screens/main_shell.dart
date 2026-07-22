@@ -15,7 +15,7 @@ class _MainShellState extends State<MainShell> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0F0E0D),
+      backgroundColor: const Color(0xFFFFFFFF),
       // Use extendBody: true so the Scaffold content flows behind our floating bottom bar
       extendBody: true,
       body: widget.navigationShell,
@@ -28,10 +28,10 @@ class _MainShellState extends State<MainShell> {
             borderRadius: BorderRadius.circular(24),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.5),
-                blurRadius: 20,
+                color: const Color(0xFF1A1918).withValues(alpha: 0.07),
+                blurRadius: 16,
                 spreadRadius: 1,
-                offset: const Offset(0, 8),
+                offset: const Offset(0, 4),
               ),
             ],
           ),
@@ -41,29 +41,31 @@ class _MainShellState extends State<MainShell> {
               filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
               child: Container(
                 decoration: BoxDecoration(
-                  color: const Color(0xFF161412).withValues(alpha: 0.85),
+                  color: const Color(0xFFFFFFFF).withValues(alpha: 0.88),
                   borderRadius: BorderRadius.circular(24),
                   border: Border.all(
-                    color: const Color(0xFFFF6B00).withValues(alpha: 0.20),
+                    color: const Color(0xFFEAE8E3),
                     width: 1.2,
                   ),
                 ),
                 child: NavigationBarTheme(
                   data: NavigationBarThemeData(
                     height: 80,
-                    indicatorColor: const Color(0xFFFF6B00).withValues(alpha: 0.15),
+                    indicatorColor: const Color(0xFFFF6600).withValues(alpha: 0.12),
                     labelTextStyle: WidgetStateProperty.resolveWith((states) {
                       if (states.contains(WidgetState.selected)) {
                         return const TextStyle(
-                          color: Color(0xFFFF8C00),
+                          color: Color(0xFFFF6600),
                           fontSize: 11,
                           fontWeight: FontWeight.w800,
+                          fontFamily: 'Inter',
                         );
                       }
-                      return TextStyle(
-                        color: Colors.white.withValues(alpha: 0.5),
+                      return const TextStyle(
+                        color: Color(0xFF5F5C58),
                         fontSize: 11,
                         fontWeight: FontWeight.normal,
+                        fontFamily: 'Inter',
                       );
                     }),
                   ),
@@ -81,23 +83,23 @@ class _MainShellState extends State<MainShell> {
                     labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
                     destinations: const [
                       NavigationDestination(
-                        icon: Icon(Icons.home_outlined, size: 24, color: Colors.white60),
-                        selectedIcon: Icon(Icons.home_rounded, size: 24, color: Color(0xFFFF8C00)),
+                        icon: Icon(Icons.home_outlined, size: 24, color: Color(0xFF5F5C58)),
+                        selectedIcon: Icon(Icons.home_rounded, size: 24, color: Color(0xFFFF6600)),
                         label: 'Home',
                       ),
                       NavigationDestination(
-                        icon: Icon(Icons.favorite_border_rounded, size: 24, color: Colors.white60),
-                        selectedIcon: Icon(Icons.favorite_rounded, size: 24, color: Color(0xFFFF8C00)),
+                        icon: Icon(Icons.favorite_border_rounded, size: 24, color: Color(0xFF5F5C58)),
+                        selectedIcon: Icon(Icons.favorite_rounded, size: 24, color: Color(0xFFFF6600)),
                         label: 'Favorites',
                       ),
                       NavigationDestination(
-                        icon: Icon(Icons.person_outline_rounded, size: 24, color: Colors.white60),
-                        selectedIcon: Icon(Icons.person_rounded, size: 24, color: Color(0xFFFF8C00)),
+                        icon: Icon(Icons.person_outline_rounded, size: 24, color: Color(0xFF5F5C58)),
+                        selectedIcon: Icon(Icons.person_rounded, size: 24, color: Color(0xFFFF6600)),
                         label: 'Profile',
                       ),
                       NavigationDestination(
-                        icon: Icon(Icons.chat_bubble_outline_rounded, size: 24, color: Colors.white60),
-                        selectedIcon: Icon(Icons.chat_bubble_rounded, size: 24, color: Color(0xFFFF8C00)),
+                        icon: Icon(Icons.chat_bubble_outline_rounded, size: 24, color: Color(0xFF5F5C58)),
+                        selectedIcon: Icon(Icons.chat_bubble_rounded, size: 24, color: Color(0xFFFF6600)),
                         label: 'AI Chat',
                       ),
                     ],

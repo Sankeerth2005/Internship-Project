@@ -19,7 +19,7 @@ class AppBackground extends StatelessWidget {
             painter: _BackgroundGlowPainter(showCenterWarmth: showCenterWarmth),
           ),
         ),
-        if (child != null) child!,
+        ?child,
       ],
     );
   }
