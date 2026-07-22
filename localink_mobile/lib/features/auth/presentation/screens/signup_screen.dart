@@ -19,7 +19,6 @@ import '../../../shared/presentation/widgets/animated_field_glow.dart';
 import '../../../shared/presentation/widgets/app_background.dart';
 import '../../../shared/presentation/widgets/app_feedback.dart';
 import '../../../../core/network/app_error_formatter.dart';
-import '../../../../core/theme/app_theme.dart';
 
 // ─── DESIGN TOKENS (aligned to DESIGN_SYSTEM.md) ─────────────────────────────
 class _Tok {
@@ -1126,7 +1125,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 4),
             child: DropdownButtonHideUnderline(
               child: DropdownButtonFormField<String>(
-                value: _selectedPhoneCode,
+                initialValue: _selectedPhoneCode,
                 decoration: const InputDecoration(
                   border: InputBorder.none,
                   contentPadding: EdgeInsets.zero,
@@ -1206,7 +1205,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 14),
                   child: DropdownButtonHideUnderline(
                     child: DropdownButtonFormField<Country>(
-                      value: _selectedCountry,
+                      initialValue: _selectedCountry,
                       decoration: const InputDecoration(
                         border: InputBorder.none,
                         contentPadding: EdgeInsets.zero,
@@ -1275,7 +1274,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 14),
                   child: DropdownButtonHideUnderline(
                     child: DropdownButtonFormField<StateModel>(
-                      value: _selectedState,
+                      initialValue: _selectedState,
                       decoration: const InputDecoration(
                         border: InputBorder.none,
                         contentPadding: EdgeInsets.zero,
@@ -1339,7 +1338,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 14),
                   child: DropdownButtonHideUnderline(
                     child: DropdownButtonFormField<CityModel>(
-                      value: _selectedCity,
+                      initialValue: _selectedCity,
                       decoration: const InputDecoration(
                         border: InputBorder.none,
                         contentPadding: EdgeInsets.zero,

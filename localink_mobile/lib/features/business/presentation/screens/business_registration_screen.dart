@@ -28,7 +28,6 @@ class _RegTok {
   static const Color textHigh = Color(0xFF1A1918);
   static const Color textMedium = Color(0xFF5F5C58);
   static const Color textLow = Color(0xFF9F9B96);
-  static const Color success = Color(0xFF107C41);
 }
 
 class BusinessRegistrationScreen extends ConsumerStatefulWidget {
@@ -313,8 +312,7 @@ class _BusinessRegistrationScreenState extends ConsumerState<BusinessRegistratio
   void _nextStep() {
     if (_currentStep == 1) {
       if (_selectedCategoryId == null || _selectedSubcategoryId == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Please select Category & Subcategory')));
+        AppFeedback.showWarning(context, 'Please select Category & Subcategory');
         return;
       }
       if (!_formKey.currentState!.validate()) {
@@ -322,17 +320,11 @@ class _BusinessRegistrationScreenState extends ConsumerState<BusinessRegistratio
       }
     } else if (_currentStep == 2) {
       if (_selectedCountry == null || _selectedState == null || _selectedCity == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Please complete location selection')));
+        AppFeedback.showWarning(context, 'Please complete location selection');
         return;
       }
       if (_latitude == null || _longitude == null || _latitude == 0.0 || _longitude == 0.0) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Valid map coordinates are required. Pin your store on the map.'),
-            backgroundColor: _RegTok.primary,
-          ),
-        );
+        AppFeedback.showWarning(context, 'Valid map coordinates are required. Pin your store on the map.');
         return;
       }
       if (!_formKey.currentState!.validate()) {
@@ -537,9 +529,7 @@ class _BusinessRegistrationScreenState extends ConsumerState<BusinessRegistratio
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Location services are disabled.')),
-          );
+          AppFeedback.showWarning(context, 'Location services are disabled.');
         }
         return;
       }
@@ -549,9 +539,7 @@ class _BusinessRegistrationScreenState extends ConsumerState<BusinessRegistratio
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) {
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Location permissions are denied.')),
-            );
+            AppFeedback.showWarning(context, 'Location permissions are denied.');
           }
           return;
         }
@@ -559,9 +547,7 @@ class _BusinessRegistrationScreenState extends ConsumerState<BusinessRegistratio
 
       if (permission == LocationPermission.deniedForever) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Location permissions are permanently denied.')),
-          );
+          AppFeedback.showWarning(context, 'Location permissions are permanently denied.');
         }
         return;
       }
@@ -1771,7 +1757,7 @@ class _BusinessRegistrationScreenState extends ConsumerState<BusinessRegistratio
                 } catch (e) {
                   if (context.mounted) Navigator.pop(context); // Pop spinner
                   if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed: ${e.toString()}')));
+                    AppFeedback.showError(context, 'Failed: ${e.toString()}');
                     Navigator.pop(context);
                   }
                 }

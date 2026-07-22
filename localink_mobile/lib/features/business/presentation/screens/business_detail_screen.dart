@@ -64,9 +64,7 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to pick image: $e')),
-        );
+        AppFeedback.showError(context, 'Failed to pick image: $e');
       }
     }
   }
@@ -527,18 +525,14 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
                                   final cleanCode = business.phoneCode.replaceAll('+', '').trim();
                                   final cleanNum = business.phoneNumber.trim();
                                   if (cleanNum.isEmpty) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(content: Text('Phone number not available.')),
-                                    );
+                                    AppFeedback.showWarning(context, 'Phone number not available.');
                                     return;
                                   }
                                   try {
                                     await launchUrl(Uri.parse('tel:+$cleanCode$cleanNum'));
                                   } catch (e) {
                                     if (context.mounted) {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(content: Text('Could not start phone call.')),
-                                      );
+                                      AppFeedback.showError(context, 'Could not start phone call.');
                                     }
                                   }
                                 },
@@ -602,9 +596,7 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
                                     } catch (e) {
                                       debugPrint('Error launching map directions URL: $e');
                                       if (context.mounted) {
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          const SnackBar(content: Text('Could not launch map application.')),
-                                        );
+                                        AppFeedback.showError(context, 'Could not launch map application.');
                                       }
                                     }
                                   } else {
@@ -652,18 +644,11 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
                                       await launchUrl(Uri.parse(urlStr), mode: LaunchMode.externalApplication);
                                     } catch (e) {
                                       if (context.mounted) {
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          const SnackBar(content: Text('Could not open website.')),
-                                        );
+                                        AppFeedback.showError(context, 'Could not open website.');
                                       }
                                     }
                                   } else {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text('Website not present'),
-                                        backgroundColor: Color(0xFFE1251B),
-                                      ),
-                                    );
+                                    AppFeedback.showWarning(context, 'Website not present');
                                   }
                                 },
                               ),

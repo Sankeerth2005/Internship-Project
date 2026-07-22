@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../widgets/app_feedback.dart';
 
 class SupportScreen extends StatefulWidget {
   const SupportScreen({super.key});
@@ -66,13 +67,9 @@ class _SupportScreenState extends State<SupportScreen> {
   void _submitFeedback() {
     if (_formKey.currentState!.validate()) {
       HapticFeedback.mediumImpact();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Thank you! Your $_selectedCategory has been submitted successfully.'),
-          backgroundColor: const Color(0xFFFF6600),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ),
+      AppFeedback.showSuccess(
+        context,
+        'Thank you! Your $_selectedCategory has been submitted successfully.',
       );
       _feedbackController.clear();
     }
@@ -427,9 +424,7 @@ class _SupportScreenState extends State<SupportScreen> {
                             label: 'Live Chat',
                             onTap: () {
                               HapticFeedback.lightImpact();
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Starting Live Support session...')),
-                              );
+                              AppFeedback.showInfo(context, 'Starting Live Support session...');
                             },
                           ),
                         ),
@@ -440,9 +435,7 @@ class _SupportScreenState extends State<SupportScreen> {
                             label: 'Email Us',
                             onTap: () {
                               HapticFeedback.lightImpact();
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Launching Email Composer...')),
-                              );
+                              AppFeedback.showInfo(context, 'Launching Email Composer...');
                             },
                           ),
                         ),

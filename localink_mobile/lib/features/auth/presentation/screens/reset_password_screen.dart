@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
-import 'package:dio/dio.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../shared/presentation/widgets/app_text_field.dart';
 import '../../../shared/presentation/widgets/app_button.dart';
@@ -15,7 +14,6 @@ import '../../../shared/presentation/widgets/app_background.dart';
 import '../../../shared/presentation/widgets/brand_icon_badge.dart';
 import '../../../shared/presentation/widgets/app_feedback.dart';
 import '../../../../core/network/app_error_formatter.dart';
-import '../../../../core/theme/app_theme.dart';
 
 // ─── DESIGN TOKENS (aligned to DESIGN_SYSTEM.md) ─────────────────────────────
 class _Tok {

@@ -78,7 +78,7 @@ class _AppButtonState extends State<AppButton> with SingleTickerProviderStateMix
                   ? []
                   : [
                       BoxShadow(
-                        color: AppTheme.accentColor.withOpacity(0.18),
+                        color: AppTheme.accentColor.withValues(alpha: 0.18),
                         blurRadius: 12,
                         offset: const Offset(0, 4),
                       ),

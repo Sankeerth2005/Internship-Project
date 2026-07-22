@@ -139,8 +139,8 @@ class AppTheme {
       chipTheme: ChipThemeData(
         backgroundColor: surfaceColor,
         disabledColor: const Color(0xFFF0EFEA),
-        selectedColor: accentColor.withOpacity(0.12),
-        secondarySelectedColor: glowColor.withOpacity(0.12),
+        selectedColor: accentColor.withValues(alpha: 0.12),
+        secondarySelectedColor: glowColor.withValues(alpha: 0.12),
         padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20.0),

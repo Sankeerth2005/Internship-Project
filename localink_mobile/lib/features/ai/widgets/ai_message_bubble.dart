@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../business/providers/business_provider.dart';
 import '../../business/data/models/business_models.dart';
+import '../../shared/presentation/widgets/app_feedback.dart';
 
 class AiMessageBubble extends ConsumerWidget {
   final String content;
@@ -311,12 +312,7 @@ class AiMessageBubble extends ConsumerWidget {
                         Clipboard.setData(ClipboardData(
                           text: '${b.businessName} - Address: ${b.address}, Phone: ${b.phoneCode}${b.phoneNumber}',
                         ));
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Business details copied to clipboard to share!'),
-                            duration: Duration(seconds: 2),
-                          ),
-                        );
+                        AppFeedback.showSuccess(context, 'Business details copied to clipboard to share!');
                       },
                     ),
                   ],

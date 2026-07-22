@@ -13,7 +13,6 @@ import '../../../shared/presentation/widgets/animated_field_glow.dart';
 import '../../../shared/presentation/widgets/app_background.dart';
 import '../../../shared/presentation/widgets/brand_icon_badge.dart';
 import '../../../shared/presentation/widgets/app_feedback.dart';
-import '../../../../core/theme/app_theme.dart';
 
 // ─── DESIGN TOKENS (aligned to DESIGN_SYSTEM.md) ─────────────────────────────
 class _Tok {
@@ -438,13 +437,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
             child: InkWell(
               onTap: () {
                 HapticFeedback.lightImpact();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text(
-                      'Biometric login coming soon. Use password above.',
-                    ),
-                    duration: Duration(seconds: 2),
-                  ),
+                AppFeedback.showInfo(
+                  context,
+                  'Biometric login coming soon. Use password above.',
                 );
               },
               borderRadius: BorderRadius.circular(_Tok.rRound),
