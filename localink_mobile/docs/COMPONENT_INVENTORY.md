@@ -224,7 +224,8 @@ This document defines the reusable UI components for the application.
 - BusinessDescription
 - ContactCard
 - TimingCard
-- ReviewCard
+- **[BusinessOperatingHours](file:///C:/Users/ANCHURU%20SANKEERTH/Internship-Project/localink_mobile/lib/features/business/widgets/business_operating_hours.dart):** Displays weekly operating hours and active status.
+- **[BusinessReviewCard](file:///C:/Users/ANCHURU%20SANKEERTH/Internship-Project/localink_mobile/lib/features/business/widgets/business_review_card.dart):** Renders individual user reviews in a light card layout.
 - RatingWidget
 - BusinessTag
 - BusinessBadge
@@ -235,9 +236,7 @@ This document defines the reusable UI components for the application.
 
 - FavoriteButton
 - ShareButton
-- CallButton
-- DirectionButton
-- WebsiteButton
+- **[BusinessActionButton](file:///C:/Users/ANCHURU%20SANKEERTH/Internship-Project/localink_mobile/lib/features/business/widgets/business_action_button.dart):** Reusable tactile action buttons for Call, Directions, and Website.
 
 ---
 
@@ -263,12 +262,12 @@ This document defines the reusable UI components for the application.
 # AI Components
 
 - AIHeader
-- AIFeedCard
+- **[AiFeedCard](file:///C:/Users/ANCHURU%20SANKEERTH/Internship-Project/localink_mobile/lib/features/ai/widgets/ai_feed_card.dart):** Renders personalized business recommendations in the For You feed.
 - PromptCard
-- SuggestionCard
+- **[AiPromptChips](file:///C:/Users/ANCHURU%20SANKEERTH/Internship-Project/localink_mobile/lib/features/ai/widgets/ai_prompt_chips.dart):** Horizontal suggested search chips.
 - ChatBubble
 - UserMessageBubble
-- AIMessageBubble
+- **[AiMessageBubble](file:///C:/Users/ANCHURU%20SANKEERTH/Internship-Project/localink_mobile/lib/features/ai/widgets/ai_message_bubble.dart):** Handles message bubble layouts for both User and AI responses.
 - MessageInput
 - TypingIndicator
 - ThinkingIndicator
@@ -280,7 +279,7 @@ This document defines the reusable UI components for the application.
 
 # Favorites Components
 
-- FavoriteCard
+- **[FavoriteBusinessCard](file:///C:/Users/ANCHURU%20SANKEERTH/Internship-Project/localink_mobile/lib/features/favorites/widgets/favorite_business_card.dart):** Horizontal business card item displayed in the Favorites tab.
 - FavoriteButton
 - FavoriteAnimation
 - EmptyFavoritesState
@@ -292,7 +291,7 @@ This document defines the reusable UI components for the application.
 - ProfileHeader
 - ProfileAvatar
 - UserInformationCard
-- InfoTile
+- **[ProfileInfoTile](file:///C:/Users/ANCHURU%20SANKEERTH/Internship-Project/localink_mobile/lib/features/profile/widgets/profile_info_tile.dart):** Standardized profile information field tile that supports edit mode input.
 - AddressCard
 - SettingsTile
 - LogoutTile

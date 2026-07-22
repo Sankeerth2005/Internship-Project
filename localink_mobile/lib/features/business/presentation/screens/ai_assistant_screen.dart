@@ -1,7 +1,21 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../../../core/network/dio_client.dart';
+import '../../../shared/presentation/widgets/app_back_button.dart';
+import '../../../ai/widgets/ai_message_bubble.dart';
+import '../../../ai/widgets/ai_prompt_chips.dart';
+
+// ─── DESIGN TOKENS ────────────────────────────────────────────────────────────
+class _AiTok {
+  static const Color primary = Color(0xFFFF6600);
+  static const Color bg = Color(0xFFFFFFFF);
+  static const Color cardBg = Color(0xFFF9F8F6);
+  static const Color border = Color(0xFFEAE8E3);
+  static const Color textHigh = Color(0xFF1A1918);
+  static const Color textLow = Color(0xFF9F9B96);
+}
 
 class AiAssistantScreen extends ConsumerStatefulWidget {
   const AiAssistantScreen({super.key});
@@ -20,6 +34,13 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
   final _textController = TextEditingController();
   final _scrollController = ScrollController();
   bool _isLoading = false;
+
+  final List<String> _suggestedPrompts = [
+    'Best handcraft shops',
+    'Pure vegetarian restaurants',
+    'Temples to visit nearby',
+    'Top rated local services',
+  ];
 
   @override
   void dispose() {
@@ -40,11 +61,14 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
     });
   }
 
-  Future<void> _sendMessage() async {
-    final query = _textController.text.trim();
+  Future<void> _sendMessage([String? customText]) async {
+    final query = (customText ?? _textController.text).trim();
     if (query.isEmpty) return;
 
-    _textController.clear();
+    if (customText == null) {
+      _textController.clear();
+    }
+
     setState(() {
       _messages.add({'role': 'user', 'content': query});
       _isLoading = true;
@@ -86,27 +110,37 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final showSuggestions = _messages.length == 1 && !_isLoading;
+
     return Scaffold(
-      backgroundColor: const Color(0xFF0F0F0F),
+      backgroundColor: _AiTok.bg,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF1E1E1E),
+        backgroundColor: _AiTok.bg,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
+        leadingWidth: 70,
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 16, top: 8, bottom: 8),
+          child: AppBackButton(onPressed: () => Navigator.pop(context)),
         ),
         title: const Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               'AI Search Guide',
-              style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+              style: TextStyle(color: _AiTok.textHigh, fontSize: 16, fontWeight: FontWeight.bold),
             ),
             Text(
               'Llama Powered',
-              style: TextStyle(color: Color(0xFFFF7A00), fontSize: 11, fontWeight: FontWeight.w500),
+              style: TextStyle(color: _AiTok.primary, fontSize: 11, fontWeight: FontWeight.w600),
             ),
           ],
+        ),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Container(
+            color: _AiTok.border,
+            height: 1,
+          ),
         ),
       ),
       body: Column(
@@ -114,75 +148,26 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
           Expanded(
             child: ListView.builder(
               controller: _scrollController,
-              padding: const EdgeInsets.all(15),
+              padding: const EdgeInsets.all(16),
               itemCount: _messages.length,
               itemBuilder: (context, idx) {
                 final msg = _messages[idx];
                 final isUser = msg['role'] == 'user';
-
-                return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  child: Row(
-                    mainAxisAlignment: isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      if (!isUser) ...[
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFFF7A00).withValues(alpha: 0.15),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(Icons.auto_awesome, color: Color(0xFFFF7A00), size: 16),
-                        ),
-                        const SizedBox(width: 10),
-                      ],
-                      Flexible(
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                          decoration: BoxDecoration(
-                            color: isUser ? const Color(0xFFFF7A00) : const Color(0xFF1E1E1E),
-                            borderRadius: BorderRadius.only(
-                              topLeft: const Radius.circular(16),
-                              topRight: const Radius.circular(16),
-                              bottomLeft: isUser ? const Radius.circular(16) : Radius.zero,
-                              bottomRight: isUser ? Radius.zero : const Radius.circular(16),
-                            ),
-                            border: isUser 
-                                ? null 
-                                : Border.all(color: Colors.white12),
-                          ),
-                          child: Text(
-                            msg['content'] ?? '',
-                            style: TextStyle(
-                              color: isUser ? Colors.black : Colors.white,
-                              fontSize: 13,
-                              height: 1.4,
-                              fontWeight: isUser ? FontWeight.w500 : FontWeight.normal,
-                            ),
-                          ),
-                        ),
-                      ),
-                      if (isUser) ...[
-                        const SizedBox(width: 10),
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.08),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(Icons.person, color: Colors.white70, size: 16),
-                        ),
-                      ],
-                    ],
-                  ),
+                return AiMessageBubble(
+                  content: msg['content'] ?? '',
+                  isUser: isUser,
                 );
               },
             ),
           ),
+          if (showSuggestions)
+            AiPromptChips(
+              prompts: _suggestedPrompts,
+              onSelect: (prompt) => _sendMessage(prompt),
+            ),
           if (_isLoading)
             Padding(
-              padding: const EdgeInsets.only(left: 20, bottom: 10),
+              padding: const EdgeInsets.only(left: 16, bottom: 12),
               child: Align(
                 alignment: Alignment.centerLeft,
                 child: Row(
@@ -190,12 +175,12 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
                     const SizedBox(
                       width: 12,
                       height: 12,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFFFF7A00)),
+                      child: CircularProgressIndicator(strokeWidth: 2, color: _AiTok.primary),
                     ),
                     const SizedBox(width: 10),
-                    Text(
+                    const Text(
                       'AI Guide is typing...',
-                      style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 11),
+                      style: TextStyle(color: _AiTok.textLow, fontSize: 11),
                     )
                   ],
                 ),
@@ -203,40 +188,53 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
             ),
           // Text Input Row
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
-            color: const Color(0xFF1E1E1E),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: const BoxDecoration(
+              color: _AiTok.bg,
+              border: Border(
+                top: BorderSide(color: _AiTok.border),
+              ),
+            ),
             child: SafeArea(
               child: Row(
                 children: [
                   Expanded(
                     child: TextField(
                       controller: _textController,
-                      style: const TextStyle(color: Colors.white),
+                      style: const TextStyle(color: _AiTok.textHigh, fontSize: 14),
                       textInputAction: TextInputAction.send,
                       onSubmitted: (_) => _sendMessage(),
                       decoration: InputDecoration(
                         hintText: 'Search or ask for recommendations...',
-                        hintStyle: const TextStyle(color: Colors.white24, fontSize: 13),
+                        hintStyle: const TextStyle(color: _AiTok.textLow, fontSize: 13),
                         filled: true,
-                        fillColor: Colors.black26,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
+                        fillColor: _AiTok.cardBg,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                         border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(20),
-                          borderSide: BorderSide.none,
+                          borderRadius: BorderRadius.circular(24),
+                          borderSide: const BorderSide(color: _AiTok.border),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(24),
+                          borderSide: const BorderSide(color: _AiTok.border),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(24),
+                          borderSide: const BorderSide(color: _AiTok.primary, width: 1.5),
                         ),
                       ),
                     ),
                   ),
                   const SizedBox(width: 10),
                   GestureDetector(
-                    onTap: _sendMessage,
+                    onTap: () => _sendMessage(),
                     child: Container(
                       padding: const EdgeInsets.all(12),
                       decoration: const BoxDecoration(
-                        color: Color(0xFFFF7A00),
+                        color: _AiTok.primary,
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.send, color: Colors.black, size: 18),
+                      child: const Icon(Icons.send_rounded, color: Colors.white, size: 18),
                     ),
                   )
                 ],

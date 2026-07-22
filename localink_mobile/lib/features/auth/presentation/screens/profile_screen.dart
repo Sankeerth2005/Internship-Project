@@ -1,9 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../providers/user_provider.dart';
 import '../../data/models/user_profile.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/location_provider.dart';
+import '../../../profile/widgets/profile_info_tile.dart';
+
+// ─── DESIGN TOKENS ────────────────────────────────────────────────────────────
+class _ProfileTok {
+  static const Color primary = Color(0xFFFF6600);
+  static const Color bg = Color(0xFFFFFFFF);
+  static const Color cardBg = Color(0xFFF9F8F6);
+  static const Color border = Color(0xFFEAE8E3);
+  static const Color textHigh = Color(0xFF1A1918);
+  static const Color textMedium = Color(0xFF5F5C58);
+  static const Color error = Color(0xFFE1251B);
+}
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -87,7 +100,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   Future<void> _saveProfile() async {
     if (_nameCtrl.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Full name is required'), backgroundColor: Color(0xFFFF4D4F)),
+        const SnackBar(content: Text('Full name is required'), backgroundColor: _ProfileTok.error),
       );
       return;
     }
@@ -105,14 +118,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       if (country.toLowerCase() == 'india') {
         if (digitsOnly.length != 10 || !RegExp(r'^[3-9][0-9]{9}$').hasMatch(digitsOnly)) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Indian phone numbers must be exactly 10 digits and start with 3-9'), backgroundColor: Color(0xFFFF4D4F)),
+            const SnackBar(content: Text('Indian phone numbers must be exactly 10 digits and start with 3-9'), backgroundColor: _ProfileTok.error),
           );
           return;
         }
       } else {
         if (digitsOnly.length < 6 || digitsOnly.length > 15) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Phone number must be between 6 and 15 digits'), backgroundColor: Color(0xFFFF4D4F)),
+            const SnackBar(content: Text('Phone number must be between 6 and 15 digits'), backgroundColor: _ProfileTok.error),
           );
           return;
         }
@@ -123,20 +136,20 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final email = _emailCtrl.text.trim();
     if (email.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Email is required'), backgroundColor: Color(0xFFFF4D4F)),
+        const SnackBar(content: Text('Email is required'), backgroundColor: _ProfileTok.error),
       );
       return;
     }
     if (!RegExp(r'^[a-zA-Z][a-zA-Z0-9._%+-]*@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$').hasMatch(email)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Invalid email address format (e.g. name@domain.com)'), backgroundColor: Color(0xFFFF4D4F)),
+        const SnackBar(content: Text('Invalid email address format (e.g. name@domain.com)'), backgroundColor: _ProfileTok.error),
       );
       return;
     }
 
     if (country.isEmpty || state.isEmpty || city.isEmpty || pincode.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Country, State, City, and Pincode are all required'), backgroundColor: Color(0xFFFF4D4F)),
+        const SnackBar(content: Text('Country, State, City, and Pincode are all required'), backgroundColor: _ProfileTok.error),
       );
       return;
     }
@@ -144,7 +157,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     // Validate country - should be at least 2 characters
     if (country.length < 2) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Country name is too short'), backgroundColor: Color(0xFFFF4D4F)),
+        const SnackBar(content: Text('Country name is too short'), backgroundColor: _ProfileTok.error),
       );
       return;
     }
@@ -152,7 +165,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     // Validate state - should be at least 2 characters
     if (state.length < 2) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('State name is too short'), backgroundColor: Color(0xFFFF4D4F)),
+        const SnackBar(content: Text('State name is too short'), backgroundColor: _ProfileTok.error),
       );
       return;
     }
@@ -160,7 +173,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     // Validate city - should be at least 2 characters
     if (city.length < 2) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('City name is too short'), backgroundColor: Color(0xFFFF4D4F)),
+        const SnackBar(content: Text('City name is too short'), backgroundColor: _ProfileTok.error),
       );
       return;
     }
@@ -169,7 +182,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     if (country.toLowerCase() == 'india') {
       if (pincode.length != 6 || int.tryParse(pincode) == null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Indian pincodes must be exactly 6 digits'), backgroundColor: Color(0xFFFF4D4F)),
+          const SnackBar(content: Text('Indian pincodes must be exactly 6 digits'), backgroundColor: _ProfileTok.error),
         );
         return;
       }
@@ -177,7 +190,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       // For other countries, pincode should be at least 3 characters and alphanumeric
       if (pincode.length < 3) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Pincode must be at least 3 characters'), backgroundColor: Color(0xFFFF4D4F)),
+          const SnackBar(content: Text('Pincode must be at least 3 characters'), backgroundColor: _ProfileTok.error),
         );
         return;
       }
@@ -185,7 +198,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       final validPincode = RegExp(r'^[a-zA-Z0-9\s\-]+$');
       if (!validPincode.hasMatch(pincode)) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Pincode contains invalid characters'), backgroundColor: Color(0xFFFF4D4F)),
+          const SnackBar(content: Text('Pincode contains invalid characters'), backgroundColor: _ProfileTok.error),
         );
         return;
       }
@@ -212,7 +225,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Profile updated successfully!'), backgroundColor: Color(0xFF52C41A)),
+          const SnackBar(content: Text('Profile updated successfully!'), backgroundColor: Color(0xFF1E824C)),
         );
       }
     } catch (e) {
@@ -220,7 +233,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(e.toString().replaceFirst('Exception: ', '')),
-            backgroundColor: const Color(0xFFFF4D4F),
+            backgroundColor: _ProfileTok.error,
           ),
         );
       }
@@ -234,23 +247,23 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final profileAsync = ref.watch(userProfileProvider);
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0C0C0C),
+      backgroundColor: _ProfileTok.bg,
       body: SafeArea(
         child: profileAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFFFF7A00))),
+          loading: () => const Center(child: CircularProgressIndicator(color: _ProfileTok.primary)),
           error: (err, st) => Center(
             child: Padding(
               padding: const EdgeInsets.all(30),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.error_outline, color: Colors.redAccent, size: 48),
+                  const Icon(Icons.error_outline_rounded, color: _ProfileTok.error, size: 48),
                   const SizedBox(height: 16),
                   Text('Failed to load profile\n${err.toString().replaceFirst("Exception: ", "")}',
-                      style: const TextStyle(color: Colors.white70), textAlign: TextAlign.center),
+                      style: const TextStyle(color: _ProfileTok.textMedium), textAlign: TextAlign.center),
                   const SizedBox(height: 20),
                   ElevatedButton(
-                    style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFFF7A00), foregroundColor: Colors.black),
+                    style: ElevatedButton.styleFrom(backgroundColor: _ProfileTok.primary, foregroundColor: Colors.white),
                     onPressed: () => ref.invalidate(userProfileProvider),
                     child: const Text('Retry'),
                   ),
@@ -265,6 +278,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             }
 
             return SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
               child: Column(
                 children: [
@@ -273,10 +287,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       const Text('My Profile',
-                          style: TextStyle(color: Color(0xFFFF7A00), fontSize: 22, fontWeight: FontWeight.bold)),
+                          style: TextStyle(color: _ProfileTok.textHigh, fontSize: 22, fontWeight: FontWeight.bold)),
                       if (!_isEditMode)
                         IconButton(
-                          icon: const Icon(Icons.edit, color: Color(0xFFFF7A00)),
+                          icon: const Icon(Icons.edit_rounded, color: _ProfileTok.primary),
                           onPressed: () {
                             _populateFields(profile);
                             setState(() => _isEditMode = true);
@@ -284,52 +298,76 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         ),
                     ],
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 24),
 
-                  // Avatar
-                  CircleAvatar(
-                    radius: 40,
-                    backgroundColor: const Color(0xFFFF7A00),
-                    child: Text(
-                      profile.fullName.isNotEmpty ? profile.fullName[0].toUpperCase() : 'U',
-                      style: const TextStyle(fontSize: 30, fontWeight: FontWeight.bold, color: Colors.black),
+                  // Avatar presentation
+                  Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFFFF9E4F), Color(0xFFFF6600)],
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: _ProfileTok.primary.withValues(alpha: 0.15),
+                          blurRadius: 15,
+                          offset: const Offset(0, 6),
+                        ),
+                      ],
+                    ),
+                    child: CircleAvatar(
+                      radius: 40,
+                      backgroundColor: Colors.white,
+                      child: Text(
+                        profile.fullName.isNotEmpty ? profile.fullName[0].toUpperCase() : 'U',
+                        style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w900, color: _ProfileTok.primary),
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 10),
-                  Text(profile.fullName,
-                      style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-                  Text(profile.email,
-                      style: const TextStyle(color: Colors.white54, fontSize: 13)),
-                  const SizedBox(height: 25),
+                  const SizedBox(height: 16),
+                  Text(
+                    profile.fullName,
+                    style: const TextStyle(color: _ProfileTok.textHigh, fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    profile.email,
+                    style: const TextStyle(color: _ProfileTok.textMedium, fontSize: 13),
+                  ),
+                  const SizedBox(height: 32),
 
                   // Info Card
                   Container(
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF161616),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+                      color: _ProfileTok.cardBg,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: _ProfileTok.border),
                     ),
                     child: Column(
                       children: [
-                        _buildField('Full Name', _nameCtrl, Icons.person),
-                        _buildField('Email', _emailCtrl, Icons.email),
-                        _buildField('Phone', _phoneCtrl, Icons.phone),
-                        const SizedBox(height: 15),
+                        ProfileInfoTile(label: 'Full Name', controller: _nameCtrl, icon: Icons.person_outline_rounded, isEditMode: _isEditMode),
+                        ProfileInfoTile(label: 'Email', controller: _emailCtrl, icon: Icons.email_outlined, isEditMode: _isEditMode),
+                        ProfileInfoTile(label: 'Phone', controller: _phoneCtrl, icon: Icons.phone_outlined, isEditMode: _isEditMode),
+                        const SizedBox(height: 12),
                         const Align(
                           alignment: Alignment.centerLeft,
-                          child: Text('Address', style: TextStyle(color: Color(0xFFFF7A00), fontSize: 14, fontWeight: FontWeight.bold)),
+                          child: Text(
+                            'Address Details',
+                            style: TextStyle(color: _ProfileTok.primary, fontSize: 14, fontWeight: FontWeight.bold),
+                          ),
                         ),
-                        const SizedBox(height: 10),
-                        _buildField('Street', _streetCtrl, Icons.home),
-                        _buildField('City', _cityCtrl, Icons.location_city),
-                        _buildField('State', _stateCtrl, Icons.map),
-                        _buildField('Pincode', _pincodeCtrl, Icons.pin_drop),
-                        _buildField('Country', _countryCtrl, Icons.flag),
+                        const SizedBox(height: 12),
+                        ProfileInfoTile(label: 'Street', controller: _streetCtrl, icon: Icons.home_outlined, isEditMode: _isEditMode),
+                        ProfileInfoTile(label: 'City', controller: _cityCtrl, icon: Icons.location_city_outlined, isEditMode: _isEditMode),
+                        ProfileInfoTile(label: 'State', controller: _stateCtrl, icon: Icons.map_outlined, isEditMode: _isEditMode),
+                        ProfileInfoTile(label: 'Pincode', controller: _pincodeCtrl, icon: Icons.pin_drop_outlined, isEditMode: _isEditMode),
+                        ProfileInfoTile(label: 'Country', controller: _countryCtrl, icon: Icons.flag_outlined, isEditMode: _isEditMode),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 24),
 
                   // Action Buttons
                   if (_isEditMode) ...[
@@ -338,23 +376,24 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         Expanded(
                           child: ElevatedButton(
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFFFF7A00),
-                              foregroundColor: Colors.black,
+                              backgroundColor: _ProfileTok.primary,
+                              foregroundColor: Colors.white,
                               padding: const EdgeInsets.symmetric(vertical: 14),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              elevation: 0,
                             ),
                             onPressed: _isSaving ? null : _saveProfile,
                             child: _isSaving
-                                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
-                                : const Text('Save', style: TextStyle(fontWeight: FontWeight.bold)),
+                                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                                : const Text('Save Changes', style: TextStyle(fontWeight: FontWeight.bold)),
                           ),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
                           child: OutlinedButton(
                             style: OutlinedButton.styleFrom(
-                              foregroundColor: Colors.white70,
-                              side: const BorderSide(color: Colors.white24),
+                              foregroundColor: _ProfileTok.textMedium,
+                              side: const BorderSide(color: _ProfileTok.border),
                               padding: const EdgeInsets.symmetric(vertical: 14),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                             ),
@@ -367,18 +406,18 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     const SizedBox(height: 20),
                   ],
 
-                  // Logout
+                  // Logout Button
                   SizedBox(
                     width: double.infinity,
                     child: OutlinedButton.icon(
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.redAccent,
-                        side: const BorderSide(color: Colors.redAccent),
+                        foregroundColor: _ProfileTok.error,
+                        side: const BorderSide(color: _ProfileTok.error),
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       ),
-                      icon: const Icon(Icons.logout, size: 18),
-                      label: const Text('Logout'),
+                      icon: const Icon(Icons.logout_rounded, size: 18),
+                      label: const Text('Logout from Account', style: TextStyle(fontWeight: FontWeight.bold)),
                       onPressed: () {
                         ref.read(authProvider.notifier).logout();
                       },
@@ -391,51 +430,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           },
         ),
       ),
-    );
-  }
-
-  Widget _buildField(String label, TextEditingController ctrl, IconData icon) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: _isEditMode
-          ? TextField(
-              controller: ctrl,
-              style: const TextStyle(color: Colors.white),
-              decoration: InputDecoration(
-                labelText: label,
-                labelStyle: const TextStyle(color: Colors.white38, fontSize: 13),
-                prefixIcon: Icon(icon, color: const Color(0xFFFF7A00), size: 18),
-                filled: true,
-                fillColor: Colors.black38,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: BorderSide.none,
-                ),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-              ),
-            )
-          : Row(
-              children: [
-                Icon(icon, color: const Color(0xFFFF7A00), size: 18),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(label, style: const TextStyle(color: Colors.white38, fontSize: 11)),
-                      const SizedBox(height: 2),
-                      Text(
-                        ctrl.text.isNotEmpty ? ctrl.text : 'Not set',
-                        style: TextStyle(
-                          color: ctrl.text.isNotEmpty ? Colors.white : Colors.white24,
-                          fontSize: 14,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
     );
   }
 }
