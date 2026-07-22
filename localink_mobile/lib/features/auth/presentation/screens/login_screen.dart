@@ -6,6 +6,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/auth_state.dart';
 import '../../../shared/presentation/widgets/app_text_field.dart';
 import '../../../shared/presentation/widgets/app_button.dart';
+import '../../../shared/presentation/widgets/app_card.dart';
 import '../../../shared/presentation/widgets/shake_widget.dart';
 import '../../../../core/theme/app_theme.dart';
 
@@ -43,7 +44,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           .read(authProvider.notifier)
           .login(_emailController.text.trim(), _passwordController.text);
     } else {
-      HapticFeedback.warningImpact();
+      HapticFeedback.mediumImpact();
       _shakeKey.currentState?.shake();
     }
   }
@@ -69,7 +70,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Widget build(BuildContext context) {
     ref.listen<AuthState>(authProvider, (previous, next) {
       if (next is AuthError) {
-        HapticFeedback.errorImpact();
+        HapticFeedback.heavyImpact();
         _shakeKey.currentState?.shake();
         final cleanMsg = next.message.replaceAll('Exception: ', '').trim();
         ScaffoldMessenger.of(context).showSnackBar(

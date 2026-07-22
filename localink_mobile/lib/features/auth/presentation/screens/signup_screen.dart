@@ -274,7 +274,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   Future<void> _onSubmit() async {
     if (!_stepFormKeys[2].currentState!.validate()) {
       _shakeKey.currentState?.shake();
-      HapticFeedback.warningImpact();
+      HapticFeedback.mediumImpact();
       return;
     }
 
@@ -382,7 +382,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   Widget build(BuildContext context) {
     ref.listen<AuthState>(authProvider, (previous, next) {
       if (next is AuthError) {
-        HapticFeedback.errorImpact();
+        HapticFeedback.heavyImpact();
         _shakeKey.currentState?.shake();
         final cleanMsg = next.message.replaceAll('Exception: ', '').trim();
         ScaffoldMessenger.of(context).showSnackBar(

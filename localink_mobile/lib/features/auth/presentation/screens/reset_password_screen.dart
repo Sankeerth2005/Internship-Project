@@ -82,7 +82,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
 
   Future<void> _resetPassword() async {
     if (!_formKey.currentState!.validate()) {
-      HapticFeedback.warningImpact();
+      HapticFeedback.mediumImpact();
       _shakeKey.currentState?.shake();
       return;
     }
@@ -115,7 +115,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
       }
     } catch (e) {
       if (mounted) {
-        HapticFeedback.errorImpact();
+        HapticFeedback.heavyImpact();
         _shakeKey.currentState?.shake();
         String errMsg = 'Failed to reset password. Please try again.';
         if (e is DioException && e.response != null) {

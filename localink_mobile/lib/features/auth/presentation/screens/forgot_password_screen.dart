@@ -40,7 +40,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
   Future<void> _sendOtp() async {
     if (!_formKey.currentState!.validate()) {
-      HapticFeedback.warningImpact();
+      HapticFeedback.mediumImpact();
       _shakeKey.currentState?.shake();
       return;
     }
@@ -72,7 +72,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       }
     } catch (e) {
       if (mounted) {
-        HapticFeedback.errorImpact();
+        HapticFeedback.heavyImpact();
         _shakeKey.currentState?.shake();
         String errMsg = 'Failed to send code. Please try again.';
         if (e is DioException && e.response != null) {

@@ -95,7 +95,7 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> {
   void _verifyOtp() {
     _updateOtpControllerValue();
     if (!_formKey.currentState!.validate()) {
-      HapticFeedback.warningImpact();
+      HapticFeedback.mediumImpact();
       _shakeKey.currentState?.shake();
       return;
     }
@@ -109,7 +109,7 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> {
         'otp': _otpController.text.trim(),
       });
     } catch (e) {
-      HapticFeedback.errorImpact();
+      HapticFeedback.heavyImpact();
       _shakeKey.currentState?.shake();
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -146,7 +146,7 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> {
         throw Exception(response.data['message'] ?? 'Failed to resend code.');
       }
     } catch (e) {
-      HapticFeedback.errorImpact();
+      HapticFeedback.heavyImpact();
       _shakeKey.currentState?.shake();
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
