@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -61,21 +60,13 @@ class _WelcomeScreenState extends State<WelcomeScreen>
   // ── State ──────────────────────────────────────────────────────────────────
   final PageController _pageController = PageController();
   int _currentPage = 0;
-  bool _showRoleSelection = false;
-  String _selectedRole = 'user';
-  bool _showAdmin = false;
-  int _logoTapCount = 0;
-  Timer? _logoTapTimer;
 
   // ── Animation controllers ──────────────────────────────────────────────────
   late final AnimationController _slideEntryCtrl;
-  late final AnimationController _roleEntryCtrl;
   late final AnimationController _illustrationCtrl;
 
   late final Animation<double> _slideContentFade;
   late final Animation<Offset> _slideContentOffset;
-  late final Animation<double> _roleEntryFade;
-  late final Animation<Offset> _roleEntrySlide;
   late final Animation<double> _illustrationScale;
   late final Animation<double> _illustrationFade;
 
@@ -165,21 +156,6 @@ class _WelcomeScreenState extends State<WelcomeScreen>
       ),
     );
 
-    // Role selection entrance
-    _roleEntryCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 420),
-    );
-    _roleEntryFade = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _roleEntryCtrl, curve: Curves.easeOut),
-    );
-    _roleEntrySlide = Tween<Offset>(
-      begin: const Offset(0, 0.08),
-      end: Offset.zero,
-    ).animate(
-      CurvedAnimation(parent: _roleEntryCtrl, curve: Curves.easeOutCubic),
-    );
-
     // Start initial entrance
     _slideEntryCtrl.forward();
     _illustrationCtrl.forward();
@@ -195,45 +171,14 @@ class _WelcomeScreenState extends State<WelcomeScreen>
   @override
   void dispose() {
     _pageController.dispose();
-    _logoTapTimer?.cancel();
     _slideEntryCtrl.dispose();
-    _roleEntryCtrl.dispose();
     _illustrationCtrl.dispose();
     super.dispose();
   }
 
-  // ── PRESERVED LOGIC (DO NOT MODIFY) ────────────────────────────────────────
-  void _onLogoTap() {
-    _logoTapCount++;
-    _logoTapTimer?.cancel();
-    _logoTapTimer = Timer(const Duration(milliseconds: 600), () {
-      _logoTapCount = 0;
-    });
-
-    if (_logoTapCount == 3) {
-      setState(() {
-        _showAdmin = !_showAdmin;
-        if (!_showAdmin && _selectedRole == 'admin') {
-          _selectedRole = 'user';
-        }
-      });
-      HapticFeedback.mediumImpact();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Moderator access options updated.'),
-          duration: Duration(seconds: 1),
-          backgroundColor: AppTheme.accentColor,
-        ),
-      );
-      _logoTapCount = 0;
-    }
-  }
-
-  void _skipOnboarding() {
+  void _skipToLogin() {
     HapticFeedback.lightImpact();
-    _roleEntryCtrl.reset();
-    setState(() => _showRoleSelection = true);
-    _roleEntryCtrl.forward();
+    context.go('/login');
   }
 
   void _nextPage() {
@@ -244,65 +189,28 @@ class _WelcomeScreenState extends State<WelcomeScreen>
         curve: Curves.easeInOutCubic,
       );
     } else {
-      _roleEntryCtrl.reset();
-      setState(() => _showRoleSelection = true);
-      _roleEntryCtrl.forward();
+      context.go('/login');
     }
   }
-  // ───────────────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: _Token.white,
-      body: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 350),
-        switchInCurve: Curves.easeOutCubic,
-        switchOutCurve: Curves.easeInCubic,
-        transitionBuilder: (child, animation) {
-          return FadeTransition(
-            opacity: animation,
-            child: child,
-          );
+      body: _OnboardingView(
+        slides: _slides,
+        currentPage: _currentPage,
+        pageController: _pageController,
+        contentFade: _slideContentFade,
+        contentOffset: _slideContentOffset,
+        illustrationScale: _illustrationScale,
+        illustrationFade: _illustrationFade,
+        onPageChanged: (i) {
+          setState(() => _currentPage = i);
+          _playPageTransition();
         },
-        child: _showRoleSelection
-            ? _RoleSelectionView(
-                key: const ValueKey('role_selection'),
-                selectedRole: _selectedRole,
-                showAdmin: _showAdmin,
-                fadeAnim: _roleEntryFade,
-                slideAnim: _roleEntrySlide,
-                onLogoTap: _onLogoTap,
-                onRoleChanged: (role) => setState(() => _selectedRole = role),
-                onContinue: () {
-                  HapticFeedback.lightImpact();
-                  context.go('/login', extra: _selectedRole);
-                },
-                onSignup: () {
-                  HapticFeedback.lightImpact();
-                  context.go('/signup', extra: _selectedRole);
-                },
-                onExplore: () {
-                  HapticFeedback.lightImpact();
-                  context.go('/home');
-                },
-              )
-            : _OnboardingView(
-                key: const ValueKey('onboarding'),
-                slides: _slides,
-                currentPage: _currentPage,
-                pageController: _pageController,
-                contentFade: _slideContentFade,
-                contentOffset: _slideContentOffset,
-                illustrationScale: _illustrationScale,
-                illustrationFade: _illustrationFade,
-                onPageChanged: (i) {
-                  setState(() => _currentPage = i);
-                  _playPageTransition();
-                },
-                onSkip: _skipOnboarding,
-                onNext: _nextPage,
-              ),
+        onSkip: _skipToLogin,
+        onNext: _nextPage,
       ),
     );
   }
@@ -543,7 +451,7 @@ class _OnboardingView extends StatelessWidget {
                 ),
               ),
 
-              // ── Bottom: dots + button ─────────────────────────────────────
+              // ── Bottom: dots + CTAs ─────────────────────────────────────
               Padding(
                 padding: EdgeInsets.fromLTRB(
                   _Token.xl,
@@ -551,41 +459,78 @@ class _OnboardingView extends StatelessWidget {
                   _Token.xl,
                   math.max(bottomPad + _Token.lg, _Token.xxl),
                 ),
-                child: Row(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Page dots
                     Row(
-                      children: List.generate(slides.length, (i) {
-                        final active = i == currentPage;
-                        return AnimatedContainer(
-                          duration: const Duration(milliseconds: 250),
-                          curve: Curves.easeInOutCubic,
-                          margin: const EdgeInsets.only(right: _Token.sm),
-                          width: active ? 22 : 7,
-                          height: 7,
-                          decoration: BoxDecoration(
-                            color: active ? _Token.primary : _Token.border,
-                            borderRadius:
-                                BorderRadius.circular(_Token.radiusRound),
+                      children: [
+                        // Page dots
+                        Row(
+                          children: List.generate(slides.length, (i) {
+                            final active = i == currentPage;
+                            return AnimatedContainer(
+                              duration: const Duration(milliseconds: 250),
+                              curve: Curves.easeInOutCubic,
+                              margin: const EdgeInsets.only(right: _Token.sm),
+                              width: active ? 22 : 7,
+                              height: 7,
+                              decoration: BoxDecoration(
+                                color: active ? _Token.primary : _Token.border,
+                                borderRadius: BorderRadius.circular(_Token.radiusRound),
+                              ),
+                            );
+                          }),
+                        ),
+
+                        const Spacer(),
+
+                        // Main CTA
+                        Semantics(
+                          button: true,
+                          label: isLast
+                              ? 'Login to your account'
+                              : 'Continue to next onboarding slide',
+                          child: _PressableButton(
+                            onPressed: onNext,
+                            label: isLast ? 'Login' : 'Continue',
+                            isLast: isLast,
                           ),
-                        );
-                      }),
+                        ),
+                      ],
                     ),
 
-                    const Spacer(),
-
-                    // CTA Button
-                    Semantics(
-                      button: true,
-                      label: isLast
-                          ? 'Get started with the app'
-                          : 'Continue to next onboarding slide',
-                      child: _PressableButton(
-                        onPressed: onNext,
-                        label: isLast ? 'Get Started' : 'Continue',
-                        isLast: isLast,
+                    // Create Account link on last slide
+                    if (isLast) ...[  
+                      const SizedBox(height: _Token.lg),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            'New here?  ',
+                            style: TextStyle(
+                              fontFamily: 'Inter',
+                              fontSize: 13,
+                              color: _Token.mediumText,
+                            ),
+                          ),
+                          GestureDetector(
+                            onTap: () {
+                              HapticFeedback.lightImpact();
+                              context.go('/signup');
+                            },
+                            child: Text(
+                              'Create Account',
+                              style: TextStyle(
+                                fontFamily: 'Inter',
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: _Token.primary,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
+                    ],
                   ],
                 ),
               ),

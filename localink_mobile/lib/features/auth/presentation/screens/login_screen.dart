@@ -36,9 +36,7 @@ class _Tok {
 }
 
 class LoginScreen extends ConsumerStatefulWidget {
-  final String? selectedRole;
-
-  const LoginScreen({super.key, this.selectedRole});
+  const LoginScreen({super.key});
 
   @override
   ConsumerState<LoginScreen> createState() => _LoginScreenState();
@@ -183,12 +181,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   }
   // ─────────────────────────────────────────────────────────────────────────
 
-  String get _roleStatement {
-    final role = widget.selectedRole?.toLowerCase().trim();
-    if (role == 'admin')         return 'Platform governance and configuration portal.';
-    if (role == 'businessowner') return 'Manage your store listings and customer leads.';
-    return 'Discover local businesses with community trust.';
-  }
+  String get _subtitle =>
+      'Sign in to your account to continue.';
 
   @override
   Widget build(BuildContext context) {
@@ -252,8 +246,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                         children: [
                           _buildHeader(),
                           const SizedBox(height: _Tok.xxl),
-                          _buildRoleBadge(),
-                          const SizedBox(height: _Tok.xxl),
                           _buildForm(isLoading),
                           const SizedBox(height: _Tok.xl),
                           _buildCTAs(isLoading),
@@ -272,7 +264,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                 padding: const EdgeInsets.only(left: _Tok.sm, top: _Tok.sm),
                 child: Semantics(
                   button: true,
-                  label: 'Go back to role selection',
+                  label: 'Go back to welcome',
                   child: AppBackButton(onPressed: () => context.go('/welcome')),
                 ),
               ),
@@ -316,7 +308,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
           ),
           const SizedBox(height: _Tok.sm),
           Text(
-            _roleStatement,
+            _subtitle,
             style: const TextStyle(
               fontFamily: 'Inter',
               fontSize: 14,
@@ -330,60 +322,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     );
   }
 
-  Widget _buildRoleBadge() {
-    final role = widget.selectedRole?.toLowerCase().trim();
-    if (role == null) return const SizedBox.shrink();
 
-    String label;
-    IconData icon;
-    if (role == 'admin') {
-      label = 'Admin Portal';
-      icon  = Icons.admin_panel_settings_rounded;
-    } else if (role == 'businessowner') {
-      label = 'Business Owner';
-      icon  = Icons.storefront_rounded;
-    } else {
-      label = 'Consumer';
-      icon  = Icons.person_rounded;
-    }
-
-    return AnimatedBuilder(
-      animation: _headerFade,
-      builder: (_, child) => Opacity(opacity: _headerFade.value, child: child),
-      child: Center(
-        child: Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: _Tok.lg,
-            vertical: _Tok.sm,
-          ),
-          decoration: BoxDecoration(
-            color: _Tok.primary.withValues(alpha: 0.08),
-            borderRadius: BorderRadius.circular(_Tok.rRound),
-            border: Border.all(
-              color: _Tok.primary.withValues(alpha: 0.18),
-            ),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 14, color: _Tok.primary),
-              const SizedBox(width: _Tok.xs),
-              Text(
-                label,
-                style: const TextStyle(
-                  fontFamily: 'Inter',
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: _Tok.primary,
-                  letterSpacing: 0.4,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 
   Widget _buildForm(bool isLoading) {
     return AnimatedBuilder(
@@ -477,13 +416,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
         children: [
           Semantics(
             button: true,
-            label: widget.selectedRole == 'admin'
-                ? 'Login as admin'
-                : 'Login to your account',
+            label: 'Login to your account',
             child: AppButton(
-              label: widget.selectedRole?.toLowerCase() == 'admin'
-                  ? 'Login as Admin'
-                  : 'Login',
+              label: 'Login',
               isLoading: isLoading,
               onPressed: isLoading ? null : _login,
             ),
@@ -539,35 +474,31 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
             ),
           ),
           const SizedBox(height: _Tok.xl),
-          if (widget.selectedRole?.toLowerCase().trim() != 'admin')
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Text(
-                  "Don't have an account?  ",
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Text(
+                "Don't have an account?  ",
+                style: TextStyle(
+                  fontFamily: 'Inter',
+                  fontSize: 13.5,
+                  color: _Tok.medText,
+                ),
+              ),
+              GestureDetector(
+                onTap: () => context.push('/signup'),
+                child: const Text(
+                  'Create Account',
                   style: TextStyle(
                     fontFamily: 'Inter',
                     fontSize: 13.5,
-                    color: _Tok.medText,
+                    fontWeight: FontWeight.w700,
+                    color: _Tok.primary,
                   ),
                 ),
-                GestureDetector(
-                  onTap: () => context.push(
-                    '/signup',
-                    extra: widget.selectedRole,
-                  ),
-                  child: const Text(
-                    'Create Account',
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 13.5,
-                      fontWeight: FontWeight.w700,
-                      color: _Tok.primary,
-                    ),
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
+          ),
         ],
       ),
     );

@@ -38,16 +38,15 @@ class _Tok {
 }
 
 class SignupScreen extends ConsumerStatefulWidget {
-  final String? preSelectedRole;
-
-  const SignupScreen({super.key, this.preSelectedRole});
+  const SignupScreen({super.key});
 
   @override
   ConsumerState<SignupScreen> createState() => _SignupScreenState();
 }
 
 class _SignupScreenState extends ConsumerState<SignupScreen> {
-  // Wizard Steps: 0 = Profile Details, 1 = Location Details, 2 = Security Details
+  // Wizard Steps:
+  // 0 = Account Type, 1 = Profile Details, 2 = Location Details, 3 = Security
   int _currentStep = 0;
   final List<GlobalKey<FormState>> _stepFormKeys = List.generate(3, (_) => GlobalKey<FormState>());
   final _shakeKey = GlobalKey<ShakeWidgetState>();
@@ -103,14 +102,6 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   @override
   void initState() {
     super.initState();
-    if (widget.preSelectedRole != null) {
-      final role = widget.preSelectedRole!.toLowerCase().trim();
-      if (role == 'client' || role == 'businessowner') {
-        _selectedType = 'client';
-      } else if (role == 'user') {
-        _selectedType = 'user';
-      }
-    }
     _passwordController.addListener(_onPasswordChanged);
     _setupFocusListeners();
     _loadCountries();
@@ -272,14 +263,15 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   void _nextStep() async {
     HapticFeedback.lightImpact();
     if (_currentStep == 0) {
+      // Account type was selected — move to profile details
+      setState(() => _currentStep = 1);
+    } else if (_currentStep == 1) {
       if (_stepFormKeys[0].currentState!.validate()) {
-        setState(() {
-          _currentStep = 1;
-        });
+        setState(() => _currentStep = 2);
       } else {
         _shakeKey.currentState?.shake();
       }
-    } else if (_currentStep == 1) {
+    } else if (_currentStep == 2) {
       if (_stepFormKeys[1].currentState!.validate()) {
         setState(() => _loadingCities = true);
         final pincodeValid = await _validatePincodeAsync();
@@ -289,9 +281,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
           _shakeKey.currentState?.shake();
           return;
         }
-        setState(() {
-          _currentStep = 2;
-        });
+        setState(() => _currentStep = 3);
       } else {
         _shakeKey.currentState?.shake();
       }
@@ -567,7 +557,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Step Header
+          // Step Header badge
           Center(
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: _Tok.lg, vertical: 6),
@@ -577,7 +567,9 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                 border: Border.all(color: _Tok.primary.withValues(alpha: 0.18)),
               ),
               child: Text(
-                'Step ${_currentStep + 1} of 3',
+                _currentStep == 0
+                    ? 'Choose Account Type'
+                    : 'Step $_currentStep of 3',
                 style: const TextStyle(
                   fontFamily: 'Inter',
                   fontSize: 12,
@@ -590,9 +582,9 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
           ),
           const SizedBox(height: 18),
 
-          // Horizontal Segment Progress Bar
+          // Progress bar — 4 segments
           Row(
-            children: List.generate(3, (index) {
+            children: List.generate(4, (index) {
               final isPassed = index <= _currentStep;
               return Expanded(
                 child: AnimatedContainer(
@@ -609,19 +601,239 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
           ),
           const SizedBox(height: 28),
 
-          // Render Page fields based on active index
-          _currentStep == 0
-              ? _buildStep0()
-              : _currentStep == 1
-                  ? _buildStep1()
-                  : _buildStep2(),
+          // Render the correct step
+          if (_currentStep == 0)
+            _buildStep0AccountType()
+          else if (_currentStep == 1)
+            _buildStep1Profile()
+          else if (_currentStep == 2)
+            _buildStep2Location()
+          else
+            _buildStep3Security(),
         ],
       ),
     );
   }
 
-  // ─── STEP 1: Profile Details ───
-  Widget _buildStep0() {
+  // ─── STEP 0: Account Type Selection ───
+  Widget _buildStep0AccountType() {
+    final cards = [
+      (
+        type: 'user',
+        title: 'Personal Account',
+        tagline: 'Discover & connect with local businesses',
+        icon: Icons.person_rounded,
+        benefits: [
+          'Search & discover verified local businesses',
+          'AI voice search & smart recommendations',
+          'Save favourites & share discoveries',
+        ],
+      ),
+      (
+        type: 'client',
+        title: 'Business Owner',
+        tagline: 'List your store and grow your customer base',
+        icon: Icons.storefront_rounded,
+        benefits: [
+          'List & promote your store 100% free',
+          'Manage hours, photos & location',
+          'Receive leads, views & verified ratings',
+        ],
+      ),
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const Text(
+          'Create Account',
+          style: TextStyle(
+            fontFamily: 'Inter',
+            fontSize: 24,
+            fontWeight: FontWeight.w800,
+            color: _Tok.charcoal,
+            letterSpacing: -0.5,
+          ),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 8),
+        const Text(
+          'How will you use the app?',
+          style: TextStyle(
+            fontFamily: 'Inter',
+            fontSize: 13,
+            color: _Tok.medText,
+            height: 1.4,
+          ),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 28),
+
+        // Account type cards
+        ...cards.map((card) {
+          final isSelected = _selectedType == card.type;
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: GestureDetector(
+              onTap: () {
+                HapticFeedback.lightImpact();
+                setState(() => _selectedType = card.type);
+                // Auto-advance after a short delay for delight
+                Future.delayed(const Duration(milliseconds: 220), () {
+                  if (mounted) _nextStep();
+                });
+              },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 220),
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? _Tok.primary.withValues(alpha: 0.04)
+                      : _Tok.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: isSelected ? _Tok.primary : _Tok.border,
+                    width: isSelected ? 2.0 : 1.0,
+                  ),
+                  boxShadow: isSelected
+                      ? [
+                          BoxShadow(
+                            color: _Tok.primary.withValues(alpha: 0.12),
+                            blurRadius: 20,
+                            offset: const Offset(0, 5),
+                          ),
+                        ]
+                      : [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.03),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          width: 48,
+                          height: 48,
+                          decoration: BoxDecoration(
+                            color: isSelected ? _Tok.primary : _Tok.surface,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: isSelected
+                                  ? _Tok.primary.withValues(alpha: 0.3)
+                                  : _Tok.border,
+                            ),
+                          ),
+                          child: Icon(
+                            card.icon,
+                            size: 24,
+                            color: isSelected ? Colors.white : _Tok.medText,
+                          ),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                card.title,
+                                style: TextStyle(
+                                  fontFamily: 'Inter',
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w800,
+                                  color: isSelected ? _Tok.primary : _Tok.charcoal,
+                                  letterSpacing: -0.3,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                card.tagline,
+                                style: const TextStyle(
+                                  fontFamily: 'Inter',
+                                  fontSize: 12,
+                                  color: _Tok.medText,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        AnimatedContainer(
+                          duration: const Duration(milliseconds: 180),
+                          width: 22,
+                          height: 22,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: isSelected ? _Tok.primary : Colors.transparent,
+                            border: Border.all(
+                              color: isSelected ? _Tok.primary : _Tok.border,
+                              width: 1.5,
+                            ),
+                          ),
+                          child: isSelected
+                              ? const Icon(Icons.check_rounded,
+                                  size: 13, color: Colors.white)
+                              : null,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    // Benefits
+                    ...card.benefits.map((b) => Padding(
+                          padding: const EdgeInsets.only(bottom: 6),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Container(
+                                margin: const EdgeInsets.only(top: 3),
+                                width: 16,
+                                height: 16,
+                                decoration: BoxDecoration(
+                                  color: isSelected
+                                      ? _Tok.primary.withValues(alpha: 0.1)
+                                      : _Tok.surface,
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Icon(
+                                  Icons.check_rounded,
+                                  size: 10,
+                                  color: isSelected ? _Tok.primary : _Tok.medText,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  b,
+                                  style: TextStyle(
+                                    fontFamily: 'Inter',
+                                    fontSize: 12,
+                                    height: 1.45,
+                                    color: isSelected ? _Tok.charcoal : _Tok.medText,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        )),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }),
+
+        const SizedBox(height: 12),
+        _buildSignInLink(),
+      ],
+    );
+  }
+
+  // ─── STEP 1: Profile Details (was Step 0) ───
+  Widget _buildStep1Profile() {
     final isClient = _selectedType == 'client';
     return Form(
       key: _stepFormKeys[0],
@@ -703,8 +915,8 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     );
   }
 
-  // ─── STEP 2: Address Details ───
-  Widget _buildStep1() {
+  // ─── STEP 2: Location Details ───
+  Widget _buildStep2Location() {
     return Form(
       key: _stepFormKeys[1],
       child: Column(
@@ -797,7 +1009,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   }
 
   // ─── STEP 3: Security & Credentials ───
-  Widget _buildStep2() {
+  Widget _buildStep3Security() {
     return Form(
       key: _stepFormKeys[2],
       child: Column(

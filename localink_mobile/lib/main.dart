@@ -113,17 +113,11 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/login',
-        builder: (context, state) {
-          final role = state.extra as String?;
-          return LoginScreen(selectedRole: role);
-        },
+        builder: (context, state) => const LoginScreen(),
       ),
       GoRoute(
         path: '/signup',
-        builder: (context, state) {
-          final role = state.extra as String?;
-          return SignupScreen(preSelectedRole: role);
-        },
+        builder: (context, state) => const SignupScreen(),
       ),
       GoRoute(
         path: '/forgot-password',
