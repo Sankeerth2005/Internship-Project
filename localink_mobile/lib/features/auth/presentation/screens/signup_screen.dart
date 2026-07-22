@@ -12,10 +12,27 @@ import '../../providers/location_provider.dart';
 import '../../../shared/presentation/widgets/app_text_field.dart';
 import '../../../shared/presentation/widgets/app_button.dart';
 import '../../../shared/presentation/widgets/shake_widget.dart';
-import '../../../shared/presentation/widgets/animated_checkmark.dart';
 import '../../../shared/presentation/widgets/app_card.dart';
 import '../../../shared/presentation/widgets/app_dialog.dart';
 import '../../../../core/theme/app_theme.dart';
+
+// ─── DESIGN TOKENS (aligned to DESIGN_SYSTEM.md) ─────────────────────────────
+class _Tok {
+  static const Color primary  = Color(0xFFFF6600);
+  static const Color white    = Color(0xFFFFFFFF);
+  static const Color charcoal = Color(0xFF1A1918);
+  static const Color medText  = Color(0xFF5F5C58);
+  static const Color mutedText = Color(0xFF9F9B96);
+  static const Color surface  = Color(0xFFF9F8F6);
+  static const Color border   = Color(0xFFEAE8E3);
+
+  // Spacing (4dp grid)
+  static const double lg  = 16;
+
+  // Radii
+  static const double rMd    = 12;
+  static const double rRound = 999;
+}
 
 class SignupScreen extends ConsumerStatefulWidget {
   final String? preSelectedRole;
@@ -50,12 +67,11 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   final FocusNode _passwordFocus = FocusNode();
   final FocusNode _confirmPasswordFocus = FocusNode();
 
+  // Active focus tracker for field glows
+  String _activeFocusField = '';
+
   // Role type
   String _selectedType = 'user'; // 'user' or 'client'
-
-  // Password visibility
-  bool _showPassword = false;
-  bool _showConfirmPassword = false;
 
   // Location data lists and selections
   List<Country> _countries = [];
@@ -81,8 +97,6 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   // Pincode validation mismatch error message
   String? _pincodeError;
 
-
-
   @override
   void initState() {
     super.initState();
@@ -95,7 +109,26 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
       }
     }
     _passwordController.addListener(_onPasswordChanged);
+    _setupFocusListeners();
     _loadCountries();
+  }
+
+  void _setupFocusListeners() {
+    _nameFocus.addListener(() => _updateFocus('name', _nameFocus.hasFocus));
+    _phoneFocus.addListener(() => _updateFocus('phone', _phoneFocus.hasFocus));
+    _emailFocus.addListener(() => _updateFocus('email', _emailFocus.hasFocus));
+    _streetFocus.addListener(() => _updateFocus('street', _streetFocus.hasFocus));
+    _pincodeFocus.addListener(() => _updateFocus('pincode', _pincodeFocus.hasFocus));
+    _passwordFocus.addListener(() => _updateFocus('password', _passwordFocus.hasFocus));
+    _confirmPasswordFocus.addListener(() => _updateFocus('confirmPassword', _confirmPasswordFocus.hasFocus));
+  }
+
+  void _updateFocus(String fieldName, bool hasFocus) {
+    if (hasFocus) {
+      setState(() => _activeFocusField = fieldName);
+    } else if (_activeFocusField == fieldName) {
+      setState(() => _activeFocusField = '');
+    }
   }
 
   @override
@@ -318,7 +351,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   String? _validateName(String? v) {
     if (v == null || v.trim().isEmpty) return 'Required';
     if (!RegExp(r'^[A-Za-z][A-Za-z\s]*$').hasMatch(v.trim())) {
-      return 'Only letters and spaces (start with letter)';
+      return 'Letters and spaces only (start with letter)';
     }
     return null;
   }
@@ -337,7 +370,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     if (v == null || v.trim().isEmpty) return 'Required';
     if (_selectedPhoneCode == '91') {
       if (!RegExp(r'^[3-9][0-9]{9}$').hasMatch(v.trim())) {
-        return 'Enter valid 10-digit number (starts 3-9)';
+        return 'Enter 10-digit number (starts 3-9)';
       }
     } else {
       if (!RegExp(r'^(?!0+$)[0-9]{6,15}$').hasMatch(v.trim())) {
@@ -414,13 +447,13 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
         _prevStep();
       },
       child: Scaffold(
-        backgroundColor: Colors.white,
+        backgroundColor: _Tok.white,
         body: Stack(
           children: [
-            // Ambient Radial Background Glows
+            // Background
             Positioned.fill(
               child: CustomPaint(
-                painter: _SignupGlowPainter(),
+                painter: _SignupBgPainter(),
               ),
             ),
 
@@ -439,22 +472,24 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 const Text(
-                                  'Welcome to\nVocal for Sanatan',
+                                  'Join Vocal\nfor Sanatan',
                                   style: TextStyle(
                                     fontFamily: 'Inter',
-                                    fontSize: 42,
-                                    fontWeight: FontWeight.w800,
-                                    color: Color(0xFF1A1918),
-                                    height: 1.2,
+                                    fontSize: 48,
+                                    fontWeight: FontWeight.w900,
+                                    color: _Tok.charcoal,
+                                    height: 1.15,
+                                    letterSpacing: -1.0,
                                   ),
                                 ),
-                                const SizedBox(height: 10),
+                                const SizedBox(height: 12),
                                 Text(
-                                  'Join the community and support local stores.',
+                                  'Register to discover verified local businesses,\nsupport your community, and connect directly.',
                                   style: TextStyle(
                                     fontFamily: 'Inter',
                                     fontSize: 16,
-                                    color: const Color(0xFF1A1918).withOpacity(0.6),
+                                    color: _Tok.medText,
+                                    height: 1.5,
                                   ),
                                 ),
                               ],
@@ -475,7 +510,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                           child: Center(
                             child: AppCard(
                               maxWidth: 500,
-                              padding: const EdgeInsets.all(24),
+                              padding: const EdgeInsets.all(28),
                               child: _buildStepContent(),
                             ),
                           ),
@@ -487,7 +522,21 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
               ),
             ),
 
-
+            // Premium back navigation button
+            SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.only(left: 12, top: 12),
+                child: _BackButton(
+                  onPressed: () {
+                    if (_currentStep > 0) {
+                      _prevStep();
+                    } else {
+                      context.pop();
+                    }
+                  },
+                ),
+              ),
+            ),
           ],
         ),
       ),
@@ -505,7 +554,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
           opacity: animation,
           child: SlideTransition(
             position: Tween<Offset>(
-              begin: const Offset(0.05, 0.0),
+              begin: const Offset(0.04, 0.0),
               end: Offset.zero,
             ).animate(animation),
             child: child,
@@ -518,49 +567,46 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
         mainAxisSize: MainAxisSize.min,
         children: [
           // Step Header
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              if (_currentStep > 0)
-                IconButton(
-                  onPressed: _prevStep,
-                  icon: const Icon(Icons.arrow_back_rounded),
-                  color: AppTheme.accentColor,
-                )
-              else
-                const SizedBox(width: 48),
-              
-              Text(
+          Center(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: _Tok.lg, vertical: 6),
+              decoration: BoxDecoration(
+                color: _Tok.primary.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(_Tok.rRound),
+                border: Border.all(color: _Tok.primary.withValues(alpha: 0.18)),
+              ),
+              child: Text(
                 'Step ${_currentStep + 1} of 3',
                 style: const TextStyle(
                   fontFamily: 'Inter',
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.accentColor,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  color: _Tok.primary,
+                  letterSpacing: 0.5,
                 ),
               ),
-              const SizedBox(width: 48),
-            ],
+            ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 18),
 
           // Horizontal Segment Progress Bar
           Row(
             children: List.generate(3, (index) {
               final isPassed = index <= _currentStep;
               return Expanded(
-                child: Container(
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 300),
                   height: 4,
                   margin: const EdgeInsets.symmetric(horizontal: 4),
                   decoration: BoxDecoration(
-                    color: isPassed ? AppTheme.accentColor : const Color(0xFFEAE8E3),
+                    color: isPassed ? _Tok.primary : _Tok.border,
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
               );
             }),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 28),
 
           // Render Page fields based on active index
           _currentStep == 0
@@ -575,6 +621,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
 
   // ─── STEP 1: Profile Details ───
   Widget _buildStep0() {
+    final isClient = _selectedType == 'client';
     return Form(
       key: _stepFormKeys[0],
       child: Column(
@@ -584,35 +631,40 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
             'Create Account',
             style: TextStyle(
               fontFamily: 'Inter',
-              fontSize: 22,
+              fontSize: 24,
               fontWeight: FontWeight.w800,
-              color: Color(0xFF1A1918),
+              color: _Tok.charcoal,
+              letterSpacing: -0.5,
             ),
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
           Text(
-            _selectedType == 'client'
+            isClient
                 ? 'Register your business on Vocal for Sanatan'
                 : 'Join Vocal for Sanatan to discover local stores',
             style: const TextStyle(
               fontFamily: 'Inter',
-              fontSize: 12.5,
-              color: Color(0xFF5F5C58),
+              fontSize: 13,
+              color: _Tok.medText,
+              height: 1.4,
             ),
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 28),
 
-          AppTextField(
-            controller: _nameController,
-            labelText: _selectedType == 'client' ? 'Owner / Business Name *' : 'Name *',
-            hintText: 'Enter full name',
-            prefixIcon: Icons.person_outline_rounded,
-            validator: _validateName,
-            focusNode: _nameFocus,
-            autofillHints: const [AutofillHints.name],
-            textInputAction: TextInputAction.next,
+          _AnimatedFieldGlow(
+            isFocused: _activeFocusField == 'name',
+            child: AppTextField(
+              controller: _nameController,
+              labelText: isClient ? 'Owner / Business Name *' : 'Name *',
+              hintText: 'Enter full name',
+              prefixIcon: Icons.person_outline_rounded,
+              validator: _validateName,
+              focusNode: _nameFocus,
+              autofillHints: const [AutofillHints.name],
+              textInputAction: TextInputAction.next,
+            ),
           ),
           const SizedBox(height: 16),
 
@@ -621,17 +673,20 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
           _buildPhoneRow(),
           const SizedBox(height: 16),
 
-          AppTextField(
-            controller: _emailController,
-            labelText: 'Email *',
-            hintText: 'Enter your email address',
-            keyboardType: TextInputType.emailAddress,
-            prefixIcon: Icons.mail_outline_rounded,
-            validator: _validateEmail,
-            focusNode: _emailFocus,
-            autofillHints: const [AutofillHints.email],
-            textInputAction: TextInputAction.done,
-            onFieldSubmitted: (_) => _nextStep(),
+          _AnimatedFieldGlow(
+            isFocused: _activeFocusField == 'email',
+            child: AppTextField(
+              controller: _emailController,
+              labelText: 'Email *',
+              hintText: 'Enter your email address',
+              keyboardType: TextInputType.emailAddress,
+              prefixIcon: Icons.mail_outline_rounded,
+              validator: _validateEmail,
+              focusNode: _emailFocus,
+              autofillHints: const [AutofillHints.email],
+              textInputAction: TextInputAction.done,
+              onFieldSubmitted: (_) => _nextStep(),
+            ),
           ),
           const SizedBox(height: 32),
 
@@ -658,26 +713,28 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
             'Location Details',
             style: TextStyle(
               fontFamily: 'Inter',
-              fontSize: 22,
+              fontSize: 24,
               fontWeight: FontWeight.w800,
-              color: Color(0xFF1A1918),
+              color: _Tok.charcoal,
+              letterSpacing: -0.5,
             ),
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
           const Text(
-            'Select your location to connect with local community events.',
+            'Provide your location to connect with listings and community events in your area.',
             style: TextStyle(
               fontFamily: 'Inter',
-              fontSize: 12.5,
-              color: Color(0xFF5F5C58),
+              fontSize: 13,
+              color: _Tok.medText,
+              height: 1.4,
             ),
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 28),
 
           _buildCountryDropdown(),
-          const SizedBox(height: 14),
+          const SizedBox(height: 16),
 
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -687,35 +744,41 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
               Expanded(child: _buildCityDropdown()),
             ],
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 16),
 
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
                 flex: 2,
-                child: AppTextField(
-                  controller: _streetController,
-                  labelText: 'Street *',
-                  hintText: 'Street address',
-                  prefixIcon: Icons.location_on_outlined,
-                  validator: _validateStreet,
-                  focusNode: _streetFocus,
-                  textInputAction: TextInputAction.next,
+                child: _AnimatedFieldGlow(
+                  isFocused: _activeFocusField == 'street',
+                  child: AppTextField(
+                    controller: _streetController,
+                    labelText: 'Street *',
+                    hintText: 'Street address',
+                    prefixIcon: Icons.location_on_outlined,
+                    validator: _validateStreet,
+                    focusNode: _streetFocus,
+                    textInputAction: TextInputAction.next,
+                  ),
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
                 flex: 1,
-                child: AppTextField(
-                  controller: _pincodeController,
-                  labelText: 'Pincode *',
-                  hintText: 'Pincode',
-                  keyboardType: TextInputType.number,
-                  validator: _validatePincode,
-                  focusNode: _pincodeFocus,
-                  textInputAction: TextInputAction.done,
-                  onFieldSubmitted: (_) => _nextStep(),
+                child: _AnimatedFieldGlow(
+                  isFocused: _activeFocusField == 'pincode',
+                  child: AppTextField(
+                    controller: _pincodeController,
+                    labelText: 'Pincode *',
+                    hintText: 'Pincode',
+                    keyboardType: TextInputType.number,
+                    validator: _validatePincode,
+                    focusNode: _pincodeFocus,
+                    textInputAction: TextInputAction.done,
+                    onFieldSubmitted: (_) => _nextStep(),
+                  ),
                 ),
               ),
             ],
@@ -743,50 +806,58 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
             'Secure Account',
             style: TextStyle(
               fontFamily: 'Inter',
-              fontSize: 22,
+              fontSize: 24,
               fontWeight: FontWeight.w800,
-              color: Color(0xFF1A1918),
+              color: _Tok.charcoal,
+              letterSpacing: -0.5,
             ),
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
           const Text(
-            'Ensure your password meets core security guidelines.',
+            'Ensure your password meets the required security criteria.',
             style: TextStyle(
               fontFamily: 'Inter',
-              fontSize: 12.5,
-              color: Color(0xFF5F5C58),
+              fontSize: 13,
+              color: _Tok.medText,
+              height: 1.4,
             ),
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 28),
 
-          AppTextField(
-            controller: _passwordController,
-            labelText: 'Password *',
-            hintText: 'Enter your password',
-            isPassword: true,
-            prefixIcon: Icons.lock_outline_rounded,
-            validator: _validatePassword,
-            focusNode: _passwordFocus,
-            textInputAction: TextInputAction.next,
+          _AnimatedFieldGlow(
+            isFocused: _activeFocusField == 'password',
+            child: AppTextField(
+              controller: _passwordController,
+              labelText: 'Password *',
+              hintText: 'Enter your password',
+              isPassword: true,
+              prefixIcon: Icons.lock_outline_rounded,
+              validator: _validatePassword,
+              focusNode: _passwordFocus,
+              textInputAction: TextInputAction.next,
+            ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
 
           // Real-time Checklist Feedback
           _buildPasswordChecklist(),
           const SizedBox(height: 16),
 
-          AppTextField(
-            controller: _confirmPasswordController,
-            labelText: 'Confirm Password *',
-            hintText: 'Re-enter your password',
-            isPassword: true,
-            prefixIcon: Icons.lock_outline_rounded,
-            validator: _validateConfirmPassword,
-            focusNode: _confirmPasswordFocus,
-            textInputAction: TextInputAction.done,
-            onFieldSubmitted: (_) => _onSubmit(),
+          _AnimatedFieldGlow(
+            isFocused: _activeFocusField == 'confirmPassword',
+            child: AppTextField(
+              controller: _confirmPasswordController,
+              labelText: 'Confirm Password *',
+              hintText: 'Re-enter your password',
+              isPassword: true,
+              prefixIcon: Icons.lock_outline_rounded,
+              validator: _validateConfirmPassword,
+              focusNode: _confirmPasswordFocus,
+              textInputAction: TextInputAction.done,
+              onFieldSubmitted: (_) => _onSubmit(),
+            ),
           ),
           const SizedBox(height: 32),
 
@@ -811,7 +882,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
           fontFamily: 'Inter',
           fontSize: 13.5,
           fontWeight: FontWeight.bold,
-          color: Color(0xFF1A1918),
+          color: _Tok.charcoal,
         ),
       ),
     );
@@ -822,49 +893,66 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // Phone code dropdown selector
-        Container(
-          width: 104,
-          height: 50,
-          alignment: Alignment.center,
-          padding: const EdgeInsets.only(top: 8.0),
-          child: DropdownButtonFormField<String>(
-            value: _selectedPhoneCode,
-            decoration: _compactInputDecoration(''),
-            dropdownColor: Colors.white,
-            style: const TextStyle(
-              fontFamily: 'Inter',
-              fontSize: 13,
-              color: Color(0xFF1A1918),
-              fontWeight: FontWeight.bold,
+        _AnimatedFieldGlow(
+          isFocused: _activeFocusField == 'phone_code',
+          child: Container(
+            width: 108,
+            height: 52,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: _Tok.surface,
+              borderRadius: BorderRadius.circular(_Tok.rMd),
+              border: Border.all(color: _Tok.border),
             ),
-            items: _phoneCountries
-                .map(
-                  (pc) => DropdownMenuItem(
-                    value: pc['code'],
-                    child: Text(
-                      '${pc['flag']} +${pc['code']}',
-                      style: const TextStyle(fontSize: 13),
-                    ),
-                  ),
-                )
-                .toList(),
-            onChanged: (val) {
-              if (val != null) setState(() => _selectedPhoneCode = val);
-            },
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButtonFormField<String>(
+                value: _selectedPhoneCode,
+                decoration: const InputDecoration(
+                  border: InputBorder.none,
+                  contentPadding: EdgeInsets.zero,
+                  isDense: true,
+                ),
+                dropdownColor: _Tok.white,
+                style: const TextStyle(
+                  fontFamily: 'Inter',
+                  fontSize: 13,
+                  color: _Tok.charcoal,
+                  fontWeight: FontWeight.bold,
+                ),
+                items: _phoneCountries
+                    .map(
+                      (pc) => DropdownMenuItem(
+                        value: pc['code'],
+                        child: Text(
+                          '${pc['flag']} +${pc['code']}',
+                          style: const TextStyle(fontSize: 13),
+                        ),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (val) {
+                  if (val != null) setState(() => _selectedPhoneCode = val);
+                },
+              ),
+            ),
           ),
         ),
-        const SizedBox(width: 8),
+        const SizedBox(width: 12),
         // Phone input textfield
         Expanded(
-          child: AppTextField(
-            controller: _phoneController,
-            labelText: 'Phone Number',
-            hintText: 'Number',
-            keyboardType: TextInputType.phone,
-            validator: _validatePhone,
-            focusNode: _phoneFocus,
-            autofillHints: const [AutofillHints.telephoneNumber],
-            textInputAction: TextInputAction.next,
+          child: _AnimatedFieldGlow(
+            isFocused: _activeFocusField == 'phone',
+            child: AppTextField(
+              controller: _phoneController,
+              labelText: 'Phone Number',
+              hintText: 'Number',
+              keyboardType: TextInputType.phone,
+              validator: _validatePhone,
+              focusNode: _phoneFocus,
+              autofillHints: const [AutofillHints.telephoneNumber],
+              textInputAction: TextInputAction.next,
+            ),
           ),
         ),
       ],
@@ -881,42 +969,60 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
             fontFamily: 'Inter',
             fontSize: 13.5,
             fontWeight: FontWeight.bold,
-            color: Color(0xFF1A1918),
+            color: _Tok.charcoal,
           ),
         ),
         const SizedBox(height: 6),
         _loadingCountries
             ? _buildCompactLoadingIndicator()
-            : DropdownButtonFormField<Country>(
-                value: _selectedCountry,
-                decoration: _compactInputDecoration('Select Country'),
-                dropdownColor: Colors.white,
-                style: const TextStyle(
-                  fontFamily: 'Inter',
-                  fontSize: 13,
-                  color: Color(0xFF1A1918),
-                  fontWeight: FontWeight.bold,
-                ),
-                items: _countries
-                    .map(
-                      (c) => DropdownMenuItem(
-                        value: c,
-                        child: Text(c.name, overflow: TextOverflow.ellipsis),
+            : _AnimatedFieldGlow(
+                isFocused: _activeFocusField == 'country',
+                child: Container(
+                  height: 52,
+                  decoration: BoxDecoration(
+                    color: _Tok.surface,
+                    borderRadius: BorderRadius.circular(_Tok.rMd),
+                    border: Border.all(color: _Tok.border),
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButtonFormField<Country>(
+                      value: _selectedCountry,
+                      decoration: const InputDecoration(
+                        border: InputBorder.none,
+                        contentPadding: EdgeInsets.zero,
+                        hintText: 'Select Country',
                       ),
-                    )
-                    .toList(),
-                onChanged: (country) {
-                  if (country != null) {
-                    setState(() {
-                      _selectedCountry = country;
-                      if (country.phoneCode != null) {
-                        _selectedPhoneCode = country.phoneCode!.replaceAll('+', '');
-                      }
-                    });
-                    _loadStates(country.iso2);
-                  }
-                },
-                validator: (v) => v == null ? 'Required' : null,
+                      dropdownColor: _Tok.white,
+                      style: const TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 13,
+                        color: _Tok.charcoal,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      items: _countries
+                          .map(
+                            (c) => DropdownMenuItem(
+                              value: c,
+                              child: Text(c.name, overflow: TextOverflow.ellipsis),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (country) {
+                        if (country != null) {
+                          setState(() {
+                            _selectedCountry = country;
+                            if (country.phoneCode != null) {
+                              _selectedPhoneCode = country.phoneCode!.replaceAll('+', '');
+                            }
+                          });
+                          _loadStates(country.iso2);
+                        }
+                      },
+                      validator: (v) => v == null ? 'Required' : null,
+                    ),
+                  ),
+                ),
               ),
       ],
     );
@@ -932,37 +1038,55 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
             fontFamily: 'Inter',
             fontSize: 13.5,
             fontWeight: FontWeight.bold,
-            color: Color(0xFF1A1918),
+            color: _Tok.charcoal,
           ),
         ),
         const SizedBox(height: 6),
         _loadingStates
             ? _buildCompactLoadingIndicator()
-            : DropdownButtonFormField<StateModel>(
-                value: _selectedState,
-                decoration: _compactInputDecoration('Select State'),
-                dropdownColor: Colors.white,
-                style: const TextStyle(
-                  fontFamily: 'Inter',
-                  fontSize: 13,
-                  color: Color(0xFF1A1918),
-                  fontWeight: FontWeight.bold,
-                ),
-                items: _states
-                    .map(
-                      (s) => DropdownMenuItem(
-                        value: s,
-                        child: Text(s.name, overflow: TextOverflow.ellipsis),
+            : _AnimatedFieldGlow(
+                isFocused: _activeFocusField == 'state',
+                child: Container(
+                  height: 52,
+                  decoration: BoxDecoration(
+                    color: _Tok.surface,
+                    borderRadius: BorderRadius.circular(_Tok.rMd),
+                    border: Border.all(color: _Tok.border),
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButtonFormField<StateModel>(
+                      value: _selectedState,
+                      decoration: const InputDecoration(
+                        border: InputBorder.none,
+                        contentPadding: EdgeInsets.zero,
+                        hintText: 'Select State',
                       ),
-                    )
-                    .toList(),
-                onChanged: (state) {
-                  if (_selectedCountry != null && state != null) {
-                    setState(() => _selectedState = state);
-                    _loadCities(_selectedCountry!.iso2, state.iso2);
-                  }
-                },
-                validator: (v) => v == null ? 'Required' : null,
+                      dropdownColor: _Tok.white,
+                      style: const TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 13,
+                        color: _Tok.charcoal,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      items: _states
+                          .map(
+                            (s) => DropdownMenuItem(
+                              value: s,
+                              child: Text(s.name, overflow: TextOverflow.ellipsis),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (state) {
+                        if (_selectedCountry != null && state != null) {
+                          setState(() => _selectedState = state);
+                          _loadCities(_selectedCountry!.iso2, state.iso2);
+                        }
+                      },
+                      validator: (v) => v == null ? 'Required' : null,
+                    ),
+                  ),
+                ),
               ),
       ],
     );
@@ -978,60 +1102,75 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
             fontFamily: 'Inter',
             fontSize: 13.5,
             fontWeight: FontWeight.bold,
-            color: Color(0xFF1A1918),
+            color: _Tok.charcoal,
           ),
         ),
         const SizedBox(height: 6),
         _loadingCities
             ? _buildCompactLoadingIndicator()
-            : DropdownButtonFormField<CityModel>(
-                value: _selectedCity,
-                decoration: _compactInputDecoration('Select City'),
-                dropdownColor: Colors.white,
-                style: const TextStyle(
-                  fontFamily: 'Inter',
-                  fontSize: 13,
-                  color: Color(0xFF1A1918),
-                  fontWeight: FontWeight.bold,
-                ),
-                items: _cities
-                    .map(
-                      (c) => DropdownMenuItem(
-                        value: c,
-                        child: Text(c.name, overflow: TextOverflow.ellipsis),
+            : _AnimatedFieldGlow(
+                isFocused: _activeFocusField == 'city',
+                child: Container(
+                  height: 52,
+                  decoration: BoxDecoration(
+                    color: _Tok.surface,
+                    borderRadius: BorderRadius.circular(_Tok.rMd),
+                    border: Border.all(color: _Tok.border),
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButtonFormField<CityModel>(
+                      value: _selectedCity,
+                      decoration: const InputDecoration(
+                        border: InputBorder.none,
+                        contentPadding: EdgeInsets.zero,
+                        hintText: 'Select City',
                       ),
-                    )
-                    .toList(),
-                onChanged: (city) {
-                  if (city != null) setState(() => _selectedCity = city);
-                },
-                validator: (v) => v == null ? 'Required' : null,
+                      dropdownColor: _Tok.white,
+                      style: const TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 13,
+                        color: _Tok.charcoal,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      items: _cities
+                          .map(
+                            (c) => DropdownMenuItem(
+                              value: c,
+                              child: Text(c.name, overflow: TextOverflow.ellipsis),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (city) {
+                        if (city != null) setState(() => _selectedCity = city);
+                      },
+                      validator: (v) => v == null ? 'Required' : null,
+                    ),
+                  ),
+                ),
               ),
       ],
     );
   }
 
   Widget _buildCompactLoadingIndicator() {
-    return const SizedBox(
-      height: 48,
-      child: Center(
+    return Container(
+      height: 52,
+      decoration: BoxDecoration(
+        color: _Tok.surface,
+        borderRadius: BorderRadius.circular(_Tok.rMd),
+        border: Border.all(color: _Tok.border),
+      ),
+      child: const Center(
         child: SizedBox(
-          height: 16,
-          width: 16,
+          height: 18,
+          width: 18,
           child: CircularProgressIndicator(
             strokeWidth: 2,
-            color: AppTheme.accentColor,
+            color: _Tok.primary,
           ),
         ),
       ),
-    );
-  }
-
-  InputDecoration _compactInputDecoration(String hint) {
-    return InputDecoration(
-      hintText: hint.isEmpty ? null : hint,
-      isDense: true,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
     );
   }
 
@@ -1044,11 +1183,11 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     final hasSpecial = text.contains(RegExp(r'[\W_]'));
 
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppTheme.surfaceColor,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.borderColor),
+        color: _Tok.surface,
+        borderRadius: BorderRadius.circular(_Tok.rMd),
+        border: Border.all(color: _Tok.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1056,21 +1195,22 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
           const Text(
             'Password requirements:',
             style: TextStyle(
-              fontSize: 11.5,
+              fontFamily: 'Inter',
+              fontSize: 12,
               fontWeight: FontWeight.bold,
-              color: Color(0xFF1A1918),
+              color: _Tok.charcoal,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           _buildChecklistItem('Minimum 8 characters', hasMin8),
-          const SizedBox(height: 4),
+          const SizedBox(height: 6),
           _buildChecklistItem('At least one uppercase letter (A-Z)', hasUpper),
-          const SizedBox(height: 4),
+          const SizedBox(height: 6),
           _buildChecklistItem('At least one lowercase letter (a-z)', hasLower),
-          const SizedBox(height: 4),
+          const SizedBox(height: 6),
           _buildChecklistItem('At least one number (0-9)', hasDigit),
-          const SizedBox(height: 4),
-          _buildChecklistItem('At least one special character (@, #, \$, %)', hasSpecial),
+          const SizedBox(height: 6),
+          _buildChecklistItem('At least one special character', hasSpecial),
         ],
       ),
     );
@@ -1081,16 +1221,17 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
       children: [
         Icon(
           isCompleted ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
-          color: isCompleted ? AppTheme.tricolorGreen : AppTheme.mutedTextColor,
-          size: 14,
+          color: isCompleted ? const Color(0xFF1E824C) : _Tok.mutedText,
+          size: 15,
         ),
         const SizedBox(width: 8),
         Expanded(
           child: Text(
             title,
             style: TextStyle(
-              fontSize: 11,
-              color: isCompleted ? const Color(0xFF1A1918) : const Color(0xFF5F5C58),
+              fontFamily: 'Inter',
+              fontSize: 11.5,
+              color: isCompleted ? _Tok.charcoal : _Tok.medText,
               fontWeight: isCompleted ? FontWeight.bold : FontWeight.normal,
             ),
           ),
@@ -1104,11 +1245,11 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         const Text(
-          'Already have an account? ',
+          'Already have an account?  ',
           style: TextStyle(
             fontFamily: 'Inter',
             fontSize: 13.5,
-            color: Color(0xFF5F5C58),
+            color: _Tok.medText,
           ),
         ),
         GestureDetector(
@@ -1119,44 +1260,155 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
               fontFamily: 'Inter',
               fontSize: 13.5,
               fontWeight: FontWeight.bold,
-              color: AppTheme.accentColor,
+              color: _Tok.primary,
             ),
           ),
         ),
       ],
     );
   }
-
-
 }
 
+// ─── ANIMATED FIELD GLOW ─────────────────────────────────────────────────────
+class _AnimatedFieldGlow extends StatelessWidget {
+  final bool isFocused;
+  final Widget child;
 
+  const _AnimatedFieldGlow({
+    required this.isFocused,
+    required this.child,
+  });
 
-// Visual Ambient Gradient Glows Painter
-class _SignupGlowPainter extends CustomPainter {
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      curve: Curves.easeOutCubic,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(_Tok.rMd),
+        boxShadow: isFocused
+            ? [
+                BoxShadow(
+                  color: _Tok.primary.withValues(alpha: 0.12),
+                  blurRadius: 16,
+                  offset: const Offset(0, 4),
+                ),
+              ]
+            : [],
+      ),
+      child: child,
+    );
+  }
+}
+
+// ─── BACK BUTTON ──────────────────────────────────────────────────────────────
+class _BackButton extends StatefulWidget {
+  final VoidCallback onPressed;
+
+  const _BackButton({required this.onPressed});
+
+  @override
+  State<_BackButton> createState() => _BackButtonState();
+}
+
+class _BackButtonState extends State<_BackButton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  late final Animation<double>   _scale;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 100),
+    );
+    _scale = Tween<double>(begin: 1.0, end: 0.88).animate(
+      CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: (_) => _ctrl.forward(),
+      onTapUp: (_) {
+        _ctrl.reverse();
+        widget.onPressed();
+      },
+      onTapCancel: () => _ctrl.reverse(),
+      child: AnimatedBuilder(
+        animation: _scale,
+        builder: (_, child) => Transform.scale(scale: _scale.value, child: child),
+        child: Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            color: _Tok.surface,
+            borderRadius: BorderRadius.circular(_Tok.rMd),
+            border: Border.all(color: _Tok.border),
+          ),
+          child: const Icon(
+            Icons.arrow_back_ios_new_rounded,
+            size: 16,
+            color: _Tok.charcoal,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── BACKGROUND PAINTER ───────────────────────────────────────────────────────
+class _SignupBgPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final rect = Rect.fromLTWH(0, 0, size.width, size.height);
 
-    final p1 = Paint()
-      ..shader = RadialGradient(
-        colors: [
-          const Color(0xFFFF9E4F).withOpacity(0.06),
-          Colors.transparent,
-        ],
-      ).createShader(Rect.fromCircle(center: Offset.zero, radius: size.width * 0.9));
-    canvas.drawRect(rect, p1);
+    // White base
+    canvas.drawRect(rect, Paint()..color = const Color(0xFFFFFFFF));
 
-    final p2 = Paint()
-      ..shader = RadialGradient(
-        colors: [
-          const Color(0xFFFF6600).withOpacity(0.04),
-          Colors.transparent,
-        ],
-      ).createShader(Rect.fromCircle(center: Offset(size.width, size.height), radius: size.width * 0.9));
-    canvas.drawRect(rect, p2);
+    // Top-right saffron bloom
+    canvas.drawRect(
+      rect,
+      Paint()
+        ..shader = RadialGradient(
+          colors: [
+            const Color(0xFFFF9E4F).withValues(alpha: 0.055),
+            Colors.transparent,
+          ],
+        ).createShader(
+          Rect.fromCircle(
+            center: Offset(size.width, 0),
+            radius: size.width * 0.9,
+          ),
+        ),
+    );
+
+    // Bottom-left orange bloom
+    canvas.drawRect(
+      rect,
+      Paint()
+        ..shader = RadialGradient(
+          colors: [
+            const Color(0xFFFF6600).withValues(alpha: 0.038),
+            Colors.transparent,
+          ],
+        ).createShader(
+          Rect.fromCircle(
+            center: Offset(0, size.height),
+            radius: size.width * 0.85,
+          ),
+        ),
+    );
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant CustomPainter old) => false;
 }

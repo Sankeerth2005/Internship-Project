@@ -744,7 +744,8 @@ class _PressableButtonState extends State<_PressableButton>
 }
 
 // ─── ROLE SELECTION VIEW ──────────────────────────────────────────────────────
-class _RoleSelectionView extends StatelessWidget {
+// Phase 2.2: Premium hero section + full-width large role cards
+class _RoleSelectionView extends StatefulWidget {
   final String selectedRole;
   final bool showAdmin;
   final Animation<double> fadeAnim;
@@ -769,12 +770,64 @@ class _RoleSelectionView extends StatelessWidget {
   });
 
   @override
+  State<_RoleSelectionView> createState() => _RoleSelectionViewState();
+}
+
+class _RoleSelectionViewState extends State<_RoleSelectionView>
+    with TickerProviderStateMixin {
+  late final AnimationController _cardEntryCtrl;
+  late final List<Animation<double>> _cardFades;
+  late final List<Animation<Offset>> _cardSlides;
+
+  @override
+  void initState() {
+    super.initState();
+    _cardEntryCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 700),
+    );
+
+    // Stagger each card by 80ms
+    _cardFades = List.generate(2, (i) {
+      final start = 0.1 + i * 0.18;
+      final end = (start + 0.5).clamp(0.0, 1.0);
+      return Tween<double>(begin: 0.0, end: 1.0).animate(
+        CurvedAnimation(
+          parent: _cardEntryCtrl,
+          curve: Interval(start, end, curve: Curves.easeOut),
+        ),
+      );
+    });
+    _cardSlides = List.generate(2, (i) {
+      final start = 0.1 + i * 0.18;
+      final end = (start + 0.55).clamp(0.0, 1.0);
+      return Tween<Offset>(
+        begin: const Offset(0, 0.12),
+        end: Offset.zero,
+      ).animate(
+        CurvedAnimation(
+          parent: _cardEntryCtrl,
+          curve: Interval(start, end, curve: Curves.easeOutCubic),
+        ),
+      );
+    });
+
+    _cardEntryCtrl.forward();
+  }
+
+  @override
+  void dispose() {
+    _cardEntryCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final bottomPad = MediaQuery.of(context).padding.bottom;
 
     return Stack(
       children: [
-        // Soft background
+        // Background
         Positioned.fill(
           child: CustomPaint(painter: _RoleBackgroundPainter()),
         ),
@@ -785,31 +838,34 @@ class _RoleSelectionView extends StatelessWidget {
               child: SafeArea(
                 bottom: false,
                 child: FadeTransition(
-                  opacity: fadeAnim,
+                  opacity: widget.fadeAnim,
                   child: SlideTransition(
-                    position: slideAnim,
+                    position: widget.slideAnim,
                     child: SingleChildScrollView(
                       physics: const BouncingScrollPhysics(),
                       padding: const EdgeInsets.fromLTRB(
                         _Token.xl,
-                        _Token.xl,
+                        _Token.lg,
                         _Token.xl,
                         _Token.xxl,
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          // Header row — explore skip
+                          // ── Top row: skip link ──────────────────────────
                           Align(
                             alignment: Alignment.topRight,
                             child: Semantics(
                               button: true,
                               label: 'Skip login and explore the app',
                               child: TextButton(
-                                onPressed: onExplore,
+                                onPressed: widget.onExplore,
                                 style: TextButton.styleFrom(
                                   minimumSize: const Size(48, 44),
                                   foregroundColor: _Token.mediumText,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: _Token.sm,
+                                  ),
                                 ),
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
@@ -824,7 +880,7 @@ class _RoleSelectionView extends StatelessWidget {
                                       ),
                                     ),
                                     const SizedBox(width: _Token.xs),
-                                    Icon(
+                                    const Icon(
                                       Icons.arrow_forward_rounded,
                                       size: 14,
                                       color: _Token.mutedText,
@@ -835,151 +891,24 @@ class _RoleSelectionView extends StatelessWidget {
                             ),
                           ),
 
-                          const SizedBox(height: _Token.md),
-
-                          // Logo — hidden admin gateway
-                          GestureDetector(
-                            onTap: onLogoTap,
-                            behavior: HitTestBehavior.opaque,
-                            child: Hero(
-                              tag: 'app_logo',
-                              child: Material(
-                                type: MaterialType.transparency,
-                                child: Container(
-                                  width: 68,
-                                  height: 68,
-                                  padding: const EdgeInsets.all(3),
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    gradient: AppTheme.primarySolarGradient,
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: _Token.primary.withValues(alpha: 0.22),
-                                        blurRadius: 20,
-                                        spreadRadius: 0,
-                                        offset: const Offset(0, 6),
-                                      ),
-                                    ],
-                                  ),
-                                  child: Container(
-                                    decoration: const BoxDecoration(
-                                      color: _Token.white,
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: const Center(
-                                      child: Text(
-                                        'ॐ',
-                                        style: TextStyle(
-                                          color: _Token.primary,
-                                          fontSize: 28,
-                                          fontWeight: FontWeight.bold,
-                                          height: 1.0,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-
                           const SizedBox(height: _Token.lg),
 
-                          // Title cluster
-                          Text(
-                            'VOCAL FOR SANATAN',
-                            style: TextStyle(
-                              fontFamily: 'Inter',
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                              color: _Token.primary,
-                              letterSpacing: 1.8,
-                            ),
-                          ),
-                          const SizedBox(height: _Token.sm),
-                          Text(
-                            'Choose Your Profile',
-                            style:
-                                Theme.of(context).textTheme.displayLarge?.copyWith(
-                                      fontSize: 26,
-                                      fontWeight: FontWeight.w800,
-                                      color: _Token.charcoal,
-                                      height: 1.1,
-                                      letterSpacing: -0.4,
-                                    ),
-                            textAlign: TextAlign.center,
-                          ),
-                          const SizedBox(height: _Token.sm),
-                          Text(
-                            'Select the profile that best matches\nhow you\'ll use the app.',
-                            style: TextStyle(
-                              fontFamily: 'Inter',
-                              fontSize: 14,
-                              height: 1.5,
-                              color: _Token.mediumText,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
+                          // ── Hero section ─────────────────────────────────
+                          _buildHeroSection(context),
+
+                          const SizedBox(height: _Token.xxl),
+
+                          // ── Large role cards ──────────────────────────────
+                          _buildRoleCards(),
+
+                          // Admin card (hidden gateway)
+                          if (widget.showAdmin) ...
+                            _buildAdminCard(),
 
                           const SizedBox(height: _Token.xl),
 
-                          // ── Role Cards ─────────────────────────────────────
-                          LayoutBuilder(
-                            builder: (_, constraints) {
-                              final cardW = showAdmin
-                                  ? (constraints.maxWidth - (_Token.md * 2)) / 3
-                                  : (constraints.maxWidth - _Token.md) / 2;
-                              return Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  _RoleCard(
-                                    roleKey: 'user',
-                                    title: 'Consumer',
-                                    description: 'Discover local',
-                                    icon: Icons.person_rounded,
-                                    isSelected: selectedRole == 'user',
-                                    width: cardW,
-                                    onTap: () => onRoleChanged('user'),
-                                  ),
-                                  const SizedBox(width: _Token.md),
-                                  _RoleCard(
-                                    roleKey: 'businessowner',
-                                    title: 'Business',
-                                    description: 'List your store',
-                                    icon: Icons.storefront_rounded,
-                                    isSelected: selectedRole == 'businessowner',
-                                    width: cardW,
-                                    onTap: () => onRoleChanged('businessowner'),
-                                  ),
-                                  if (showAdmin) ...[
-                                    const SizedBox(width: _Token.md),
-                                    _RoleCard(
-                                      roleKey: 'admin',
-                                      title: 'Admin',
-                                      description: 'Governance',
-                                      icon: Icons.admin_panel_settings_rounded,
-                                      isSelected: selectedRole == 'admin',
-                                      width: cardW,
-                                      onTap: () => onRoleChanged('admin'),
-                                    ),
-                                  ],
-                                ],
-                              );
-                            },
-                          ),
-
-                          const SizedBox(height: _Token.lg),
-
-                          // ── Features preview card ──────────────────────────
-                          AnimatedSwitcher(
-                            duration: const Duration(milliseconds: 250),
-                            switchInCurve: Curves.easeOut,
-                            switchOutCurve: Curves.easeIn,
-                            child: _FeaturePreviewCard(
-                              key: ValueKey(selectedRole),
-                              role: selectedRole,
-                            ),
-                          ),
+                          // ── Trust indicators ──────────────────────────────
+                          _buildTrustRow(),
                         ],
                       ),
                     ),
@@ -988,7 +917,7 @@ class _RoleSelectionView extends StatelessWidget {
               ),
             ),
 
-            // ── Sticky bottom CTAs ───────────────────────────────────────────
+            // ── Sticky bottom CTA bar ─────────────────────────────────────
             Container(
               padding: EdgeInsets.fromLTRB(
                 _Token.xl,
@@ -1005,23 +934,21 @@ class _RoleSelectionView extends StatelessWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Primary CTA
                   Semantics(
                     button: true,
-                    label: selectedRole == 'admin'
+                    label: widget.selectedRole == 'admin'
                         ? 'Login as moderator admin'
-                        : 'Continue to login',
+                        : 'Continue to login screen',
                     child: _FullWidthButton(
-                      onPressed: onContinue,
-                      label: selectedRole == 'admin'
+                      onPressed: widget.onContinue,
+                      label: widget.selectedRole == 'admin'
                           ? 'Login as Admin'
                           : 'Continue',
                       icon: Icons.arrow_forward_rounded,
                     ),
                   ),
 
-                  // Sign up link (only for non-admin)
-                  if (selectedRole != 'admin') ...[
+                  if (widget.selectedRole != 'admin') ...[
                     const SizedBox(height: _Token.md),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -1035,7 +962,7 @@ class _RoleSelectionView extends StatelessWidget {
                           ),
                         ),
                         GestureDetector(
-                          onTap: onSignup,
+                          onTap: widget.onSignup,
                           child: Text(
                             'Create an Account',
                             style: TextStyle(
@@ -1057,9 +984,507 @@ class _RoleSelectionView extends StatelessWidget {
       ],
     );
   }
+
+  // ── Hero section ────────────────────────────────────────────────────────────
+  Widget _buildHeroSection(BuildContext context) {
+    return Column(
+      children: [
+        // Logo with admin gateway
+        GestureDetector(
+          onTap: widget.onLogoTap,
+          behavior: HitTestBehavior.opaque,
+          child: Hero(
+            tag: 'app_logo',
+            child: Material(
+              type: MaterialType.transparency,
+              child: Container(
+                width: 76,
+                height: 76,
+                padding: const EdgeInsets.all(3.5),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: AppTheme.primarySolarGradient,
+                  boxShadow: [
+                    BoxShadow(
+                      color: _Token.primary.withValues(alpha: 0.26),
+                      blurRadius: 24,
+                      offset: const Offset(0, 8),
+                    ),
+                    BoxShadow(
+                      color: const Color(0xFFFF9E4F).withValues(alpha: 0.14),
+                      blurRadius: 40,
+                      offset: const Offset(0, 14),
+                    ),
+                  ],
+                ),
+                child: Container(
+                  decoration: const BoxDecoration(
+                    color: _Token.white,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Center(
+                    child: Text(
+                      'ॐ',
+                      style: TextStyle(
+                        color: _Token.primary,
+                        fontSize: 30,
+                        fontWeight: FontWeight.bold,
+                        height: 1.0,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+
+        const SizedBox(height: _Token.xl),
+
+        // Eyebrow
+        Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: _Token.md,
+            vertical: 5,
+          ),
+          decoration: BoxDecoration(
+            color: _Token.primary.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(_Token.radiusRound),
+            border: Border.all(
+              color: _Token.primary.withValues(alpha: 0.18),
+            ),
+          ),
+          child: Text(
+            'VOCAL FOR SANATAN',
+            style: TextStyle(
+              fontFamily: 'Inter',
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              color: _Token.primary,
+              letterSpacing: 1.8,
+            ),
+          ),
+        ),
+
+        const SizedBox(height: _Token.md),
+
+        // Main headline
+        Text(
+          'How will you\nuse the app?',
+          style: Theme.of(context).textTheme.displayLarge?.copyWith(
+                fontSize: 32,
+                fontWeight: FontWeight.w800,
+                color: _Token.charcoal,
+                height: 1.15,
+                letterSpacing: -0.6,
+              ),
+          textAlign: TextAlign.center,
+        ),
+
+        const SizedBox(height: _Token.md),
+
+        // Subtitle
+        Text(
+          'Choose your profile to get a personalised\nexperience built around your needs.',
+          style: TextStyle(
+            fontFamily: 'Inter',
+            fontSize: 14,
+            height: 1.55,
+            color: _Token.mediumText,
+          ),
+          textAlign: TextAlign.center,
+        ),
+      ],
+    );
+  }
+
+  // ── Large role cards ─────────────────────────────────────────────────────────
+  Widget _buildRoleCards() {
+    final cards = [
+      _LargeRoleCardData(
+        roleKey: 'user',
+        title: 'Consumer',
+        tagline: 'Discover & connect with local businesses',
+        icon: Icons.person_rounded,
+        benefits: const [
+          'Search & discover verified local businesses',
+          'AI voice search & smart recommendations',
+          'Save favourites & share discoveries',
+        ],
+        accentColor: _Token.primary,
+      ),
+      _LargeRoleCardData(
+        roleKey: 'businessowner',
+        title: 'Business Owner',
+        tagline: 'List your store and grow your customer base',
+        icon: Icons.storefront_rounded,
+        benefits: const [
+          'List & promote your store 100% free',
+          'Manage hours, photos & location',
+          'Receive leads, views & verified ratings',
+        ],
+        accentColor: _Token.primary,
+      ),
+    ];
+
+    return Column(
+      children: List.generate(cards.length, (i) {
+        final card = cards[i];
+        return FadeTransition(
+          opacity: i < _cardFades.length ? _cardFades[i] : const AlwaysStoppedAnimation(1.0),
+          child: SlideTransition(
+            position: i < _cardSlides.length
+                ? _cardSlides[i]
+                : const AlwaysStoppedAnimation(Offset.zero),
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: _Token.md),
+              child: _LargeRoleCard(
+                data: card,
+                isSelected: widget.selectedRole == card.roleKey,
+                onTap: () => widget.onRoleChanged(card.roleKey),
+              ),
+            ),
+          ),
+        );
+      }),
+    );
+  }
+
+  // ── Admin card (hidden gateway) ──────────────────────────────────────────────
+  List<Widget> _buildAdminCard() {
+    return [
+      FadeTransition(
+        opacity: widget.fadeAnim,
+        child: Padding(
+          padding: const EdgeInsets.only(bottom: _Token.md),
+          child: _LargeRoleCard(
+            data: _LargeRoleCardData(
+              roleKey: 'admin',
+              title: 'Platform Admin',
+              tagline: 'Governance, moderation & platform control',
+              icon: Icons.admin_panel_settings_rounded,
+              benefits: const [
+                'Review & approve business listings',
+                'Manage categories & system reports',
+                'Full platform governance & user control',
+              ],
+              accentColor: const Color(0xFF5F5C58),
+            ),
+            isSelected: widget.selectedRole == 'admin',
+            onTap: () => widget.onRoleChanged('admin'),
+          ),
+        ),
+      ),
+    ];
+  }
+
+  // ── Trust row ────────────────────────────────────────────────────────────────
+  Widget _buildTrustRow() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        _TrustChip(icon: Icons.verified_rounded, label: 'Verified'),
+        const SizedBox(width: _Token.sm),
+        _TrustChip(icon: Icons.lock_outline_rounded, label: 'Secure'),
+        const SizedBox(width: _Token.sm),
+        _TrustChip(icon: Icons.favorite_rounded, label: 'Community'),
+      ],
+    );
+  }
 }
 
-// ─── ROLE CARD ────────────────────────────────────────────────────────────────
+// ─── LARGE ROLE CARD DATA ─────────────────────────────────────────────────────
+class _LargeRoleCardData {
+  final String roleKey;
+  final String title;
+  final String tagline;
+  final IconData icon;
+  final List<String> benefits;
+  final Color accentColor;
+
+  const _LargeRoleCardData({
+    required this.roleKey,
+    required this.title,
+    required this.tagline,
+    required this.icon,
+    required this.benefits,
+    required this.accentColor,
+  });
+}
+
+// ─── LARGE ROLE CARD ─────────────────────────────────────────────────────────
+class _LargeRoleCard extends StatefulWidget {
+  final _LargeRoleCardData data;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _LargeRoleCard({
+    required this.data,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  @override
+  State<_LargeRoleCard> createState() => _LargeRoleCardState();
+}
+
+class _LargeRoleCardState extends State<_LargeRoleCard>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _tapCtrl;
+  late final Animation<double> _tapScale;
+
+  @override
+  void initState() {
+    super.initState();
+    _tapCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 100),
+    );
+    _tapScale = Tween<double>(begin: 1.0, end: 0.97).animate(
+      CurvedAnimation(parent: _tapCtrl, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _tapCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final sel = widget.isSelected;
+    final accent = widget.data.accentColor;
+
+    return GestureDetector(
+      onTapDown: (_) => _tapCtrl.forward(),
+      onTapUp: (_) {
+        _tapCtrl.reverse();
+        HapticFeedback.lightImpact();
+        widget.onTap();
+      },
+      onTapCancel: () => _tapCtrl.reverse(),
+      child: AnimatedBuilder(
+        animation: _tapScale,
+        builder: (_, child) =>
+            Transform.scale(scale: _tapScale.value, child: child),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeOutCubic,
+          width: double.infinity,
+          padding: const EdgeInsets.all(_Token.xl),
+          decoration: BoxDecoration(
+            color: sel
+                ? accent.withValues(alpha: 0.04)
+                : _Token.white,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: sel ? accent : _Token.border,
+              width: sel ? 2.0 : 1.0,
+            ),
+            boxShadow: sel
+                ? [
+                    BoxShadow(
+                      color: accent.withValues(alpha: 0.14),
+                      blurRadius: 24,
+                      offset: const Offset(0, 6),
+                    ),
+                  ]
+                : [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.03),
+                      blurRadius: 12,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ── Top row: icon + title + checkmark ─────────────────────
+              Row(
+                children: [
+                  // Icon container
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 220),
+                    width: 52,
+                    height: 52,
+                    decoration: BoxDecoration(
+                      color: sel ? accent : _Token.surface,
+                      borderRadius: BorderRadius.circular(_Token.radiusSm + 4),
+                      border: Border.all(
+                        color: sel
+                            ? accent.withValues(alpha: 0.3)
+                            : _Token.border,
+                      ),
+                    ),
+                    child: Icon(
+                      widget.data.icon,
+                      size: 26,
+                      color: sel ? _Token.white : _Token.mediumText,
+                    ),
+                  ),
+
+                  const SizedBox(width: _Token.md),
+
+                  // Title + tagline
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          widget.data.title,
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 17,
+                            fontWeight: FontWeight.w800,
+                            color: sel ? accent : _Token.charcoal,
+                            height: 1.2,
+                            letterSpacing: -0.3,
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          widget.data.tagline,
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 12,
+                            color: _Token.mediumText,
+                            height: 1.35,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(width: _Token.sm),
+
+                  // Selection checkmark
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    curve: Curves.easeOutBack,
+                    width: 24,
+                    height: 24,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: sel ? accent : Colors.transparent,
+                      border: Border.all(
+                        color: sel ? accent : _Token.border,
+                        width: sel ? 0 : 1.5,
+                      ),
+                    ),
+                    child: sel
+                        ? const Icon(
+                            Icons.check_rounded,
+                            size: 14,
+                            color: _Token.white,
+                          )
+                        : null,
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: _Token.lg),
+
+              // ── Divider ───────────────────────────────────────────────
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 250),
+                height: 1,
+                color: sel
+                    ? accent.withValues(alpha: 0.15)
+                    : _Token.border,
+              ),
+
+              const SizedBox(height: _Token.lg),
+
+              // ── Benefit list ──────────────────────────────────────────
+              ...widget.data.benefits.map((b) => Padding(
+                    padding: const EdgeInsets.only(bottom: _Token.sm),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          margin: const EdgeInsets.only(top: 3),
+                          width: 18,
+                          height: 18,
+                          decoration: BoxDecoration(
+                            color: sel
+                                ? accent.withValues(alpha: 0.12)
+                                : _Token.surface,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Icon(
+                            Icons.check_rounded,
+                            size: 11,
+                            color: sel ? accent : _Token.mutedText,
+                          ),
+                        ),
+                        const SizedBox(width: _Token.sm),
+                        Expanded(
+                          child: Text(
+                            b,
+                            style: TextStyle(
+                              fontFamily: 'Inter',
+                              fontSize: 13,
+                              height: 1.5,
+                              color: sel
+                                  ? _Token.charcoal
+                                  : _Token.mediumText,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  )),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── TRUST CHIP ───────────────────────────────────────────────────────────────
+class _TrustChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+
+  const _TrustChip({required this.icon, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: _Token.md,
+        vertical: _Token.xs + 2,
+      ),
+      decoration: BoxDecoration(
+        color: _Token.surface,
+        borderRadius: BorderRadius.circular(_Token.radiusRound),
+        border: Border.all(color: _Token.border),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: _Token.mutedText),
+          const SizedBox(width: _Token.xs),
+          Text(
+            label,
+            style: TextStyle(
+              fontFamily: 'Inter',
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: _Token.mutedText,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── ROLE CARD (legacy compact — kept for backward compat, unused in Phase 2.2+)
+// The new premium large card is _LargeRoleCard above.
 class _RoleCard extends StatefulWidget {
   final String roleKey;
   final String title;
@@ -1160,7 +1585,6 @@ class _RoleCardState extends State<_RoleCard>
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // ── Selection indicator ──────────────────────────────────
                 Align(
                   alignment: Alignment.topRight,
                   child: AnimatedContainer(
@@ -1189,10 +1613,7 @@ class _RoleCardState extends State<_RoleCard>
                         : null,
                   ),
                 ),
-
                 const SizedBox(height: _Token.sm),
-
-                // ── Icon circle ────────────────────────────────────────
                 AnimatedContainer(
                   duration: const Duration(milliseconds: 220),
                   padding: const EdgeInsets.all(_Token.md),
@@ -1211,10 +1632,7 @@ class _RoleCardState extends State<_RoleCard>
                     color: widget.isSelected ? _Token.white : _Token.mediumText,
                   ),
                 ),
-
                 const SizedBox(height: _Token.sm),
-
-                // ── Title ──────────────────────────────────────────────
                 Text(
                   widget.title,
                   style: TextStyle(
@@ -1226,10 +1644,7 @@ class _RoleCardState extends State<_RoleCard>
                   ),
                   textAlign: TextAlign.center,
                 ),
-
                 const SizedBox(height: _Token.xs),
-
-                // ── Subtitle ───────────────────────────────────────────
                 Text(
                   widget.description,
                   style: TextStyle(
@@ -1251,106 +1666,6 @@ class _RoleCardState extends State<_RoleCard>
   }
 }
 
-// ─── FEATURE PREVIEW CARD ────────────────────────────────────────────────────
-class _FeaturePreviewCard extends StatelessWidget {
-  final String role;
-
-  const _FeaturePreviewCard({super.key, required this.role});
-
-  List<_FeatureLine> get _features {
-    if (role == 'user') {
-      return const [
-        _FeatureLine(Icons.search_rounded, 'Discover local businesses & services'),
-        _FeatureLine(Icons.verified_rounded, 'Connect with verified professionals'),
-        _FeatureLine(Icons.smart_toy_rounded, 'AI voice search & smart recommendations'),
-      ];
-    } else if (role == 'businessowner') {
-      return const [
-        _FeatureLine(Icons.store_rounded, 'List & promote your store for free'),
-        _FeatureLine(Icons.schedule_rounded, 'Manage hours, photos, and location'),
-        _FeatureLine(Icons.star_rounded, 'Receive customer leads, views & ratings'),
-      ];
-    } else {
-      return const [
-        _FeatureLine(Icons.fact_check_rounded, 'Review & approve business listings'),
-        _FeatureLine(Icons.category_rounded, 'Manage categories & system reports'),
-        _FeatureLine(Icons.shield_rounded, 'Full platform governance & user control'),
-      ];
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(_Token.lg),
-      decoration: BoxDecoration(
-        color: _Token.surface,
-        borderRadius: BorderRadius.circular(_Token.radiusLg),
-        border: Border.all(color: _Token.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            role == 'user'
-                ? 'What you can do'
-                : role == 'businessowner'
-                    ? 'What you can do'
-                    : 'Admin capabilities',
-            style: TextStyle(
-              fontFamily: 'Inter',
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              color: _Token.primary,
-              letterSpacing: 0.3,
-            ),
-          ),
-          const SizedBox(height: _Token.md),
-          ..._features.map((f) => Padding(
-                padding: const EdgeInsets.only(bottom: _Token.sm),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      width: 28,
-                      height: 28,
-                      decoration: BoxDecoration(
-                        color: _Token.primary.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(_Token.radiusSm),
-                      ),
-                      child: Icon(f.icon, size: 15, color: _Token.primary),
-                    ),
-                    const SizedBox(width: _Token.md),
-                    Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.only(top: 5),
-                        child: Text(
-                          f.text,
-                          style: TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 13,
-                            color: _Token.mediumText,
-                            height: 1.4,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              )),
-        ],
-      ),
-    );
-  }
-}
-
-class _FeatureLine {
-  final IconData icon;
-  final String text;
-
-  const _FeatureLine(this.icon, this.text);
-}
 
 // ─── FULL-WIDTH BUTTON ────────────────────────────────────────────────────────
 class _FullWidthButton extends StatefulWidget {
