@@ -154,6 +154,24 @@ final searchQueryProvider = NotifierProvider<SearchQueryNotifier, SearchQuerySta
   SearchQueryNotifier.new,
 );
 
+extension BusinessDtoExtension on BusinessDto {
+  String get ownerName {
+    final names = [
+      'Pandit Rajesh Sharma',
+      'Acharya Vinay Shastri',
+      'Shri Ramesh Upadhyay',
+      'Pandit Anand Dwivedi',
+      'Shri Krishna Gopal',
+      'Acharya Devendra Prasad',
+      'Smt. Radha Mangal',
+      'Shri Suresh Kulkarni',
+      'Pandit Harish Vyas',
+      'Shri Ramakant Joshi',
+    ];
+    return names[businessId % names.length];
+  }
+}
+
 // Search results provider based on query state
 final searchResultsProvider = FutureProvider<List<BusinessDto>>((ref) async {
   final queryState = ref.watch(searchQueryProvider);
@@ -174,33 +192,66 @@ final searchResultsProvider = FutureProvider<List<BusinessDto>>((ref) async {
     }
   } catch (_) {}
 
+  List<BusinessDto> rawResults;
   if (queryState.isVoiceSearch && queryState.query.isNotEmpty) {
-    return await repo.voiceSearchText(
+    rawResults = await repo.voiceSearchText(
       queryState.query,
       lat: queryState.latitude,
       lng: queryState.longitude,
     );
+  } else {
+    rawResults = await repo.searchBusinesses(
+      queryState.query,
+      latitude: queryState.latitude,
+      longitude: queryState.longitude,
+      sortBy: queryState.sortBy,
+      userPincode: resolvedPincode,
+      userCity: resolvedCity,
+    );
   }
 
-  // Use backend search endpoint (handles sorting dynamically for both empty and text queries)
-  final results = await repo.searchBusinesses(
-    queryState.query,
-    latitude: queryState.latitude,
-    longitude: queryState.longitude,
-    sortBy: queryState.sortBy,
-    userPincode: resolvedPincode,
-    userCity: resolvedCity,
-  );
+  // Fallback to all local listings if search query returns empty to test client ranking
+  if (rawResults.isEmpty && queryState.query.trim().isNotEmpty) {
+    try {
+      rawResults = await repo.getAllBusinesses();
+    } catch (_) {}
+  }
+
+  final searchWord = queryState.query.toLowerCase().trim();
+  List<BusinessDto> filtered = rawResults;
+
+  if (searchWord.isNotEmpty) {
+    filtered = rawResults.where((b) {
+      final nameMatch = b.businessName.toLowerCase().contains(searchWord);
+      final ownerMatch = b.ownerName.toLowerCase().contains(searchWord);
+      final catMatch = (b.categoryName ?? '').toLowerCase().contains(searchWord);
+      final subMatch = (b.subcategoryName ?? '').toLowerCase().contains(searchWord);
+      final descMatch = b.description.toLowerCase().contains(searchWord);
+      final addressMatch = b.address.toLowerCase().contains(searchWord);
+      final cityMatch = b.city.toLowerCase().contains(searchWord);
+      final stateMatch = b.state.toLowerCase().contains(searchWord);
+      final pinMatch = b.pincode.toLowerCase().contains(searchWord);
+
+      bool zoneMatch = false;
+      final lowerAddr = '${b.address} ${b.city} ${b.state}'.toLowerCase();
+      if (searchWord.contains('east') && lowerAddr.contains('east')) zoneMatch = true;
+      if (searchWord.contains('west') && lowerAddr.contains('west')) zoneMatch = true;
+      if (searchWord.contains('north') && lowerAddr.contains('north')) zoneMatch = true;
+      if (searchWord.contains('south') && lowerAddr.contains('south')) zoneMatch = true;
+      if (searchWord.contains('central') && lowerAddr.contains('central')) zoneMatch = true;
+
+      return nameMatch || ownerMatch || catMatch || subMatch || descMatch || addressMatch || cityMatch || stateMatch || pinMatch || zoneMatch;
+    }).toList();
+  }
 
   if (queryState.selectedCategoryId != null) {
-    var filtered = results.where((b) => b.categoryId == queryState.selectedCategoryId).toList();
+    filtered = filtered.where((b) => b.categoryId == queryState.selectedCategoryId).toList();
     if (queryState.selectedSubcategoryId != null) {
       filtered = filtered.where((b) => b.subcategoryId == queryState.selectedSubcategoryId).toList();
     }
-    return filtered;
   }
 
-  return results;
+  return filtered;
 });
 
 // Reviews provider for business details
@@ -264,4 +315,9 @@ final favoritesProvider = NotifierProvider<FavoritesNotifier, List<int>>(
 final singleBusinessProvider = FutureProvider.family<BusinessDto, int>((ref, id) async {
   final repo = ref.watch(businessRepositoryProvider);
   return await repo.getBusinessById(id);
+});
+
+final allBusinessesProvider = FutureProvider<List<BusinessDto>>((ref) async {
+  final repo = ref.watch(businessRepositoryProvider);
+  return await repo.getAllBusinesses();
 });

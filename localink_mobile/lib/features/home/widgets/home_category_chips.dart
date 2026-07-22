@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../business/providers/business_provider.dart';
 import '../../business/data/models/business_models.dart';
+import 'category_sheet.dart';
 
 class HomeCategoryChips extends ConsumerWidget {
   final List<CategoryDto> categories;
@@ -47,80 +48,142 @@ class HomeCategoryChips extends ConsumerWidget {
         // Horizontal Categories List
         SizedBox(
           height: 98,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            physics: const BouncingScrollPhysics(),
-            padding: const EdgeInsets.symmetric(horizontal: 14),
-            itemCount: categories.length + 1,
-            itemBuilder: (context, index) {
-              final isAll = index == 0;
-              final isSelected = isAll
-                  ? selectedCategoryId == null
-                  : selectedCategoryId == categories[index - 1].categoryId;
-              final label = isAll ? 'All' : categories[index - 1].categoryName;
-              final catIcon = isAll ? Icons.apps_rounded : categoryIconResolver(label);
+          child: Builder(
+            builder: (context) {
+              final showViewAll = categories.length > 8;
+              final itemCount = showViewAll ? 9 : categories.length + 1;
 
-              return GestureDetector(
-                onTap: () {
-                  HapticFeedback.lightImpact();
-                  if (isAll) {
-                    onCategoryChanged(null);
-                  } else {
-                    onCategoryChanged(categories[index - 1].categoryId);
-                  }
-                },
-                child: AnimatedScale(
-                  scale: isSelected ? 1.05 : 1.0,
-                  duration: const Duration(milliseconds: 200),
-                  curve: Curves.easeOutCubic,
-                  child: Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 8),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        AnimatedContainer(
-                          duration: const Duration(milliseconds: 200),
-                          width: 52,
-                          height: 52,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: isSelected ? const Color(0xFFFF6600) : const Color(0xFFF9F8F6),
-                            border: Border.all(
-                              color: isSelected ? const Color(0xFFFF6600) : const Color(0xFFEAE8E3),
-                              width: 1.5,
+              return ListView.builder(
+                scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                itemCount: itemCount,
+                itemBuilder: (context, index) {
+                  final isAll = index == 0;
+                  final isViewAll = showViewAll && index == 8;
+
+                  if (isViewAll) {
+                    return GestureDetector(
+                      onTap: () {
+                        HapticFeedback.mediumImpact();
+                        showModalBottomSheet(
+                          context: context,
+                          isScrollControlled: true,
+                          backgroundColor: Colors.transparent,
+                          builder: (context) => CategorySheet(
+                            categories: categories,
+                            onCategorySelected: onCategoryChanged,
+                            iconResolver: categoryIconResolver,
+                          ),
+                        );
+                      },
+                      child: Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 8),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Container(
+                              width: 52,
+                              height: 52,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: const Color(0xFFF9F8F6),
+                                border: Border.all(
+                                  color: const Color(0xFFEAE8E3),
+                                  width: 1.5,
+                                ),
+                              ),
+                              child: const Icon(
+                                Icons.apps_rounded,
+                                color: Color(0xFFFF6600),
+                                size: 22,
+                              ),
                             ),
-                            boxShadow: isSelected
-                                ? [
-                                    BoxShadow(
-                                      color: const Color(0xFFFF6600).withValues(alpha: 0.25),
-                                      blurRadius: 8,
-                                      offset: const Offset(0, 3),
-                                    )
-                                  ]
-                                : [],
-                          ),
-                          child: Icon(
-                            catIcon,
-                            color: isSelected ? Colors.white : const Color(0xFF5F5C58),
-                            size: 22,
-                          ),
+                            const SizedBox(height: 6),
+                            const Text(
+                              'View All',
+                              style: TextStyle(
+                                fontFamily: 'Inter',
+                                color: Color(0xFF5F5C58),
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 6),
-                        Text(
-                          label,
-                          style: TextStyle(
-                            fontFamily: 'Inter',
-                            color: isSelected ? const Color(0xFFFF6600) : const Color(0xFF5F5C58),
-                            fontSize: 11,
-                            fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
-                          ),
+                      ),
+                    );
+                  }
+
+                  final isSelected = isAll
+                      ? selectedCategoryId == null
+                      : selectedCategoryId == categories[index - 1].categoryId;
+                  final label = isAll ? 'All' : categories[index - 1].categoryName;
+                  final catIcon = isAll ? Icons.apps_rounded : categoryIconResolver(label);
+
+                  return GestureDetector(
+                    onTap: () {
+                      HapticFeedback.lightImpact();
+                      if (isAll) {
+                        onCategoryChanged(null);
+                      } else {
+                        onCategoryChanged(categories[index - 1].categoryId);
+                      }
+                    },
+                    child: AnimatedScale(
+                      scale: isSelected ? 1.05 : 1.0,
+                      duration: const Duration(milliseconds: 200),
+                      curve: Curves.easeOutCubic,
+                      child: Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 8),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              width: 52,
+                              height: 52,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: isSelected ? const Color(0xFFFF6600) : const Color(0xFFF9F8F6),
+                                border: Border.all(
+                                  color: isSelected ? const Color(0xFFFF6600) : const Color(0xFFEAE8E3),
+                                  width: 1.5,
+                                ),
+                                boxShadow: isSelected
+                                    ? [
+                                        BoxShadow(
+                                          color: const Color(0xFFFF6600).withValues(alpha: 0.25),
+                                          blurRadius: 8,
+                                          offset: const Offset(0, 3),
+                                        )
+                                      ]
+                                    : [],
+                              ),
+                              child: Icon(
+                                catIcon,
+                                color: isSelected ? Colors.white : const Color(0xFF5F5C58),
+                                size: 22,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              label,
+                              style: TextStyle(
+                                fontFamily: 'Inter',
+                                color: isSelected ? const Color(0xFFFF6600) : const Color(0xFF5F5C58),
+                                fontSize: 11,
+                                fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
+                      ),
                     ),
-                  ),
-                ),
+                  );
+                },
               );
-            },
+            }
           ),
         ),
 

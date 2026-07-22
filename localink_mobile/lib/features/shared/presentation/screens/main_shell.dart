@@ -93,9 +93,9 @@ class _MainShellState extends State<MainShell> {
                         label: 'Favorites',
                       ),
                       NavigationDestination(
-                        icon: Icon(Icons.person_outline_rounded, size: 24, color: Color(0xFF5F5C58)),
-                        selectedIcon: Icon(Icons.person_rounded, size: 24, color: Color(0xFFFF6600)),
-                        label: 'Profile',
+                        icon: Icon(Icons.forum_outlined, size: 24, color: Color(0xFF5F5C58)),
+                        selectedIcon: Icon(Icons.forum_rounded, size: 24, color: Color(0xFFFF6600)),
+                        label: 'Support',
                       ),
                       NavigationDestination(
                         icon: Icon(Icons.chat_bubble_outline_rounded, size: 24, color: Color(0xFF5F5C58)),

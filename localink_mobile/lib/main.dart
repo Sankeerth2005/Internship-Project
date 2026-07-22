@@ -20,6 +20,7 @@ import 'features/business/presentation/screens/for_you_feed_screen.dart';
 import 'features/business/presentation/screens/analytics_dashboard_screen.dart';
 import 'features/admin/presentation/screens/admin_heatmap_screen.dart';
 import 'features/shared/presentation/screens/main_shell.dart';
+import 'features/shared/presentation/screens/support_screen.dart';
 import 'features/admin/presentation/screens/admin_dashboard_screen.dart';
 import 'features/auth/presentation/screens/splash_screen.dart';
 import 'features/auth/presentation/screens/welcome_screen.dart';
@@ -171,8 +172,8 @@ final routerProvider = Provider<GoRouter>((ref) {
           StatefulShellBranch(
             routes: [
               GoRoute(
-                path: '/profile',
-                builder: (context, state) => const ProfileScreen(),
+                path: '/support',
+                builder: (context, state) => const SupportScreen(),
               ),
             ],
           ),
@@ -213,6 +214,11 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/owner-profile',
+        builder: (context, state) => const ProfileScreen(),
+      ),
+      GoRoute(
+        parentNavigatorKey: _rootNavigatorKey,
+        path: '/profile',
         builder: (context, state) => const ProfileScreen(),
       ),
       GoRoute(
