@@ -93,6 +93,14 @@ class _BusinessDashboardScreenState extends ConsumerState<BusinessDashboardScree
           ),
           actions: [
             IconButton(
+              icon: const Icon(Icons.add_business_rounded, color: _DashTok.primary),
+              tooltip: 'Add Store',
+              onPressed: () {
+                HapticFeedback.lightImpact();
+                context.push('/register-business');
+              },
+            ),
+            IconButton(
               icon: const Icon(Icons.refresh_rounded, color: _DashTok.textMedium),
               tooltip: 'Refresh',
               onPressed: () {
@@ -158,14 +166,39 @@ class _BusinessDashboardScreenState extends ConsumerState<BusinessDashboardScree
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           if (businesses.length > 1) ...[
-                            const Text(
-                              'Switch Business Store',
-                              style: TextStyle(
-                                color: _DashTok.textMedium,
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 0.5,
-                              ),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text(
+                                  'Switch Business Store',
+                                  style: TextStyle(
+                                    color: _DashTok.textMedium,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                                TextButton.icon(
+                                  onPressed: () {
+                                    HapticFeedback.lightImpact();
+                                    context.push('/register-business');
+                                  },
+                                  style: TextButton.styleFrom(
+                                    padding: EdgeInsets.zero,
+                                    minimumSize: Size.zero,
+                                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                    foregroundColor: _DashTok.primary,
+                                  ),
+                                  icon: const Icon(Icons.add_rounded, size: 14),
+                                  label: const Text(
+                                    'Add New Store',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                             const SizedBox(height: 6),
                             Container(
@@ -204,6 +237,34 @@ class _BusinessDashboardScreenState extends ConsumerState<BusinessDashboardScree
                               ),
                             ),
                             const SizedBox(height: 14),
+                          ],
+                          if (businesses.length == 1) ...[
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              children: [
+                                TextButton.icon(
+                                  onPressed: () {
+                                    HapticFeedback.lightImpact();
+                                    context.push('/register-business');
+                                  },
+                                  style: TextButton.styleFrom(
+                                    padding: EdgeInsets.zero,
+                                    minimumSize: Size.zero,
+                                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                    foregroundColor: _DashTok.primary,
+                                  ),
+                                  icon: const Icon(Icons.add_business_rounded, size: 14),
+                                  label: const Text(
+                                    'Register Another Store',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
                           ],
                         ],
                       ),

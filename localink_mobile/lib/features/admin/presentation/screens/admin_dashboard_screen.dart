@@ -521,7 +521,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
         body: Column(
           children: [
             // Custom Saffron Sunrise Temple skyline header
-            Container(
+            SizedBox(
               height: 110 + MediaQuery.of(context).padding.top,
               width: double.infinity,
               child: CustomPaint(
@@ -535,7 +535,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                   ),
                   child: Row(
                     children: [
-                      Container(
+                      SizedBox(
                         width: 44,
                         height: 44,
                         child: CustomPaint(
