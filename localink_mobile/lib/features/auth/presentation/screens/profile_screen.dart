@@ -6,6 +6,8 @@ import '../../data/models/user_profile.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/location_provider.dart';
 import '../../../profile/widgets/profile_info_tile.dart';
+import '../../../shared/presentation/widgets/app_feedback.dart';
+import '../../../../core/network/app_error_formatter.dart';
 
 // ─── DESIGN TOKENS ────────────────────────────────────────────────────────────
 class _ProfileTok {
@@ -99,9 +101,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   Future<void> _saveProfile() async {
     if (_nameCtrl.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Full name is required'), backgroundColor: _ProfileTok.error),
-      );
+      AppFeedback.showError(context, 'Full name is required');
       return;
     }
 
@@ -117,15 +117,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       final digitsOnly = phone.replaceAll(RegExp(r'\D'), '');
       if (country.toLowerCase() == 'india') {
         if (digitsOnly.length != 10 || !RegExp(r'^[3-9][0-9]{9}$').hasMatch(digitsOnly)) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Indian phone numbers must be exactly 10 digits and start with 3-9'), backgroundColor: _ProfileTok.error),
+          AppFeedback.showError(
+            context,
+            'Indian phone numbers must be exactly 10 digits and start with 3-9',
           );
           return;
         }
       } else {
         if (digitsOnly.length < 6 || digitsOnly.length > 15) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Phone number must be between 6 and 15 digits'), backgroundColor: _ProfileTok.error),
+          AppFeedback.showError(
+            context,
+            'Phone number must be between 6 and 15 digits',
           );
           return;
         }
@@ -135,71 +137,59 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     // Validate email format
     final email = _emailCtrl.text.trim();
     if (email.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Email is required'), backgroundColor: _ProfileTok.error),
-      );
+      AppFeedback.showError(context, 'Email is required');
       return;
     }
     if (!RegExp(r'^[a-zA-Z][a-zA-Z0-9._%+-]*@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$').hasMatch(email)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Invalid email address format (e.g. name@domain.com)'), backgroundColor: _ProfileTok.error),
+      AppFeedback.showError(
+        context,
+        'Invalid email address format (e.g. name@domain.com)',
       );
       return;
     }
 
     if (country.isEmpty || state.isEmpty || city.isEmpty || pincode.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Country, State, City, and Pincode are all required'), backgroundColor: _ProfileTok.error),
+      AppFeedback.showError(
+        context,
+        'Country, State, City, and Pincode are all required',
       );
       return;
     }
 
     // Validate country - should be at least 2 characters
     if (country.length < 2) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Country name is too short'), backgroundColor: _ProfileTok.error),
-      );
+      AppFeedback.showError(context, 'Country name is too short');
       return;
     }
 
     // Validate state - should be at least 2 characters
     if (state.length < 2) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('State name is too short'), backgroundColor: _ProfileTok.error),
-      );
+      AppFeedback.showError(context, 'State name is too short');
       return;
     }
 
     // Validate city - should be at least 2 characters
     if (city.length < 2) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('City name is too short'), backgroundColor: _ProfileTok.error),
-      );
+      AppFeedback.showError(context, 'City name is too short');
       return;
     }
 
     // Validate pincode format based on country
     if (country.toLowerCase() == 'india') {
       if (pincode.length != 6 || int.tryParse(pincode) == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Indian pincodes must be exactly 6 digits'), backgroundColor: _ProfileTok.error),
-        );
+        AppFeedback.showError(context, 'Indian pincodes must be exactly 6 digits');
         return;
       }
     } else {
       // For other countries, pincode should be at least 3 characters and alphanumeric
       if (pincode.length < 3) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Pincode must be at least 3 characters'), backgroundColor: _ProfileTok.error),
-        );
+        AppFeedback.showError(context, 'Pincode must be at least 3 characters');
         return;
       }
       // Allow alphanumeric but no special characters except hyphen and space
       final validPincode = RegExp(r'^[a-zA-Z0-9\s\-]+$');
       if (!validPincode.hasMatch(pincode)) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Pincode contains invalid characters'), backgroundColor: _ProfileTok.error),
-        );
+        AppFeedback.showError(context, 'Pincode contains invalid characters');
         return;
       }
     }
@@ -224,18 +214,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       setState(() => _isEditMode = false);
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Profile updated successfully!'), backgroundColor: Color(0xFF1E824C)),
-        );
+        AppFeedback.showSuccess(context, 'Profile updated successfully!');
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(e.toString().replaceFirst('Exception: ', '')),
-            backgroundColor: _ProfileTok.error,
-          ),
-        );
+        AppFeedback.showError(context, AppErrorFormatter.format(e));
       }
     } finally {
       if (mounted) setState(() => _isSaving = false);

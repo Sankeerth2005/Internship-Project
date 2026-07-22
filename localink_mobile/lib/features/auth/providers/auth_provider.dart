@@ -3,6 +3,7 @@ import 'package:dio/dio.dart';
 import '../../../core/network/dio_client.dart';
 import '../../../core/network/signalr_service.dart';
 import '../../../core/storage/secure_storage_service.dart';
+import '../../../core/network/app_error_formatter.dart';
 import '../data/models/login_request.dart';
 import '../data/models/register_request.dart';
 import '../data/repositories/auth_repository.dart';
@@ -79,27 +80,7 @@ class AuthNotifier extends Notifier<AuthState> {
       ref.invalidate(userProfileProvider);
       state = AuthAuthenticated(response.user.userType, parsedUserId);
     } catch (e) {
-      String errorMessage = 'Something went wrong. Please try again.';
-      if (e is DioException) {
-        if (e.response?.statusCode == 401) {
-          errorMessage = 'Invalid Credentials';
-        } else if (e.response?.statusCode == 429) {
-          errorMessage = 'Too many requests. Please wait a moment before trying again.';
-        } else if (e.type == DioExceptionType.connectionTimeout || e.type == DioExceptionType.receiveTimeout) {
-          errorMessage = 'Connection timeout. Please check your internet connection and try again.';
-        } else if (e.type == DioExceptionType.connectionError) {
-          errorMessage = 'Server is unreachable. Please check if you are connected to the internet.';
-        } else if (e.response?.data != null && e.response?.data is Map) {
-          final data = e.response?.data as Map;
-          errorMessage = data['message'] ?? data['title'] ?? e.message ?? errorMessage;
-        } else {
-          errorMessage = e.message ?? errorMessage;
-        }
-      } else {
-        errorMessage = e.toString().replaceAll('Exception: ', '');
-      }
-      state = AuthError(errorMessage);
-      // We don't reset to AuthUnauthenticated immediately because the UI needs to react to AuthError
+      state = AuthError(AppErrorFormatter.format(e));
     }
   }
 
@@ -111,24 +92,8 @@ class AuthNotifier extends Notifier<AuthState> {
           const AuthUnauthenticated(); // Go back to unauthenticated to allow login
       return message;
     } catch (e) {
-      String errorMessage = 'Registration failed. Please try again.';
-      if (e is DioException) {
-        if (e.response?.statusCode == 429) {
-          errorMessage = 'Too many requests. Please wait a moment before trying again.';
-        } else if (e.type == DioExceptionType.connectionTimeout || e.type == DioExceptionType.receiveTimeout) {
-          errorMessage = 'Connection timeout. Please check your internet connection and try again.';
-        } else if (e.type == DioExceptionType.connectionError) {
-          errorMessage = 'Server is unreachable. Please check if you are connected to the internet.';
-        } else if (e.response?.data != null && e.response?.data is Map) {
-          final data = e.response?.data as Map;
-          errorMessage = data['message'] ?? data['title'] ?? e.message ?? errorMessage;
-        } else {
-          errorMessage = e.message ?? errorMessage;
-        }
-      } else {
-        errorMessage = e.toString().replaceAll('Exception: ', '');
-      }
-      state = AuthError(errorMessage);
+      final errorMsg = AppErrorFormatter.format(e);
+      state = AuthError(errorMsg);
       return null;
     }
   }

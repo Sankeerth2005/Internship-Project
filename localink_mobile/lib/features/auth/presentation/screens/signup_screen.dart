@@ -17,6 +17,8 @@ import '../../../shared/presentation/widgets/app_dialog.dart';
 import '../../../shared/presentation/widgets/app_back_button.dart';
 import '../../../shared/presentation/widgets/animated_field_glow.dart';
 import '../../../shared/presentation/widgets/app_background.dart';
+import '../../../shared/presentation/widgets/app_feedback.dart';
+import '../../../../core/network/app_error_formatter.dart';
 import '../../../../core/theme/app_theme.dart';
 
 // ─── DESIGN TOKENS (aligned to DESIGN_SYSTEM.md) ─────────────────────────────
@@ -306,35 +308,44 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
 
     setState(() => _isSubmitting = true);
 
-    final request = RegisterRequest(
-      userType: _selectedType == 'client' ? 'BusinessOwner' : 'User',
-      name: _nameController.text.trim(),
-      email: _emailController.text.trim(),
-      phone: _phoneController.text.trim(),
-      countryCode: '+$_selectedPhoneCode',
-      password: _passwordController.text,
-      country: _selectedCountry?.name ?? '',
-      state: _selectedState?.name ?? '',
-      city: _selectedCity?.name ?? '',
-      street: _streetController.text.trim(),
-      pincode: _pincodeController.text.trim(),
-    );
+    try {
+      final request = RegisterRequest(
+        userType: _selectedType == 'client' ? 'BusinessOwner' : 'User',
+        name: _nameController.text.trim(),
+        email: _emailController.text.trim(),
+        phone: _phoneController.text.trim(),
+        countryCode: '+$_selectedPhoneCode',
+        password: _passwordController.text,
+        country: _selectedCountry?.name ?? '',
+        state: _selectedState?.name ?? '',
+        city: _selectedCity?.name ?? '',
+        street: _streetController.text.trim(),
+        pincode: _pincodeController.text.trim(),
+      );
 
-    final message = await ref.read(authProvider.notifier).register(request);
+      final message = await ref.read(authProvider.notifier).register(request);
 
-    if (mounted) {
-      setState(() => _isSubmitting = false);
-      if (message != null) {
-        HapticFeedback.mediumImpact();
-        AppDialog.showSuccess(
-          context: context,
-          title: 'Account Created!',
-          message: 'Redirecting to login dashboard...',
-        ).then((_) {
-          if (mounted) {
-            context.pop();
-          }
-        });
+      if (mounted) {
+        if (message != null) {
+          HapticFeedback.mediumImpact();
+          AppDialog.showSuccess(
+            context: context,
+            title: 'Account Created!',
+            message: 'Redirecting to login dashboard...',
+          ).then((_) {
+            if (mounted) {
+              context.pop();
+            }
+          });
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        AppFeedback.showError(context, AppErrorFormatter.format(e));
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSubmitting = false);
       }
     }
   }
@@ -411,12 +422,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
         HapticFeedback.heavyImpact();
         _shakeKey.currentState?.shake();
         final cleanMsg = next.message.replaceAll('Exception: ', '').trim();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(cleanMsg),
-            backgroundColor: AppTheme.errorColor,
-          ),
-        );
+        AppFeedback.showError(context, cleanMsg);
       } else if (next is AuthAuthenticated) {
         HapticFeedback.mediumImpact();
         final role = next.userType.toLowerCase().trim();

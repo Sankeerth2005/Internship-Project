@@ -10,6 +10,8 @@ import 'package:dio/dio.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/config/app_config.dart';
+import '../../../shared/presentation/widgets/app_feedback.dart';
+import '../../../../core/network/app_error_formatter.dart';
 
 import '../../providers/business_provider.dart';
 import '../../data/models/business_models.dart';
@@ -356,11 +358,9 @@ class _BusinessRegistrationScreenState extends ConsumerState<BusinessRegistratio
   Future<void> _submitForm() async {
     if (!_formKey.currentState!.validate()) return;
     if (_latitude == null || _longitude == null || _latitude == 0.0 || _longitude == 0.0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Valid map coordinates are required. Pin location on map.'),
-          backgroundColor: Colors.red,
-        ),
+      AppFeedback.showError(
+        context,
+        'Valid map coordinates are required. Pin location on map.',
       );
       return;
     }
@@ -398,12 +398,7 @@ class _BusinessRegistrationScreenState extends ConsumerState<BusinessRegistratio
             .updateBusinessProfile(widget.businessToEdit!.businessId, business);
         if (success) {
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Business updated successfully!'),
-                backgroundColor: _RegTok.success,
-              ),
-            );
+            AppFeedback.showSuccess(context, 'Business updated successfully!');
             context.pop();
           }
         } else {
@@ -420,24 +415,16 @@ class _BusinessRegistrationScreenState extends ConsumerState<BusinessRegistratio
             .register(BusinessDto.fromJson(requestJson));
 
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Business registered successfully! ID: $businessId'),
-              backgroundColor: _RegTok.success,
-            ),
+          AppFeedback.showSuccess(
+            context,
+            'Business registered successfully! ID: $businessId',
           );
           context.pop();
         }
       }
     } catch (e) {
       if (mounted) {
-        final errText = e.toString().replaceAll('Exception: ', '').replaceAll('Registration failed: ', '').replaceAll('Update failed: ', '').trim();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(errText),
-            backgroundColor: Colors.redAccent,
-          ),
-        );
+        AppFeedback.showError(context, AppErrorFormatter.format(e));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);

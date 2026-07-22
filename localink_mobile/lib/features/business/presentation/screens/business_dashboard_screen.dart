@@ -7,6 +7,8 @@ import '../../data/models/business_models.dart';
 import '../../../auth/providers/auth_provider.dart';
 import '../../../auth/providers/auth_state.dart';
 import '../../../../core/network/signalr_service.dart';
+import '../../../shared/presentation/widgets/app_feedback.dart';
+import '../../../../core/network/app_error_formatter.dart';
 
 // ─── DESIGN TOKENS ────────────────────────────────────────────────────────────
 class _DashTok {
@@ -885,44 +887,64 @@ class _BusinessDashboardScreenState extends ConsumerState<BusinessDashboardScree
 
   void _showTemporaryClosureDialog(BuildContext context, WidgetRef ref, BusinessDto business) {
     if (business.isTemporarilyClosed) {
+      bool isReopening = false;
       showDialog(
         context: context,
-        builder: (dialogCtx) => AlertDialog(
-          backgroundColor: _DashTok.bg,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: const Text('Reopen Business', style: TextStyle(color: _DashTok.textHigh, fontWeight: FontWeight.bold)),
-          content: Text(
-            'Your business "${business.businessName}" is currently marked as temporarily closed. Would you like to reopen it now?',
-            style: const TextStyle(color: _DashTok.textMedium, fontSize: 13),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogCtx),
-              child: const Text('Cancel', style: TextStyle(color: _DashTok.textLow)),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: _DashTok.primary,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        barrierDismissible: false,
+        builder: (dialogCtx) => StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              backgroundColor: _DashTok.bg,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              title: const Text('Reopen Business', style: TextStyle(color: _DashTok.textHigh, fontWeight: FontWeight.bold)),
+              content: Text(
+                'Your business "${business.businessName}" is currently marked as temporarily closed. Would you like to reopen it now?',
+                style: const TextStyle(color: _DashTok.textMedium, fontSize: 13),
               ),
-              onPressed: () async {
-                Navigator.pop(dialogCtx);
-                final success = await ref.read(myBusinessesProvider.notifier).cancelTemporaryClosure(business.businessId);
-                if (context.mounted) {
-                  final messenger = ScaffoldMessenger.of(context);
-                  messenger.clearSnackBars();
-                  messenger.showSnackBar(
-                    SnackBar(
-                      content: Text(success ? 'Business reopened successfully.' : 'Failed to reopen business.'),
-                      backgroundColor: _DashTok.success,
-                    ),
-                  );
-                }
-              },
-              child: const Text('Reopen Store', style: TextStyle(fontWeight: FontWeight.bold)),
-            ),
-          ],
+              actions: [
+                TextButton(
+                  onPressed: isReopening ? null : () => Navigator.pop(dialogCtx),
+                  child: const Text('Cancel', style: TextStyle(color: _DashTok.textLow)),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _DashTok.primary,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  onPressed: isReopening ? null : () async {
+                    setDialogState(() => isReopening = true);
+                    try {
+                      final success = await ref.read(myBusinessesProvider.notifier).cancelTemporaryClosure(business.businessId);
+                      if (dialogCtx.mounted) {
+                        Navigator.pop(dialogCtx);
+                      }
+                      if (context.mounted) {
+                        if (success) {
+                          AppFeedback.showSuccess(context, 'Business reopened successfully.');
+                        } else {
+                          AppFeedback.showError(context, 'Failed to reopen business.');
+                        }
+                      }
+                    } catch (e) {
+                      if (context.mounted) {
+                        AppFeedback.showError(context, AppErrorFormatter.format(e));
+                      }
+                    } finally {
+                      setDialogState(() => isReopening = false);
+                    }
+                  },
+                  child: isReopening
+                      ? const SizedBox(
+                          height: 16,
+                          width: 16,
+                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                        )
+                      : const Text('Reopen Store', style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              ],
+            );
+          },
         ),
       );
       return;
@@ -931,141 +953,163 @@ class _BusinessDashboardScreenState extends ConsumerState<BusinessDashboardScree
     final reasonController = TextEditingController();
     int closureDays = 7;
     String? errorMessage;
+    bool isSaving = false;
 
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (dialogCtx) => StatefulBuilder(
         builder: (context, setDialogState) {
-          return AlertDialog(
-            backgroundColor: _DashTok.bg,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-            title: Row(
-              children: [
-                const Icon(Icons.pause_circle_outline_rounded, color: _DashTok.warning, size: 22),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Temporary Closure',
-                    style: const TextStyle(color: _DashTok.textHigh, fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                ),
-              ],
-            ),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Reason for temporary closure is required.',
-                  style: TextStyle(color: _DashTok.textMedium, fontSize: 12),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: reasonController,
-                  maxLines: 2,
-                  style: const TextStyle(color: _DashTok.textHigh, fontSize: 13),
-                  decoration: InputDecoration(
-                    hintText: 'Enter reason (e.g. renovation, vacation)...',
-                    hintStyle: const TextStyle(color: _DashTok.textLow, fontSize: 12),
-                    filled: true,
-                    fillColor: _DashTok.surface,
-                    errorText: errorMessage,
-                    errorStyle: const TextStyle(color: _DashTok.danger, fontSize: 11),
-                    contentPadding: const EdgeInsets.all(12),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: _DashTok.border),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: _DashTok.border),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: _DashTok.primary),
+          return PopScope(
+            canPop: !isSaving,
+            child: AlertDialog(
+              backgroundColor: _DashTok.bg,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              title: Row(
+                children: [
+                  const Icon(Icons.pause_circle_outline_rounded, color: _DashTok.warning, size: 22),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Temporary Closure',
+                      style: const TextStyle(color: _DashTok.textHigh, fontSize: 16, fontWeight: FontWeight.bold),
                     ),
                   ),
-                  onChanged: (val) {
-                    if (val.trim().isNotEmpty && errorMessage != null) {
+                ],
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Reason for temporary closure is required.',
+                    style: TextStyle(color: _DashTok.textMedium, fontSize: 12),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: reasonController,
+                    maxLines: 2,
+                    enabled: !isSaving,
+                    style: const TextStyle(color: _DashTok.textHigh, fontSize: 13),
+                    decoration: InputDecoration(
+                      hintText: 'Enter reason (e.g. renovation, vacation)...',
+                      hintStyle: const TextStyle(color: _DashTok.textLow, fontSize: 12),
+                      filled: true,
+                      fillColor: _DashTok.surface,
+                      errorText: errorMessage,
+                      errorStyle: const TextStyle(color: _DashTok.danger, fontSize: 11),
+                      contentPadding: const EdgeInsets.all(12),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: _DashTok.border),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: _DashTok.border),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: _DashTok.primary),
+                      ),
+                    ),
+                    onChanged: (val) {
+                      if (val.trim().isNotEmpty && errorMessage != null) {
+                        setDialogState(() {
+                          errorMessage = null;
+                        });
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  const Text('Duration:', style: TextStyle(color: _DashTok.textHigh, fontSize: 12, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    decoration: BoxDecoration(
+                      color: _DashTok.surface,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: _DashTok.border),
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<int>(
+                        value: closureDays,
+                        dropdownColor: _DashTok.bg,
+                        isExpanded: true,
+                        style: const TextStyle(color: _DashTok.textHigh, fontSize: 13),
+                        items: const [
+                          DropdownMenuItem(value: 3, child: Text('3 Days')),
+                          DropdownMenuItem(value: 7, child: Text('7 Days (1 Week)')),
+                          DropdownMenuItem(value: 14, child: Text('14 Days (2 Weeks)')),
+                          DropdownMenuItem(value: 30, child: Text('30 Days (1 Month)')),
+                        ],
+                        onChanged: isSaving
+                            ? null
+                            : (val) {
+                                if (val != null) {
+                                  setDialogState(() {
+                                    closureDays = val;
+                                  });
+                                }
+                              },
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isSaving ? null : () => Navigator.pop(dialogCtx),
+                  child: const Text('Cancel', style: TextStyle(color: _DashTok.textLow)),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _DashTok.warning,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  onPressed: isSaving ? null : () async {
+                    final reason = reasonController.text.trim();
+                    if (reason.isEmpty) {
                       setDialogState(() {
-                        errorMessage = null;
+                        errorMessage = 'Reason is mandatory for temporary closure';
                       });
+                      return;
+                    }
+                    setDialogState(() => isSaving = true);
+                    try {
+                      final success = await ref.read(myBusinessesProvider.notifier).requestTemporaryClosure(
+                        business.businessId,
+                        reason,
+                        closureDays,
+                      );
+                      if (dialogCtx.mounted) {
+                        Navigator.pop(dialogCtx);
+                      }
+                      if (context.mounted) {
+                        if (success) {
+                          AppFeedback.showWarning(context, 'Temporary closure requested successfully.');
+                        } else {
+                          AppFeedback.showError(context, 'Failed to request closure.');
+                        }
+                      }
+                    } catch (e) {
+                      if (context.mounted) {
+                        AppFeedback.showError(context, AppErrorFormatter.format(e));
+                      }
+                    } finally {
+                      setDialogState(() => isSaving = false);
                     }
                   },
-                ),
-                const SizedBox(height: 12),
-                const Text('Duration:', style: TextStyle(color: _DashTok.textHigh, fontSize: 12, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 6),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  decoration: BoxDecoration(
-                    color: _DashTok.surface,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: _DashTok.border),
-                  ),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<int>(
-                      value: closureDays,
-                      dropdownColor: _DashTok.bg,
-                      isExpanded: true,
-                      style: const TextStyle(color: _DashTok.textHigh, fontSize: 13),
-                      items: const [
-                        DropdownMenuItem(value: 3, child: Text('3 Days')),
-                        DropdownMenuItem(value: 7, child: Text('7 Days (1 Week)')),
-                        DropdownMenuItem(value: 14, child: Text('14 Days (2 Weeks)')),
-                        DropdownMenuItem(value: 30, child: Text('30 Days (1 Month)')),
-                      ],
-                      onChanged: (val) {
-                        if (val != null) {
-                          setDialogState(() {
-                            closureDays = val;
-                          });
-                        }
-                      },
-                    ),
-                  ),
+                  child: isSaving
+                      ? const SizedBox(
+                          height: 16,
+                          width: 16,
+                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                        )
+                      : const Text('Request Closure', style: TextStyle(fontWeight: FontWeight.bold)),
                 ),
               ],
             ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(dialogCtx),
-                child: const Text('Cancel', style: TextStyle(color: _DashTok.textLow)),
-              ),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _DashTok.warning,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                ),
-                onPressed: () async {
-                  final reason = reasonController.text.trim();
-                  if (reason.isEmpty) {
-                    setDialogState(() {
-                      errorMessage = 'Reason is mandatory for temporary closure';
-                    });
-                    return;
-                  }
-                  Navigator.pop(dialogCtx);
-                  final success = await ref.read(myBusinessesProvider.notifier).requestTemporaryClosure(
-                    business.businessId,
-                    reason,
-                    closureDays,
-                  );
-                  if (context.mounted) {
-                    final messenger = ScaffoldMessenger.of(context);
-                    messenger.clearSnackBars();
-                    messenger.showSnackBar(
-                      SnackBar(
-                        content: Text(success ? 'Temporary closure requested.' : 'Failed to request closure.'),
-                        backgroundColor: _DashTok.warning,
-                      ),
-                    );
-                  }
-                },
-                child: const Text('Request Closure', style: TextStyle(fontWeight: FontWeight.bold)),
-              ),
-            ],
           );
         },
       ),
@@ -1075,109 +1119,129 @@ class _BusinessDashboardScreenState extends ConsumerState<BusinessDashboardScree
   void _showDeletionDialog(BuildContext context, WidgetRef ref, BusinessDto business) {
     final reasonController = TextEditingController();
     String? errorMessage;
+    bool isDeleting = false;
 
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (dialogCtx) => StatefulBuilder(
         builder: (context, setDialogState) {
-          return AlertDialog(
-            backgroundColor: _DashTok.bg,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-            title: Row(
-              children: [
-                const Icon(Icons.delete_forever_rounded, color: _DashTok.danger, size: 24),
-                const SizedBox(width: 8),
-                const Text(
-                  'Delete Listing',
-                  style: TextStyle(color: _DashTok.textHigh, fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-              ],
-            ),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Are you sure you want to request permanent deletion of "${business.businessName}"? A mandatory reason is required for review.',
-                  style: const TextStyle(color: _DashTok.textMedium, fontSize: 12.5, height: 1.4),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: reasonController,
-                  maxLines: 2,
-                  style: const TextStyle(color: _DashTok.textHigh, fontSize: 13),
-                  decoration: InputDecoration(
-                    hintText: 'Enter reason for deletion...',
-                    hintStyle: const TextStyle(color: _DashTok.textLow, fontSize: 12),
-                    filled: true,
-                    fillColor: _DashTok.surface,
-                    errorText: errorMessage,
-                    errorStyle: const TextStyle(color: _DashTok.danger, fontSize: 11),
-                    contentPadding: const EdgeInsets.all(12),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: _DashTok.border),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: _DashTok.border),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: _DashTok.danger),
-                    ),
+          return PopScope(
+            canPop: !isDeleting,
+            child: AlertDialog(
+              backgroundColor: _DashTok.bg,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              title: Row(
+                children: [
+                  const Icon(Icons.delete_forever_rounded, color: _DashTok.danger, size: 24),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'Delete Listing',
+                    style: TextStyle(color: _DashTok.textHigh, fontSize: 16, fontWeight: FontWeight.bold),
                   ),
-                  onChanged: (val) {
-                    if (val.trim().isNotEmpty && errorMessage != null) {
+                ],
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Are you sure you want to request permanent deletion of "${business.businessName}"? A mandatory reason is required for review.',
+                    style: const TextStyle(color: _DashTok.textMedium, fontSize: 12.5, height: 1.4),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: reasonController,
+                    maxLines: 2,
+                    enabled: !isDeleting,
+                    style: const TextStyle(color: _DashTok.textHigh, fontSize: 13),
+                    decoration: InputDecoration(
+                      hintText: 'Enter reason for deletion...',
+                      hintStyle: const TextStyle(color: _DashTok.textLow, fontSize: 12),
+                      filled: true,
+                      fillColor: _DashTok.surface,
+                      errorText: errorMessage,
+                      errorStyle: const TextStyle(color: _DashTok.danger, fontSize: 11),
+                      contentPadding: const EdgeInsets.all(12),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: _DashTok.border),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: _DashTok.border),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: _DashTok.danger),
+                      ),
+                    ),
+                    onChanged: (val) {
+                      if (val.trim().isNotEmpty && errorMessage != null) {
+                        setDialogState(() {
+                          errorMessage = null;
+                        });
+                      }
+                    },
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isDeleting ? null : () => Navigator.pop(dialogCtx),
+                  child: const Text('Cancel', style: TextStyle(color: _DashTok.textLow)),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _DashTok.danger,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  onPressed: isDeleting ? null : () async {
+                    final reason = reasonController.text.trim();
+                    if (reason.isEmpty) {
                       setDialogState(() {
-                        errorMessage = null;
+                        errorMessage = 'Reason is mandatory for deletion request';
                       });
+                      return;
+                    }
+                    setDialogState(() => isDeleting = true);
+                    try {
+                      final success = await ref.read(myBusinessesProvider.notifier).requestDeletion(
+                        business.businessId,
+                        reason,
+                      );
+                      if (dialogCtx.mounted) {
+                        Navigator.pop(dialogCtx);
+                      }
+                      if (context.mounted) {
+                        if (success) {
+                          AppFeedback.showSuccess(context, 'Deletion request submitted.');
+                        } else {
+                          AppFeedback.showError(context, 'Failed to request deletion.');
+                        }
+                      }
+                    } catch (e) {
+                      if (context.mounted) {
+                        AppFeedback.showError(context, AppErrorFormatter.format(e));
+                      }
+                    } finally {
+                      setDialogState(() => isDeleting = false);
                     }
                   },
+                  child: isDeleting
+                      ? const SizedBox(
+                          height: 16,
+                          width: 16,
+                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                        )
+                      : const Text('Delete Listing', style: TextStyle(fontWeight: FontWeight.bold)),
                 ),
               ],
             ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(dialogCtx),
-                child: const Text('Cancel', style: TextStyle(color: _DashTok.textLow)),
-              ),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _DashTok.danger,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                ),
-                onPressed: () async {
-                  final reason = reasonController.text.trim();
-                  if (reason.isEmpty) {
-                    setDialogState(() {
-                      errorMessage = 'Reason is mandatory for deletion request';
-                    });
-                    return;
-                  }
-                  Navigator.pop(dialogCtx);
-                  final success = await ref.read(myBusinessesProvider.notifier).requestDeletion(
-                    business.businessId,
-                    reason,
-                  );
-                  if (context.mounted) {
-                    final messenger = ScaffoldMessenger.of(context);
-                    messenger.clearSnackBars();
-                    messenger.showSnackBar(
-                      SnackBar(
-                        content: Text(success ? 'Deletion request submitted.' : 'Failed to request deletion.'),
-                        backgroundColor: _DashTok.danger,
-                      ),
-                    );
-                  }
-                },
-                child: const Text('Delete Listing', style: TextStyle(fontWeight: FontWeight.bold)),
-              ),
-            ],
           );
         },
       ),
     );
-  }
+    }
 }

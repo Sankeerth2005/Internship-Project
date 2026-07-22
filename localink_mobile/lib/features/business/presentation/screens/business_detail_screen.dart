@@ -17,6 +17,8 @@ import '../../widgets/business_action_button.dart';
 import '../../widgets/business_operating_hours.dart';
 import '../../widgets/business_review_card.dart';
 import '../../../shared/presentation/widgets/app_back_button.dart';
+import '../../../shared/presentation/widgets/app_feedback.dart';
+import '../../../../core/network/app_error_formatter.dart';
 
 // ─── DESIGN TOKENS ────────────────────────────────────────────────────────────
 class _DetailTok {
@@ -140,15 +142,11 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
         _commentController.clear();
         _clearImage();
         setState(() => _userRating = 5.0);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Review submitted successfully!'), backgroundColor: Color(0xFF1E824C)),
-        );
+        AppFeedback.showSuccess(context, 'Review submitted successfully!');
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to submit review: $e'), backgroundColor: const Color(0xFFE1251B)),
-        );
+        AppFeedback.showError(context, AppErrorFormatter.format(e));
       }
     } finally {
       if (mounted) setState(() => _isSubmittingReview = false);
@@ -158,12 +156,7 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
   Future<void> _getAISuggestions(String bizName) async {
     final draft = _commentController.text.trim();
     if (draft.length < 3) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please write at least a few words to enhance.'),
-          backgroundColor: Color(0xFFE1251B),
-        ),
-      );
+      AppFeedback.showWarning(context, 'Please write at least a few words to enhance.');
       return;
     }
 
@@ -182,23 +175,13 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
         _showSuggestionsBottomSheet(suggestions);
       } else {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('No suggestions returned from AI.'),
-              backgroundColor: Color(0xFFE1251B),
-            ),
-          );
+          AppFeedback.showWarning(context, 'No suggestions returned from AI.');
         }
       }
     } catch (e) {
       if (mounted) {
         setState(() => _loadingAISuggestions = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to get suggestions: $e'),
-            backgroundColor: const Color(0xFFE1251B),
-          ),
-        );
+        AppFeedback.showError(context, AppErrorFormatter.format(e));
       }
     }
   }

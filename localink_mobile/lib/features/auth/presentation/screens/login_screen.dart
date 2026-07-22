@@ -12,6 +12,7 @@ import '../../../shared/presentation/widgets/app_back_button.dart';
 import '../../../shared/presentation/widgets/animated_field_glow.dart';
 import '../../../shared/presentation/widgets/app_background.dart';
 import '../../../shared/presentation/widgets/brand_icon_badge.dart';
+import '../../../shared/presentation/widgets/app_feedback.dart';
 import '../../../../core/theme/app_theme.dart';
 
 // ─── DESIGN TOKENS (aligned to DESIGN_SYSTEM.md) ─────────────────────────────
@@ -192,12 +193,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
         HapticFeedback.heavyImpact();
         _shakeKey.currentState?.shake();
         final cleanMsg = next.message.replaceAll('Exception: ', '').trim();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(cleanMsg),
-            backgroundColor: AppTheme.errorColor,
-          ),
-        );
+        
+        // Task 3 requirements: invalid credentials handling
+        if (cleanMsg.toLowerCase().contains('invalid credentials') || 
+            cleanMsg.toLowerCase().contains('invalid email or password')) {
+          _passwordController.clear();
+          _passwordFocus.requestFocus();
+          AppFeedback.showError(
+            context,
+            'Invalid email or password.\nCheck your credentials and try again.',
+          );
+        } else {
+          AppFeedback.showError(context, cleanMsg);
+        }
       } else if (next is AuthAuthenticated) {
         HapticFeedback.mediumImpact();
         final role = next.userType.toLowerCase().trim();

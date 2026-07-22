@@ -12,6 +12,8 @@ import '../../../shared/presentation/widgets/app_back_button.dart';
 import '../../../shared/presentation/widgets/animated_field_glow.dart';
 import '../../../shared/presentation/widgets/app_background.dart';
 import '../../../shared/presentation/widgets/brand_icon_badge.dart';
+import '../../../shared/presentation/widgets/app_feedback.dart';
+import '../../../../core/network/app_error_formatter.dart';
 import '../../../../core/theme/app_theme.dart';
 
 // ─── DESIGN TOKENS (aligned to DESIGN_SYSTEM.md) ─────────────────────────────
@@ -145,11 +147,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
       if (mounted) {
         if (response.data['success'] == true) {
           HapticFeedback.mediumImpact();
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('OTP sent successfully! Please check your email inbox.'),
-              backgroundColor: AppTheme.tricolorGreen,
-            ),
+          AppFeedback.showSuccess(
+            context,
+            'OTP sent successfully! Please check your email inbox.',
           );
           context.push('/verify-otp', extra: email);
         } else {
@@ -160,19 +160,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
       if (mounted) {
         HapticFeedback.heavyImpact();
         _shakeKey.currentState?.shake();
-        String errMsg = 'Failed to send code. Please try again.';
-        if (e is DioException && e.response != null) {
-          final data = e.response?.data;
-          if (data is Map) {
-            errMsg = data['message'] ?? errMsg;
-          }
-        }
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(errMsg),
-            backgroundColor: AppTheme.errorColor,
-          ),
-        );
+        AppFeedback.showError(context, AppErrorFormatter.format(e));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);

@@ -10,6 +10,8 @@ import '../../../shared/presentation/widgets/app_back_button.dart';
 import '../../../shared/presentation/widgets/animated_field_glow.dart';
 import '../../../shared/presentation/widgets/app_background.dart';
 import '../../../shared/presentation/widgets/brand_icon_badge.dart';
+import '../../../shared/presentation/widgets/app_feedback.dart';
+import '../../../../core/network/app_error_formatter.dart';
 import '../../../../core/theme/app_theme.dart';
 
 // ─── DESIGN TOKENS (aligned to DESIGN_SYSTEM.md) ─────────────────────────────
@@ -211,11 +213,9 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen>
     } catch (e) {
       HapticFeedback.heavyImpact();
       _shakeKey.currentState?.shake();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Verification process encountered an issue. Please try again.'),
-          backgroundColor: AppTheme.errorColor,
-        ),
+      AppFeedback.showError(
+        context,
+        'Verification process encountered an issue. Please try again.',
       );
     } finally {
       setState(() => _isLoading = false);
@@ -236,11 +236,9 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen>
       if (response.data['success'] == true) {
         HapticFeedback.mediumImpact();
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('A fresh verification code has been sent to your email.'),
-            backgroundColor: AppTheme.tricolorGreen,
-          ),
+        AppFeedback.showSuccess(
+          context,
+          'A fresh verification code has been sent to your email.',
         );
         _startTimer();
       } else {
@@ -250,12 +248,7 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen>
       HapticFeedback.heavyImpact();
       _shakeKey.currentState?.shake();
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Resending verification code failed. Please check connection.'),
-          backgroundColor: AppTheme.errorColor,
-        ),
-      );
+      AppFeedback.showError(context, AppErrorFormatter.format(e));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }

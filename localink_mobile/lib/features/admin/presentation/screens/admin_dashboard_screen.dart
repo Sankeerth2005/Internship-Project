@@ -11,6 +11,8 @@ import '../../../../core/network/dio_client.dart';
 import '../../../../core/network/signalr_service.dart';
 import '../../../auth/providers/auth_state.dart';
 import '../../../../core/storage/secure_storage_service.dart';
+import '../../../shared/presentation/widgets/app_feedback.dart';
+import '../../../../core/network/app_error_formatter.dart';
 
 class AdminDashboardScreen extends ConsumerStatefulWidget {
   const AdminDashboardScreen({super.key});
@@ -71,32 +73,16 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
 
         if (mounted) {
           Navigator.pop(context); // Pop loading
-          final messenger = ScaffoldMessenger.of(context);
-          messenger.clearSnackBars();
           if (success) {
-            messenger.showSnackBar(
-              SnackBar(
-                content: Text('"${business.name}" has been permanently deleted.'),
-                backgroundColor: Colors.green,
-              ),
-            );
+            AppFeedback.showSuccess(context, '"${business.name}" has been permanently deleted.');
           } else {
-            messenger.showSnackBar(
-              const SnackBar(
-                content: Text('Failed to delete business. Please try again.'),
-                backgroundColor: Colors.redAccent,
-              ),
-            );
+            AppFeedback.showError(context, 'Failed to delete business. Please try again.');
           }
         }
       } catch (e) {
         if (mounted) {
           Navigator.pop(context); // Pop loading
-          final messenger = ScaffoldMessenger.of(context);
-          messenger.clearSnackBars();
-          messenger.showSnackBar(
-            SnackBar(content: Text('Error: $e'), backgroundColor: Colors.redAccent),
-          );
+          AppFeedback.showError(context, AppErrorFormatter.format(e));
         }
       }
     }
@@ -142,32 +128,16 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
 
         if (mounted) {
           Navigator.pop(context); // Pop loading
-          final messenger = ScaffoldMessenger.of(context);
-          messenger.clearSnackBars();
           if (success) {
-            messenger.showSnackBar(
-              SnackBar(
-                content: Text('Deletion request for "${business.name}" has been rejected. Business restored to Approved.'),
-                backgroundColor: Colors.green,
-              ),
-            );
+            AppFeedback.showSuccess(context, 'Deletion request for "${business.name}" has been rejected.');
           } else {
-            messenger.showSnackBar(
-              const SnackBar(
-                content: Text('Failed to reject deletion request. Please try again.'),
-                backgroundColor: Colors.redAccent,
-              ),
-            );
+            AppFeedback.showError(context, 'Failed to reject deletion request. Please try again.');
           }
         }
       } catch (e) {
         if (mounted) {
           Navigator.pop(context); // Pop loading
-          final messenger = ScaffoldMessenger.of(context);
-          messenger.clearSnackBars();
-          messenger.showSnackBar(
-            SnackBar(content: Text('Error: $e'), backgroundColor: Colors.redAccent),
-          );
+          AppFeedback.showError(context, AppErrorFormatter.format(e));
         }
       }
     }
@@ -202,7 +172,6 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
 
     if (confirm == true) {
       if (!mounted) return;
-      final messenger = ScaffoldMessenger.of(context);
       
       // Show loading HUD
       showDialog(
@@ -213,25 +182,21 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
         ),
       );
 
-      final success = await ref.read(adminBusinessesProvider.notifier).approveBusiness(business.id);
-      
-      if (mounted) {
-        Navigator.pop(context); // Pop loading HUD
-        messenger.clearSnackBars();
-        if (success) {
-          messenger.showSnackBar(
-            SnackBar(
-              content: Text('"${business.name}" has been approved!'),
-              backgroundColor: Colors.green,
-            ),
-          );
-        } else {
-          messenger.showSnackBar(
-            const SnackBar(
-              content: Text('Failed to approve business. Please try again.'),
-              backgroundColor: Color(0xFFFF4D4F),
-            ),
-          );
+      try {
+        final success = await ref.read(adminBusinessesProvider.notifier).approveBusiness(business.id);
+        
+        if (mounted) {
+          Navigator.pop(context); // Pop loading HUD
+          if (success) {
+            AppFeedback.showSuccess(context, '"${business.name}" has been approved!');
+          } else {
+            AppFeedback.showError(context, 'Failed to approve business. Please try again.');
+          }
+        }
+      } catch (e) {
+        if (mounted) {
+          Navigator.pop(context); // Pop loading HUD
+          AppFeedback.showError(context, AppErrorFormatter.format(e));
         }
       }
     }
@@ -309,7 +274,6 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     if (confirm == true) {
       if (!mounted) return;
       final reason = reasonController.text.trim();
-      final messenger = ScaffoldMessenger.of(context);
 
       // Show loading HUD
       showDialog(
@@ -320,27 +284,23 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
         ),
       );
 
-      final success = await ref
-          .read(adminBusinessesProvider.notifier)
-          .rejectBusiness(business.id, reason);
+      try {
+        final success = await ref
+            .read(adminBusinessesProvider.notifier)
+            .rejectBusiness(business.id, reason);
 
-      if (mounted) {
-        Navigator.pop(context); // Pop loading HUD
-        messenger.clearSnackBars();
-        if (success) {
-          messenger.showSnackBar(
-            SnackBar(
-              content: Text('"${business.name}" has been rejected.'),
-              backgroundColor: const Color(0xFFFF4D4F),
-            ),
-          );
-        } else {
-          messenger.showSnackBar(
-            const SnackBar(
-              content: Text('Failed to reject business. Please try again.'),
-              backgroundColor: Color(0xFFFF4D4F),
-            ),
-          );
+        if (mounted) {
+          Navigator.pop(context); // Pop loading HUD
+          if (success) {
+            AppFeedback.showSuccess(context, '"${business.name}" has been rejected.');
+          } else {
+            AppFeedback.showError(context, 'Failed to reject business. Please try again.');
+          }
+        }
+      } catch (e) {
+        if (mounted) {
+          Navigator.pop(context); // Pop loading HUD
+          AppFeedback.showError(context, AppErrorFormatter.format(e));
         }
       }
     }

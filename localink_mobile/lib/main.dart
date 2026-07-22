@@ -39,6 +39,7 @@ final routerProvider = Provider<GoRouter>((ref) {
     navigatorKey: _rootNavigatorKey,
     initialLocation: '/splash',
     refreshListenable: GoRouterRefreshListenable(ref),
+    errorBuilder: (context, state) => _RouteErrorScreen(error: state.error?.toString()),
     redirect: (BuildContext context, GoRouterState state) {
       final authState = ref.watch(authProvider); // Listen to auth state changes
       final splashShown = ref.watch(splashShownProvider);
@@ -302,3 +303,88 @@ class LocalinkApp extends ConsumerWidget {
     );
   }
 }
+
+class _RouteErrorScreen extends StatelessWidget {
+  final String? error;
+  const _RouteErrorScreen({this.error});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: const BoxDecoration(
+                  color: Color(0xFFFFF0E6),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.error_outline_rounded,
+                  color: Color(0xFFFF6600),
+                  size: 48,
+                ),
+              ),
+              const SizedBox(height: 24),
+              const Text(
+                'Page Not Found',
+                style: TextStyle(
+                  fontFamily: 'Inter',
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF1A1918),
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'The page you are looking for does not exist or has been moved.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontFamily: 'Inter',
+                  fontSize: 13,
+                  color: Color(0xFF5F5C58),
+                  height: 1.45,
+                ),
+              ),
+              if (error != null) ...[
+                const SizedBox(height: 16),
+                Text(
+                  error!,
+                  style: TextStyle(
+                    fontFamily: 'Courier',
+                    fontSize: 11,
+                    color: Colors.red,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+              const SizedBox(height: 32),
+              ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFFF6600),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                onPressed: () => context.go('/splash'),
+                icon: const Icon(Icons.home_rounded, size: 18),
+                label: const Text(
+                  'Return to Home',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
