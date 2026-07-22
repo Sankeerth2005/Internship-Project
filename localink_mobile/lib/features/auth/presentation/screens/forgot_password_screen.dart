@@ -1,8 +1,14 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:dio/dio.dart';
 import '../../../../core/network/dio_client.dart';
-import '../widgets/animated_background.dart';
+import '../../../shared/presentation/widgets/app_text_field.dart';
+import '../../../shared/presentation/widgets/app_button.dart';
+import '../../../shared/presentation/widgets/shake_widget.dart';
+import '../../../shared/presentation/widgets/app_card.dart';
+import '../../../../core/theme/app_theme.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -13,12 +19,15 @@ class ForgotPasswordScreen extends StatefulWidget {
 
 class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   final _formKey = GlobalKey<FormState>();
+  final _shakeKey = GlobalKey<ShakeWidgetState>();
   final _emailController = TextEditingController();
+  final FocusNode _emailFocus = FocusNode();
   bool _isLoading = false;
 
   @override
   void dispose() {
     _emailController.dispose();
+    _emailFocus.dispose();
     super.dispose();
   }
 
@@ -30,7 +39,11 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   }
 
   Future<void> _sendOtp() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) {
+      HapticFeedback.warningImpact();
+      _shakeKey.currentState?.shake();
+      return;
+    }
 
     setState(() => _isLoading = true);
 
@@ -45,20 +58,23 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
       if (mounted) {
         if (response.data['success'] == true) {
+          HapticFeedback.mediumImpact();
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('OTP sent successfully! Please check your email.'),
-              backgroundColor: Colors.green,
+              content: Text('OTP sent successfully! Please check your email inbox.'),
+              backgroundColor: AppTheme.tricolorGreen,
             ),
           );
           context.push('/verify-otp', extra: email);
         } else {
-          throw Exception(response.data['message'] ?? 'Failed to send OTP.');
+          throw Exception(response.data['message'] ?? 'Failed to send verification code.');
         }
       }
     } catch (e) {
       if (mounted) {
-        String errMsg = 'Failed to send OTP. Please try again.';
+        HapticFeedback.errorImpact();
+        _shakeKey.currentState?.shake();
+        String errMsg = 'Failed to send code. Please try again.';
         if (e is DioException && e.response != null) {
           final data = e.response?.data;
           if (data is Map) {
@@ -68,7 +84,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(errMsg),
-            backgroundColor: Colors.redAccent,
+            backgroundColor: AppTheme.errorColor,
           ),
         );
       }
@@ -79,189 +95,180 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isMobile = screenWidth < 600;
+
     return Scaffold(
-      body: AnimatedAuthBackground(
-        child: SafeArea(
-          child: Column(
-            children: [
-              Align(
-                alignment: Alignment.topLeft,
-                child: Padding(
-                  padding: const EdgeInsets.only(left: 10, top: 10),
-                  child: IconButton(
-                    icon: const Icon(Icons.arrow_back_ios_new, color: Color(0xFFFF7A00)),
-                    onPressed: () => context.pop(),
+      backgroundColor: Colors.white,
+      body: Stack(
+        children: [
+          // Background visual radial paint
+          Positioned.fill(
+            child: CustomPaint(
+              painter: _ForgotGlowPainter(),
+            ),
+          ),
+
+          SafeArea(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Top header back navigation button
+                Padding(
+                  padding: const EdgeInsets.only(left: 12, top: 12),
+                  child: Semantics(
+                    button: true,
+                    label: 'Go back',
+                    child: IconButton(
+                      icon: const Icon(Icons.arrow_back_rounded, color: AppTheme.accentColor, size: 24),
+                      onPressed: () => context.pop(),
+                      style: IconButton.styleFrom(
+                        minimumSize: const Size(48, 48), // tap target size
+                      ),
+                    ),
                   ),
                 ),
-              ),
-              Expanded(
-                child: Center(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.symmetric(horizontal: 24),
-                    child: Container(
-                      padding: const EdgeInsets.all(24),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF1E1E1E).withValues(alpha: 0.8),
-                        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Form(
-                        key: _formKey,
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            Center(
-                              child: Container(
-                                padding: const EdgeInsets.all(16),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFFF7A00).withValues(alpha: 0.1),
-                                  shape: BoxShape.circle,
-                                  border: Border.all(color: const Color(0xFFFF7A00).withValues(alpha: 0.2)),
-                                ),
-                                child: const Icon(
-                                  Icons.lock_reset_outlined,
-                                  color: Color(0xFFFF7A00),
-                                  size: 40,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 20),
-                            const Text(
-                              'Forgot Password',
-                              style: TextStyle(
-                                fontFamily: 'Inter',
-                                fontSize: 24,
-                                fontWeight: FontWeight.w800,
-                                color: Colors.white,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                            const SizedBox(height: 10),
-                            Text(
-                              'Enter your registered email address below. We will send you a 6-digit OTP to reset your password.',
-                              style: TextStyle(
-                                fontFamily: 'Inter',
-                                fontSize: 13,
-                                color: Colors.white.withValues(alpha: 0.6),
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                            const SizedBox(height: 30),
-                            
-                            const Text(
-                              'Email Address',
-                              style: TextStyle(
-                                fontFamily: 'Inter',
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.white70,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            TextFormField(
-                              controller: _emailController,
-                              keyboardType: TextInputType.emailAddress,
-                              validator: _validateEmail,
-                              style: const TextStyle(
-                                fontFamily: 'Inter',
-                                fontSize: 14,
-                                color: Colors.white,
-                              ),
-                              decoration: InputDecoration(
-                                prefixIcon: const Icon(Icons.email_outlined, color: Colors.white38, size: 20),
-                                hintText: 'Enter your email',
-                                hintStyle: TextStyle(
-                                  fontFamily: 'Inter',
-                                  fontSize: 14,
-                                  color: Colors.white.withValues(alpha: 0.3),
-                                ),
-                                filled: true,
-                                fillColor: Colors.white.withValues(alpha: 0.05),
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                  borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.15)),
-                                ),
-                                enabledBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                  borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.15)),
-                                ),
-                                focusedBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                  borderSide: const BorderSide(color: Color(0xFFFF7A00)),
-                                ),
-                                errorBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                  borderSide: const BorderSide(color: Color(0xFFFF4D4F)),
-                                ),
-                                focusedErrorBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                  borderSide: const BorderSide(color: Color(0xFFFF4D4F), width: 2),
-                                ),
-                                errorStyle: const TextStyle(
-                                  fontFamily: 'Inter',
-                                  fontSize: 12,
-                                  color: Color(0xFFFF4D4F),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 25),
+                
+                Expanded(
+                  child: Center(
+                    child: SingleChildScrollView(
+                      physics: const BouncingScrollPhysics(),
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                      child: ShakeWidget(
+                        key: _shakeKey,
+                        child: Center(
+                          child: AppCard(
+                            maxWidth: 420,
+                            padding: isMobile ? const EdgeInsets.all(20) : const EdgeInsets.all(40),
+                            child: Form(
+                              key: _formKey,
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  // Lock Reset Icon Emblem
+                                  Center(
+                                    child: Container(
+                                      width: 68,
+                                      height: 68,
+                                      padding: const EdgeInsets.all(3),
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        gradient: AppTheme.primarySolarGradient,
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: AppTheme.accentColor.withOpacity(0.2),
+                                            blurRadius: 16,
+                                            offset: const Offset(0, 4),
+                                          ),
+                                        ],
+                                      ),
+                                      child: Container(
+                                        decoration: const BoxDecoration(
+                                          color: Colors.white,
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: const Center(
+                                          child: Icon(
+                                            Icons.lock_reset_rounded,
+                                            color: AppTheme.accentColor,
+                                            size: 32,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 24),
 
-                            Container(
-                              height: 48,
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(12),
-                                gradient: const LinearGradient(
-                                  colors: [Color(0xFFFF7A00), Color(0xFFFF9A3C)],
-                                ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: const Color(0xFFFF7A00).withValues(alpha: 0.3),
-                                    blurRadius: 15,
-                                    offset: const Offset(0, 4),
+                                  // Heading Text
+                                  const Text(
+                                    'Forgot Password',
+                                    style: TextStyle(
+                                      fontFamily: 'Inter',
+                                      fontSize: 22,
+                                      fontWeight: FontWeight.w800,
+                                      color: Color(0xFF1A1918),
+                                      letterSpacing: -0.5,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                  const SizedBox(height: 8),
+
+                                  // Friendly copywriting explanation
+                                  const Text(
+                                    'Enter the email address connected to your account. We will send you a 6-digit verification code to reset your password securely.',
+                                    style: TextStyle(
+                                      fontFamily: 'Inter',
+                                      fontSize: 13,
+                                      height: 1.4,
+                                      color: Color(0xFF5F5C58),
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                  const SizedBox(height: 32),
+
+                                  // Email text input
+                                  AppTextField(
+                                    controller: _emailController,
+                                    labelText: 'Email Address',
+                                    hintText: 'Enter your registered email',
+                                    keyboardType: TextInputType.emailAddress,
+                                    prefixIcon: Icons.mail_outline_rounded,
+                                    validator: _validateEmail,
+                                    focusNode: _emailFocus,
+                                    autofillHints: const [AutofillHints.email],
+                                    textInputAction: TextInputAction.done,
+                                    onFieldSubmitted: (_) => _sendOtp(),
+                                  ),
+                                  const SizedBox(height: 24),
+
+                                  // Submit button
+                                  AppButton(
+                                    label: 'Send OTP',
+                                    isLoading: _isLoading,
+                                    onPressed: _sendOtp,
                                   ),
                                 ],
                               ),
-                              child: Material(
-                                color: Colors.transparent,
-                                child: InkWell(
-                                  onTap: _isLoading ? null : _sendOtp,
-                                  borderRadius: BorderRadius.circular(12),
-                                  child: Center(
-                                    child: _isLoading
-                                        ? const SizedBox(
-                                            height: 20,
-                                            width: 20,
-                                            child: CircularProgressIndicator(
-                                              color: Colors.black,
-                                              strokeWidth: 2,
-                                            ),
-                                          )
-                                        : const Text(
-                                            'Send OTP',
-                                            style: TextStyle(
-                                              fontFamily: 'Inter',
-                                              fontSize: 15,
-                                              fontWeight: FontWeight.bold,
-                                              color: Colors.black,
-                                            ),
-                                          ),
-                                  ),
-                                ),
-                              ),
                             ),
-                          ],
+                          ),
                         ),
                       ),
                     ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
+        ],
       ),
     );
   }
+}
+
+class _ForgotGlowPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Rect.fromLTWH(0, 0, size.width, size.height);
+    final p1 = Paint()
+      ..shader = RadialGradient(
+        colors: [
+          const Color(0xFFFF9E4F).withOpacity(0.06),
+          Colors.transparent,
+        ],
+      ).createShader(Rect.fromCircle(center: Offset.zero, radius: size.width * 0.9));
+    canvas.drawRect(rect, p1);
+
+    final p2 = Paint()
+      ..shader = RadialGradient(
+        colors: [
+          const Color(0xFFFF6600).withOpacity(0.04),
+          Colors.transparent,
+        ],
+      ).createShader(Rect.fromCircle(center: Offset(size.width, size.height), radius: size.width * 0.9));
+    canvas.drawRect(rect, p2);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

@@ -297,7 +297,7 @@ class LocalinkApp extends ConsumerWidget {
     return MaterialApp.router(
       scaffoldMessengerKey: scaffoldMessengerKey,
       title: 'Vocal for Sanatan',
-      theme: AppTheme.darkTheme,
+      theme: AppTheme.lightTheme,
       routerConfig: router,
     );
   }

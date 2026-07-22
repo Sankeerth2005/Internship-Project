@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,7 +9,13 @@ import '../../data/repositories/location_repository.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/auth_state.dart';
 import '../../providers/location_provider.dart';
-import '../widgets/animated_background.dart';
+import '../../../shared/presentation/widgets/app_text_field.dart';
+import '../../../shared/presentation/widgets/app_button.dart';
+import '../../../shared/presentation/widgets/shake_widget.dart';
+import '../../../shared/presentation/widgets/animated_checkmark.dart';
+import '../../../shared/presentation/widgets/app_card.dart';
+import '../../../shared/presentation/widgets/app_dialog.dart';
+import '../../../../core/theme/app_theme.dart';
 
 class SignupScreen extends ConsumerStatefulWidget {
   final String? preSelectedRole;
@@ -20,7 +27,10 @@ class SignupScreen extends ConsumerStatefulWidget {
 }
 
 class _SignupScreenState extends ConsumerState<SignupScreen> {
-  final _formKey = GlobalKey<FormState>();
+  // Wizard Steps: 0 = Profile Details, 1 = Location Details, 2 = Security Details
+  int _currentStep = 0;
+  final List<GlobalKey<FormState>> _stepFormKeys = List.generate(3, (_) => GlobalKey<FormState>());
+  final _shakeKey = GlobalKey<ShakeWidgetState>();
 
   // Controllers
   final _nameController = TextEditingController();
@@ -31,14 +41,23 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
 
-  // Role toggle
+  // Focus nodes
+  final FocusNode _nameFocus = FocusNode();
+  final FocusNode _phoneFocus = FocusNode();
+  final FocusNode _emailFocus = FocusNode();
+  final FocusNode _streetFocus = FocusNode();
+  final FocusNode _pincodeFocus = FocusNode();
+  final FocusNode _passwordFocus = FocusNode();
+  final FocusNode _confirmPasswordFocus = FocusNode();
+
+  // Role type
   String _selectedType = 'user'; // 'user' or 'client'
 
   // Password visibility
   bool _showPassword = false;
   bool _showConfirmPassword = false;
 
-  // Location data
+  // Location data lists and selections
   List<Country> _countries = [];
   List<StateModel> _states = [];
   List<CityModel> _cities = [];
@@ -46,26 +65,23 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   StateModel? _selectedState;
   CityModel? _selectedCity;
 
-  // Phone codes
+  // Phone code details
   String _selectedPhoneCode = '91';
   List<Map<String, String>> _phoneCountries = [
     {'code': '91', 'name': 'India', 'flag': '🇮🇳'},
     {'code': '1', 'name': 'United States', 'flag': '🇺🇸'},
-    {'code': '44', 'name': 'United Kingdom', 'flag': '🇬🇧'},
-    {'code': '61', 'name': 'Australia', 'flag': '🇦🇺'},
   ];
 
-  // Loading states
+  // Loading indicator controls
   bool _loadingCountries = false;
   bool _loadingStates = false;
   bool _loadingCities = false;
   bool _isSubmitting = false;
 
-  // Pincode error
+  // Pincode validation mismatch error message
   String? _pincodeError;
 
-  // Success popup
-  bool _showSuccessPopup = false;
+
 
   @override
   void initState() {
@@ -78,11 +94,13 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
         _selectedType = 'user';
       }
     }
+    _passwordController.addListener(_onPasswordChanged);
     _loadCountries();
   }
 
   @override
   void dispose() {
+    _passwordController.removeListener(_onPasswordChanged);
     _nameController.dispose();
     _emailController.dispose();
     _phoneController.dispose();
@@ -90,7 +108,19 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     _pincodeController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
+
+    _nameFocus.dispose();
+    _phoneFocus.dispose();
+    _emailFocus.dispose();
+    _streetFocus.dispose();
+    _pincodeFocus.dispose();
+    _passwordFocus.dispose();
+    _confirmPasswordFocus.dispose();
     super.dispose();
+  }
+
+  void _onPasswordChanged() {
+    setState(() {}); // Updates requirement checkmarks dynamically
   }
 
   LocationRepository get _locationRepo => ref.read(locationRepositoryProvider);
@@ -113,7 +143,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
         _countries = countries;
         if (codes.isNotEmpty) _phoneCountries = codes;
         
-        // Pre-select India as default country
+        // India pre-selected setup
         try {
           final india = countries.firstWhere((c) => c.name.toLowerCase() == 'india');
           _selectedCountry = india;
@@ -174,7 +204,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
 
   Future<bool> _validatePincodeAsync() async {
     final pincode = _pincodeController.text.trim();
-    if (pincode.isEmpty) return true; // let form validator handle empty
+    if (pincode.isEmpty) return true;
     setState(() => _pincodeError = null);
     try {
       final res = await _locationRepo.validatePincode(pincode);
@@ -203,17 +233,52 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     }
   }
 
+  void _nextStep() async {
+    HapticFeedback.lightImpact();
+    if (_currentStep == 0) {
+      if (_stepFormKeys[0].currentState!.validate()) {
+        setState(() {
+          _currentStep = 1;
+        });
+      } else {
+        _shakeKey.currentState?.shake();
+      }
+    } else if (_currentStep == 1) {
+      if (_stepFormKeys[1].currentState!.validate()) {
+        setState(() => _loadingCities = true);
+        final pincodeValid = await _validatePincodeAsync();
+        setState(() => _loadingCities = false);
+        if (!pincodeValid) {
+          _stepFormKeys[1].currentState!.validate();
+          _shakeKey.currentState?.shake();
+          return;
+        }
+        setState(() {
+          _currentStep = 2;
+        });
+      } else {
+        _shakeKey.currentState?.shake();
+      }
+    }
+  }
+
+  void _prevStep() {
+    HapticFeedback.lightImpact();
+    if (_currentStep > 0) {
+      setState(() {
+        _currentStep--;
+      });
+    }
+  }
+
   Future<void> _onSubmit() async {
-    if (!_formKey.currentState!.validate()) return;
-
-    setState(() => _isSubmitting = true);
-
-    final pincodeValid = await _validatePincodeAsync();
-    if (!pincodeValid) {
-      _formKey.currentState!.validate(); // re-validate to show pincode error
-      setState(() => _isSubmitting = false);
+    if (!_stepFormKeys[2].currentState!.validate()) {
+      _shakeKey.currentState?.shake();
+      HapticFeedback.warningImpact();
       return;
     }
+
+    setState(() => _isSubmitting = true);
 
     final request = RegisterRequest(
       userType: _selectedType == 'client' ? 'BusinessOwner' : 'User',
@@ -234,10 +299,13 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     if (mounted) {
       setState(() => _isSubmitting = false);
       if (message != null) {
-        setState(() => _showSuccessPopup = true);
-        Future.delayed(const Duration(seconds: 3), () {
+        HapticFeedback.mediumImpact();
+        AppDialog.showSuccess(
+          context: context,
+          title: 'Account Created!',
+          message: 'Redirecting to login dashboard...',
+        ).then((_) {
           if (mounted) {
-            setState(() => _showSuccessPopup = false);
             context.pop();
           }
         });
@@ -245,7 +313,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     }
   }
 
-  // ===================== VALIDATORS =====================
+  // ===================== FORM VALIDATORS =====================
 
   String? _validateName(String? v) {
     if (v == null || v.trim().isEmpty) return 'Required';
@@ -310,20 +378,21 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     return null;
   }
 
-  // ===================== BUILD =====================
-
   @override
   Widget build(BuildContext context) {
     ref.listen<AuthState>(authProvider, (previous, next) {
       if (next is AuthError) {
+        HapticFeedback.errorImpact();
+        _shakeKey.currentState?.shake();
         final cleanMsg = next.message.replaceAll('Exception: ', '').trim();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(cleanMsg),
-            backgroundColor: const Color(0xFFFF4D4F),
+            backgroundColor: AppTheme.errorColor,
           ),
         );
       } else if (next is AuthAuthenticated) {
+        HapticFeedback.mediumImpact();
         final role = next.userType.toLowerCase().trim();
         if (role == 'admin') {
           context.go('/admin-dashboard');
@@ -338,235 +407,435 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     final screenWidth = MediaQuery.of(context).size.width;
     final isWide = screenWidth > 800;
 
-    return Scaffold(
-      body: Stack(
-        children: [
-          AnimatedAuthBackground(
-            child: Row(
-              children: [
-                // Left pane (desktop only)
-                if (isWide)
-                  Expanded(
-                    child: Stack(
-                      children: [
-                        Positioned(
-                          bottom: 80,
-                          left: 60,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'Welcome to\nVocal for Sanatan',
-                                style: TextStyle(
-                                  fontFamily: 'Inter',
-                                  fontSize: 42,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.white,
-                                  height: 1.2,
-                                ),
-                              ),
-                              const SizedBox(height: 10),
-                              Text(
-                                'Discover businesses around you',
-                                style: TextStyle(
-                                  fontFamily: 'Inter',
-                                  fontSize: 16,
-                                  color: Colors.white.withValues(alpha: 0.6),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+    return PopScope(
+      canPop: _currentStep == 0,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        _prevStep();
+      },
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        body: Stack(
+          children: [
+            // Ambient Radial Background Glows
+            Positioned.fill(
+              child: CustomPaint(
+                painter: _SignupGlowPainter(),
+              ),
+            ),
 
-                // Right pane (form)
-                Expanded(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      gradient: RadialGradient(
-                        center: const Alignment(0.4, -0.4),
-                        radius: 1.5,
-                        colors: [
-                          const Color(0xFFFF7A00).withValues(alpha: 0.15),
-                          Colors.transparent,
+            SafeArea(
+              child: Row(
+                children: [
+                  // Desktop left branding pane
+                  if (isWide)
+                    Expanded(
+                      child: Stack(
+                        children: [
+                          Positioned(
+                            bottom: 80,
+                            left: 60,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Welcome to\nVocal for Sanatan',
+                                  style: TextStyle(
+                                    fontFamily: 'Inter',
+                                    fontSize: 42,
+                                    fontWeight: FontWeight.w800,
+                                    color: Color(0xFF1A1918),
+                                    height: 1.2,
+                                  ),
+                                ),
+                                const SizedBox(height: 10),
+                                Text(
+                                  'Join the community and support local stores.',
+                                  style: TextStyle(
+                                    fontFamily: 'Inter',
+                                    fontSize: 16,
+                                    color: const Color(0xFF1A1918).withOpacity(0.6),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         ],
                       ),
                     ),
+
+                  // Form pane
+                  Expanded(
                     child: Center(
                       child: SingleChildScrollView(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 20,
-                          vertical: 20,
+                        physics: const BouncingScrollPhysics(),
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+                        child: ShakeWidget(
+                          key: _shakeKey,
+                          child: Center(
+                            child: AppCard(
+                              maxWidth: 500,
+                              padding: const EdgeInsets.all(24),
+                              child: _buildStepContent(),
+                            ),
+                          ),
                         ),
-                        child: _buildSignupCard(),
                       ),
                     ),
                   ),
-                ),
-              ],
-            ),
-          ),
-
-          // Success popup overlay
-          if (_showSuccessPopup) _buildSuccessPopup(),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSignupCard() {
-    return Container(
-      constraints: const BoxConstraints(maxWidth: 560),
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(14),
-        color: const Color(0xFF141414).withValues(alpha: 0.6),
-        backgroundBlendMode: BlendMode.srcOver,
-        border: Border.all(
-          color: const Color(0xFFFF7A00).withValues(alpha: 0.25),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFFFF7A00).withValues(alpha: 0.12),
-            blurRadius: 20,
-          ),
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.7),
-            blurRadius: 40,
-            offset: const Offset(0, 15),
-          ),
-        ],
-      ),
-      child: Form(
-        key: _formKey,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Heading
-            const Text(
-              'Create Account',
-              style: TextStyle(
-                fontFamily: 'Inter',
-                fontSize: 24,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFFF8F4F0),
+                ],
               ),
-              textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 8),
 
-            // Subtitle
-            Text(
-              _selectedType == 'client'
-                  ? 'Register your business on Vocal for Sanatan'
-                  : 'Join Vocal for Sanatan to discover businesses',
-              style: TextStyle(
-                fontFamily: 'Inter',
-                fontSize: 12,
-                color: Colors.white.withValues(alpha: 0.5),
-              ),
-              textAlign: TextAlign.center,
-            ),
-            // Toggle pill removed as role is chosen on welcome screen
 
-            // ========== BASIC DETAILS ==========
-            _buildFieldLabel(
-              _selectedType == 'client' ? 'Owner / Business Name *' : 'Name *',
-            ),
-            const SizedBox(height: 4),
-            _buildInputField(
-              controller: _nameController,
-              validator: _validateName,
-              inputFormatters: [
-                FilteringTextInputFormatter.allow(RegExp(r'[A-Za-z\s]')),
-              ],
-            ),
-            const SizedBox(height: 6),
-
-            // Phone
-            _buildFieldLabel('Phone *'),
-            const SizedBox(height: 4),
-            _buildPhoneRow(),
-            const SizedBox(height: 6),
-
-            // Email
-            _buildFieldLabel('Email *'),
-            const SizedBox(height: 4),
-            _buildInputField(
-              controller: _emailController,
-              keyboardType: TextInputType.emailAddress,
-              validator: _validateEmail,
-            ),
-            const SizedBox(height: 12),
-
-            // ========== LOCATION ==========
-            _buildLocationGrid(),
-            const SizedBox(height: 12),
-
-            // ========== SECURITY ==========
-            _buildSecurityGrid(),
-            const SizedBox(height: 14),
-
-            // Submit button
-            _buildGoldButton(
-              label: _isSubmitting ? null : 'Create Account',
-              isLoading: _isSubmitting,
-              onPressed: _isSubmitting ? null : _onSubmit,
-            ),
-            const SizedBox(height: 16),
-
-            // Login redirect
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  'Already have an account? ',
-                  style: TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 13,
-                    color: Colors.white.withValues(alpha: 0.45),
-                  ),
-                ),
-                GestureDetector(
-                  onTap: () => context.pop(),
-                  child: const Text(
-                    'Sign In',
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFFFF7A00),
-                    ),
-                  ),
-                ),
-              ],
-            ),
           ],
         ),
       ),
     );
   }
 
+  // ─── STEP DISPATCHER ───
+  Widget _buildStepContent() {
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 350),
+      switchInCurve: Curves.easeOutCubic,
+      switchOutCurve: Curves.easeInCubic,
+      transitionBuilder: (child, animation) {
+        return FadeTransition(
+          opacity: animation,
+          child: SlideTransition(
+            position: Tween<Offset>(
+              begin: const Offset(0.05, 0.0),
+              end: Offset.zero,
+            ).animate(animation),
+            child: child,
+          ),
+        );
+      },
+      child: Column(
+        key: ValueKey(_currentStep),
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Step Header
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              if (_currentStep > 0)
+                IconButton(
+                  onPressed: _prevStep,
+                  icon: const Icon(Icons.arrow_back_rounded),
+                  color: AppTheme.accentColor,
+                )
+              else
+                const SizedBox(width: 48),
+              
+              Text(
+                'Step ${_currentStep + 1} of 3',
+                style: const TextStyle(
+                  fontFamily: 'Inter',
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.accentColor,
+                ),
+              ),
+              const SizedBox(width: 48),
+            ],
+          ),
+          const SizedBox(height: 12),
 
-  // ===================== PHONE ROW =====================
+          // Horizontal Segment Progress Bar
+          Row(
+            children: List.generate(3, (index) {
+              final isPassed = index <= _currentStep;
+              return Expanded(
+                child: Container(
+                  height: 4,
+                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                  decoration: BoxDecoration(
+                    color: isPassed ? AppTheme.accentColor : const Color(0xFFEAE8E3),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              );
+            }),
+          ),
+          const SizedBox(height: 24),
+
+          // Render Page fields based on active index
+          _currentStep == 0
+              ? _buildStep0()
+              : _currentStep == 1
+                  ? _buildStep1()
+                  : _buildStep2(),
+        ],
+      ),
+    );
+  }
+
+  // ─── STEP 1: Profile Details ───
+  Widget _buildStep0() {
+    return Form(
+      key: _stepFormKeys[0],
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Text(
+            'Create Account',
+            style: TextStyle(
+              fontFamily: 'Inter',
+              fontSize: 22,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF1A1918),
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 6),
+          Text(
+            _selectedType == 'client'
+                ? 'Register your business on Vocal for Sanatan'
+                : 'Join Vocal for Sanatan to discover local stores',
+            style: const TextStyle(
+              fontFamily: 'Inter',
+              fontSize: 12.5,
+              color: Color(0xFF5F5C58),
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 24),
+
+          AppTextField(
+            controller: _nameController,
+            labelText: _selectedType == 'client' ? 'Owner / Business Name *' : 'Name *',
+            hintText: 'Enter full name',
+            prefixIcon: Icons.person_outline_rounded,
+            validator: _validateName,
+            focusNode: _nameFocus,
+            autofillHints: const [AutofillHints.name],
+            textInputAction: TextInputAction.next,
+          ),
+          const SizedBox(height: 16),
+
+          _buildPhoneFieldLabel(),
+          const SizedBox(height: 6),
+          _buildPhoneRow(),
+          const SizedBox(height: 16),
+
+          AppTextField(
+            controller: _emailController,
+            labelText: 'Email *',
+            hintText: 'Enter your email address',
+            keyboardType: TextInputType.emailAddress,
+            prefixIcon: Icons.mail_outline_rounded,
+            validator: _validateEmail,
+            focusNode: _emailFocus,
+            autofillHints: const [AutofillHints.email],
+            textInputAction: TextInputAction.done,
+            onFieldSubmitted: (_) => _nextStep(),
+          ),
+          const SizedBox(height: 32),
+
+          AppButton(
+            label: 'Continue',
+            onPressed: _nextStep,
+          ),
+          const SizedBox(height: 20),
+
+          _buildSignInLink(),
+        ],
+      ),
+    );
+  }
+
+  // ─── STEP 2: Address Details ───
+  Widget _buildStep1() {
+    return Form(
+      key: _stepFormKeys[1],
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Text(
+            'Location Details',
+            style: TextStyle(
+              fontFamily: 'Inter',
+              fontSize: 22,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF1A1918),
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Select your location to connect with local community events.',
+            style: TextStyle(
+              fontFamily: 'Inter',
+              fontSize: 12.5,
+              color: Color(0xFF5F5C58),
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 24),
+
+          _buildCountryDropdown(),
+          const SizedBox(height: 14),
+
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(child: _buildStateDropdown()),
+              const SizedBox(width: 12),
+              Expanded(child: _buildCityDropdown()),
+            ],
+          ),
+          const SizedBox(height: 14),
+
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                flex: 2,
+                child: AppTextField(
+                  controller: _streetController,
+                  labelText: 'Street *',
+                  hintText: 'Street address',
+                  prefixIcon: Icons.location_on_outlined,
+                  validator: _validateStreet,
+                  focusNode: _streetFocus,
+                  textInputAction: TextInputAction.next,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                flex: 1,
+                child: AppTextField(
+                  controller: _pincodeController,
+                  labelText: 'Pincode *',
+                  hintText: 'Pincode',
+                  keyboardType: TextInputType.number,
+                  validator: _validatePincode,
+                  focusNode: _pincodeFocus,
+                  textInputAction: TextInputAction.done,
+                  onFieldSubmitted: (_) => _nextStep(),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 32),
+
+          AppButton(
+            label: 'Continue',
+            isLoading: _loadingCities,
+            onPressed: _nextStep,
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ─── STEP 3: Security & Credentials ───
+  Widget _buildStep2() {
+    return Form(
+      key: _stepFormKeys[2],
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Text(
+            'Secure Account',
+            style: TextStyle(
+              fontFamily: 'Inter',
+              fontSize: 22,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF1A1918),
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Ensure your password meets core security guidelines.',
+            style: TextStyle(
+              fontFamily: 'Inter',
+              fontSize: 12.5,
+              color: Color(0xFF5F5C58),
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 24),
+
+          AppTextField(
+            controller: _passwordController,
+            labelText: 'Password *',
+            hintText: 'Enter your password',
+            isPassword: true,
+            prefixIcon: Icons.lock_outline_rounded,
+            validator: _validatePassword,
+            focusNode: _passwordFocus,
+            textInputAction: TextInputAction.next,
+          ),
+          const SizedBox(height: 12),
+
+          // Real-time Checklist Feedback
+          _buildPasswordChecklist(),
+          const SizedBox(height: 16),
+
+          AppTextField(
+            controller: _confirmPasswordController,
+            labelText: 'Confirm Password *',
+            hintText: 'Re-enter your password',
+            isPassword: true,
+            prefixIcon: Icons.lock_outline_rounded,
+            validator: _validateConfirmPassword,
+            focusNode: _confirmPasswordFocus,
+            textInputAction: TextInputAction.done,
+            onFieldSubmitted: (_) => _onSubmit(),
+          ),
+          const SizedBox(height: 32),
+
+          AppButton(
+            label: 'Create Account',
+            isLoading: _isSubmitting,
+            onPressed: _onSubmit,
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ===================== HELPER SUB-WIDGETS =====================
+
+  Widget _buildPhoneFieldLabel() {
+    return const Align(
+      alignment: Alignment.centerLeft,
+      child: Text(
+        'Phone *',
+        style: TextStyle(
+          fontFamily: 'Inter',
+          fontSize: 13.5,
+          fontWeight: FontWeight.bold,
+          color: Color(0xFF1A1918),
+        ),
+      ),
+    );
+  }
 
   Widget _buildPhoneRow() {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Phone code selector
-        SizedBox(
-          width: 100,
+        // Phone code dropdown selector
+        Container(
+          width: 104,
+          height: 50,
+          alignment: Alignment.center,
+          padding: const EdgeInsets.only(top: 8.0),
           child: DropdownButtonFormField<String>(
-            initialValue: _selectedPhoneCode,
+            value: _selectedPhoneCode,
             decoration: _compactInputDecoration(''),
-            dropdownColor: const Color(0xFF1A1A1A),
+            dropdownColor: Colors.white,
             style: const TextStyle(
               fontFamily: 'Inter',
-              fontSize: 11,
-              color: Colors.white,
+              fontSize: 13,
+              color: Color(0xFF1A1918),
+              fontWeight: FontWeight.bold,
             ),
             items: _phoneCountries
                 .map(
@@ -574,7 +843,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                     value: pc['code'],
                     child: Text(
                       '${pc['flag']} +${pc['code']}',
-                      style: const TextStyle(fontSize: 11),
+                      style: const TextStyle(fontSize: 13),
                     ),
                   ),
                 )
@@ -585,79 +854,20 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
           ),
         ),
         const SizedBox(width: 8),
-        // Phone number
+        // Phone input textfield
         Expanded(
-          child: _buildInputField(
+          child: AppTextField(
             controller: _phoneController,
+            labelText: 'Phone Number',
+            hintText: 'Number',
             keyboardType: TextInputType.phone,
             validator: _validatePhone,
-            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-            maxLength: _selectedPhoneCode == '91' ? 10 : 15,
+            focusNode: _phoneFocus,
+            autofillHints: const [AutofillHints.telephoneNumber],
+            textInputAction: TextInputAction.next,
           ),
         ),
       ],
-    );
-  }
-
-  // ===================== LOCATION GRID =====================
-
-  Widget _buildLocationGrid() {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final isNarrow = constraints.maxWidth < 450;
-        if (isNarrow) {
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _buildCountryDropdown(),
-              const SizedBox(height: 6),
-              _buildStateDropdown(),
-              const SizedBox(height: 6),
-              _buildCityDropdown(),
-              const SizedBox(height: 6),
-              _buildPincodeField(),
-              const SizedBox(height: 6),
-              _buildFieldLabel('Street *'),
-              const SizedBox(height: 4),
-              _buildInputField(
-                controller: _streetController,
-                validator: _validateStreet,
-              ),
-            ],
-          );
-        }
-        return Column(
-          children: [
-            Row(
-              children: [
-                Expanded(child: _buildCountryDropdown()),
-                const SizedBox(width: 12),
-                Expanded(child: _buildStateDropdown()),
-              ],
-            ),
-            const SizedBox(height: 6),
-            Row(
-              children: [
-                Expanded(child: _buildCityDropdown()),
-                const SizedBox(width: 12),
-                Expanded(child: _buildPincodeField()),
-              ],
-            ),
-            const SizedBox(height: 6),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _buildFieldLabel('Street *'),
-                const SizedBox(height: 4),
-                _buildInputField(
-                  controller: _streetController,
-                  validator: _validateStreet,
-                ),
-              ],
-            ),
-          ],
-        );
-      },
     );
   }
 
@@ -665,18 +875,27 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildFieldLabel('Country *'),
-        const SizedBox(height: 4),
+        const Text(
+          'Country *',
+          style: TextStyle(
+            fontFamily: 'Inter',
+            fontSize: 13.5,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF1A1918),
+          ),
+        ),
+        const SizedBox(height: 6),
         _loadingCountries
-            ? _buildLoadingIndicator()
+            ? _buildCompactLoadingIndicator()
             : DropdownButtonFormField<Country>(
                 value: _selectedCountry,
                 decoration: _compactInputDecoration('Select Country'),
-                dropdownColor: const Color(0xFF1A1A1A),
+                dropdownColor: Colors.white,
                 style: const TextStyle(
                   fontFamily: 'Inter',
-                  fontSize: 11,
-                  color: Colors.white,
+                  fontSize: 13,
+                  color: Color(0xFF1A1918),
+                  fontWeight: FontWeight.bold,
                 ),
                 items: _countries
                     .map(
@@ -691,10 +910,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                     setState(() {
                       _selectedCountry = country;
                       if (country.phoneCode != null) {
-                        _selectedPhoneCode = country.phoneCode!.replaceAll(
-                          '+',
-                          '',
-                        );
+                        _selectedPhoneCode = country.phoneCode!.replaceAll('+', '');
                       }
                     });
                     _loadStates(country.iso2);
@@ -710,18 +926,27 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildFieldLabel('State *'),
-        const SizedBox(height: 4),
+        const Text(
+          'State *',
+          style: TextStyle(
+            fontFamily: 'Inter',
+            fontSize: 13.5,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF1A1918),
+          ),
+        ),
+        const SizedBox(height: 6),
         _loadingStates
-            ? _buildLoadingIndicator()
+            ? _buildCompactLoadingIndicator()
             : DropdownButtonFormField<StateModel>(
                 value: _selectedState,
                 decoration: _compactInputDecoration('Select State'),
-                dropdownColor: const Color(0xFF1A1A1A),
+                dropdownColor: Colors.white,
                 style: const TextStyle(
                   fontFamily: 'Inter',
-                  fontSize: 11,
-                  color: Colors.white,
+                  fontSize: 13,
+                  color: Color(0xFF1A1918),
+                  fontWeight: FontWeight.bold,
                 ),
                 items: _states
                     .map(
@@ -747,18 +972,27 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildFieldLabel('City *'),
-        const SizedBox(height: 4),
+        const Text(
+          'City *',
+          style: TextStyle(
+            fontFamily: 'Inter',
+            fontSize: 13.5,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF1A1918),
+          ),
+        ),
+        const SizedBox(height: 6),
         _loadingCities
-            ? _buildLoadingIndicator()
+            ? _buildCompactLoadingIndicator()
             : DropdownButtonFormField<CityModel>(
                 value: _selectedCity,
                 decoration: _compactInputDecoration('Select City'),
-                dropdownColor: const Color(0xFF1A1A1A),
+                dropdownColor: Colors.white,
                 style: const TextStyle(
                   fontFamily: 'Inter',
-                  fontSize: 11,
-                  color: Colors.white,
+                  fontSize: 13,
+                  color: Color(0xFF1A1918),
+                  fontWeight: FontWeight.bold,
                 ),
                 items: _cities
                     .map(
@@ -777,136 +1011,17 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     );
   }
 
-  Widget _buildPincodeField() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildFieldLabel('Pincode *'),
-        const SizedBox(height: 4),
-        _buildInputField(
-          controller: _pincodeController,
-          validator: _validatePincode,
-          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-        ),
-      ],
-    );
-  }
-
-  // ===================== SECURITY GRID =====================
-
-  Widget _buildSecurityGrid() {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final isNarrow = constraints.maxWidth < 450;
-        final passwordField = Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildFieldLabel('Password *'),
-            const SizedBox(height: 4),
-            _buildPasswordField(
-              controller: _passwordController,
-              show: _showPassword,
-              onToggle: () => setState(() => _showPassword = !_showPassword),
-              validator: _validatePassword,
-            ),
-          ],
-        );
-        final confirmField = Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildFieldLabel('Confirm Password *'),
-            const SizedBox(height: 4),
-            _buildPasswordField(
-              controller: _confirmPasswordController,
-              show: _showConfirmPassword,
-              onToggle: () =>
-                  setState(() => _showConfirmPassword = !_showConfirmPassword),
-              validator: _validateConfirmPassword,
-            ),
-          ],
-        );
-        if (isNarrow) {
-          return Column(
-            children: [passwordField, const SizedBox(height: 6), confirmField],
-          );
-        }
-        return Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(child: passwordField),
-            const SizedBox(width: 12),
-            Expanded(child: confirmField),
-          ],
-        );
-      },
-    );
-  }
-
-  // ===================== SHARED WIDGETS =====================
-
-  Widget _buildFieldLabel(String text) {
-    return Text(
-      text,
-      style: const TextStyle(
-        fontFamily: 'Inter',
-        fontSize: 11,
-        color: Color(0xFFFF7A00),
-      ),
-    );
-  }
-
-  Widget _buildInputField({
-    required TextEditingController controller,
-    TextInputType keyboardType = TextInputType.text,
-    String? Function(String?)? validator,
-    List<TextInputFormatter>? inputFormatters,
-    int? maxLength,
-  }) {
-    return TextFormField(
-      controller: controller,
-      keyboardType: keyboardType,
-      validator: validator,
-      inputFormatters: inputFormatters,
-      maxLength: maxLength,
-      style: const TextStyle(
-        fontFamily: 'Inter',
-        fontSize: 11,
-        color: Colors.white,
-      ),
-      decoration: _compactInputDecoration(''),
-    );
-  }
-
-  Widget _buildPasswordField({
-    required TextEditingController controller,
-    required bool show,
-    required VoidCallback onToggle,
-    String? Function(String?)? validator,
-  }) {
-    return TextFormField(
-      controller: controller,
-      obscureText: !show,
-      validator: validator,
-      style: const TextStyle(
-        fontFamily: 'Inter',
-        fontSize: 11,
-        color: Colors.white,
-      ),
-      decoration: _compactInputDecoration('').copyWith(
-        suffixIcon: GestureDetector(
-          onTap: onToggle,
-          child: Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: Icon(
-              show ? Icons.visibility_off : Icons.visibility,
-              color: const Color(0xFFC9A66B),
-              size: 14,
-            ),
+  Widget _buildCompactLoadingIndicator() {
+    return const SizedBox(
+      height: 48,
+      child: Center(
+        child: SizedBox(
+          height: 16,
+          width: 16,
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            color: AppTheme.accentColor,
           ),
-        ),
-        suffixIconConstraints: const BoxConstraints(
-          minHeight: 34,
-          minWidth: 34,
         ),
       ),
     );
@@ -915,166 +1030,133 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   InputDecoration _compactInputDecoration(String hint) {
     return InputDecoration(
       hintText: hint.isEmpty ? null : hint,
-      hintStyle: TextStyle(
-        fontFamily: 'Inter',
-        fontSize: 11,
-        color: Colors.white.withValues(alpha: 0.3),
-      ),
-      counterText: '',
-      filled: true,
-      fillColor: Colors.white.withValues(alpha: 0.05),
       isDense: true,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.12)),
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.12)),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(color: Color(0xFFFF7A00)),
-      ),
-      errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(color: Color(0xFFFF4D4F)),
-      ),
-      focusedErrorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(color: Color(0xFFFF4D4F), width: 2),
-      ),
-      errorStyle: const TextStyle(
-        fontFamily: 'Inter',
-        fontSize: 11,
-        color: Color(0xFFFF4D4F),
-      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
     );
   }
 
-  Widget _buildLoadingIndicator() {
-    return const SizedBox(
-      height: 34,
-      child: Center(
-        child: SizedBox(
-          height: 16,
-          width: 16,
-          child: CircularProgressIndicator(
-            strokeWidth: 2,
-            color: Color(0xFFFF7A00),
-          ),
-        ),
-      ),
-    );
-  }
+  Widget _buildPasswordChecklist() {
+    final text = _passwordController.text;
+    final hasMin8 = text.length >= 8;
+    final hasUpper = text.contains(RegExp(r'[A-Z]'));
+    final hasLower = text.contains(RegExp(r'[a-z]'));
+    final hasDigit = text.contains(RegExp(r'[0-9]'));
+    final hasSpecial = text.contains(RegExp(r'[\W_]'));
 
-  Widget _buildGoldButton({
-    String? label,
-    bool isLoading = false,
-    VoidCallback? onPressed,
-  }) {
     return Container(
-      height: 44,
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(10),
-        gradient: const LinearGradient(
-          colors: [Color(0xFFFF7A00), Color(0xFFFF9E40)],
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFFFF7A00).withValues(alpha: 0.4),
-            blurRadius: 20,
-            offset: const Offset(0, 6),
+        color: AppTheme.surfaceColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppTheme.borderColor),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Password requirements:',
+            style: TextStyle(
+              fontSize: 11.5,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF1A1918),
+            ),
           ),
+          const SizedBox(height: 8),
+          _buildChecklistItem('Minimum 8 characters', hasMin8),
+          const SizedBox(height: 4),
+          _buildChecklistItem('At least one uppercase letter (A-Z)', hasUpper),
+          const SizedBox(height: 4),
+          _buildChecklistItem('At least one lowercase letter (a-z)', hasLower),
+          const SizedBox(height: 4),
+          _buildChecklistItem('At least one number (0-9)', hasDigit),
+          const SizedBox(height: 4),
+          _buildChecklistItem('At least one special character (@, #, \$, %)', hasSpecial),
         ],
       ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onPressed,
-          borderRadius: BorderRadius.circular(10),
-          child: Center(
-            child: isLoading
-                ? const SizedBox(
-                    height: 18,
-                    width: 18,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colors.black,
-                    ),
-                  )
-                : Text(
-                    label ?? '',
-                    style: const TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.black,
-                    ),
-                  ),
-          ),
-        ),
-      ),
     );
   }
 
-  // ===================== SUCCESS POPUP =====================
-
-  Widget _buildSuccessPopup() {
-    return Container(
-      color: Colors.black.withValues(alpha: 0.7),
-      child: Center(
-        child: Container(
-          padding: const EdgeInsets.all(32),
-          margin: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: const Color(0xFF1A1A1A),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: const Color(0xFFFF7A00).withValues(alpha: 0.3),
+  Widget _buildChecklistItem(String title, bool isCompleted) {
+    return Row(
+      children: [
+        Icon(
+          isCompleted ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+          color: isCompleted ? AppTheme.tricolorGreen : AppTheme.mutedTextColor,
+          size: 14,
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            title,
+            style: TextStyle(
+              fontSize: 11,
+              color: isCompleted ? const Color(0xFF1A1918) : const Color(0xFF5F5C58),
+              fontWeight: isCompleted ? FontWeight.bold : FontWeight.normal,
             ),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFFFF7A00).withValues(alpha: 0.2),
-                blurRadius: 30,
-              ),
-            ],
-          ),
-          child: const Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              SizedBox(
-                height: 40,
-                width: 40,
-                child: CircularProgressIndicator(
-                  color: Color(0xFFFF7A00),
-                  strokeWidth: 3,
-                ),
-              ),
-              SizedBox(height: 20),
-              Text(
-                'Account Created!',
-                style: TextStyle(
-                  fontFamily: 'Inter',
-                  fontSize: 20,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFFF8F4F0),
-                ),
-              ),
-              SizedBox(height: 8),
-              Text(
-                'Redirecting to login...',
-                style: TextStyle(
-                  fontFamily: 'Inter',
-                  fontSize: 14,
-                  color: Color(0xFFAAAAAA),
-                ),
-              ),
-            ],
           ),
         ),
-      ),
+      ],
     );
   }
+
+  Widget _buildSignInLink() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        const Text(
+          'Already have an account? ',
+          style: TextStyle(
+            fontFamily: 'Inter',
+            fontSize: 13.5,
+            color: Color(0xFF5F5C58),
+          ),
+        ),
+        GestureDetector(
+          onTap: () => context.pop(),
+          child: const Text(
+            'Sign In',
+            style: TextStyle(
+              fontFamily: 'Inter',
+              fontSize: 13.5,
+              fontWeight: FontWeight.bold,
+              color: AppTheme.accentColor,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+
+}
+
+
+
+// Visual Ambient Gradient Glows Painter
+class _SignupGlowPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Rect.fromLTWH(0, 0, size.width, size.height);
+
+    final p1 = Paint()
+      ..shader = RadialGradient(
+        colors: [
+          const Color(0xFFFF9E4F).withOpacity(0.06),
+          Colors.transparent,
+        ],
+      ).createShader(Rect.fromCircle(center: Offset.zero, radius: size.width * 0.9));
+    canvas.drawRect(rect, p1);
+
+    final p2 = Paint()
+      ..shader = RadialGradient(
+        colors: [
+          const Color(0xFFFF6600).withOpacity(0.04),
+          Colors.transparent,
+        ],
+      ).createShader(Rect.fromCircle(center: Offset(size.width, size.height), radius: size.width * 0.9));
+    canvas.drawRect(rect, p2);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
