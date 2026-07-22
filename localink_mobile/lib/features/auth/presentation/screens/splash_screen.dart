@@ -6,24 +6,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/auth_state.dart';
-import '../../../../core/theme/app_theme.dart';
 
 // ─── DESIGN TOKENS ────────────────────────────────────────────────────────────
 // All values aligned to the 4dp grid from DESIGN_SYSTEM.md
 class _SplashTokens {
   static const Color primaryOrange = Color(0xFFFF6600);
-  static const Color softSaffron = Color(0xFFFF9E4F);
   static const Color white = Color(0xFFFFFFFF);
   static const Color charcoal = Color(0xFF1A1918);
   static const Color mutedText = Color(0xFF9F9B96);
   static const Color borderSubtle = Color(0xFFEAE8E3);
 
   // Animation durations
-  static const Duration dInstant = Duration(milliseconds: 0);
-  static const Duration dShort = Duration(milliseconds: 150);
-  static const Duration dMedium = Duration(milliseconds: 250);
-  static const Duration dLong = Duration(milliseconds: 400);
-  static const Duration dEntrance = Duration(milliseconds: 900);
   static const Duration dPulse = Duration(milliseconds: 2400);
   static const Duration dFloat = Duration(milliseconds: 3000);
 }

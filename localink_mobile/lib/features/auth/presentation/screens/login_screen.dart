@@ -8,11 +8,14 @@ import '../../providers/auth_state.dart';
 import '../../../shared/presentation/widgets/app_text_field.dart';
 import '../../../shared/presentation/widgets/app_button.dart';
 import '../../../shared/presentation/widgets/shake_widget.dart';
+import '../../../shared/presentation/widgets/app_back_button.dart';
+import '../../../shared/presentation/widgets/animated_field_glow.dart';
+import '../../../shared/presentation/widgets/app_background.dart';
+import '../../../shared/presentation/widgets/brand_icon_badge.dart';
 import '../../../../core/theme/app_theme.dart';
 
 // ─── DESIGN TOKENS (aligned to DESIGN_SYSTEM.md) ─────────────────────────────
 class _Tok {
-  // Colors
   static const Color primary  = Color(0xFFFF6600);
   static const Color white    = Color(0xFFFFFFFF);
   static const Color charcoal = Color(0xFF1A1918);
@@ -20,7 +23,7 @@ class _Tok {
   static const Color surface  = Color(0xFFF9F8F6);
   static const Color border   = Color(0xFFEAE8E3);
 
-  // Spacing (4dp grid)
+  // Spacing
   static const double xs  = 4;
   static const double sm  = 8;
   static const double md  = 12;
@@ -29,11 +32,9 @@ class _Tok {
   static const double xxl = 32;
 
   // Radii
-  static const double rMd    = 12;
   static const double rRound = 999;
 }
 
-// ─── LOGIN SCREEN ─────────────────────────────────────────────────────────────
 class LoginScreen extends ConsumerStatefulWidget {
   final String? selectedRole;
 
@@ -45,7 +46,6 @@ class LoginScreen extends ConsumerStatefulWidget {
 
 class _LoginScreenState extends ConsumerState<LoginScreen>
     with TickerProviderStateMixin {
-  // ── Keys & Controllers ────────────────────────────────────────────────────
   final _formKey   = GlobalKey<FormState>();
   final _shakeKey  = GlobalKey<ShakeWidgetState>();
 
@@ -55,7 +55,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   final FocusNode _emailFocus    = FocusNode();
   final FocusNode _passwordFocus = FocusNode();
 
-  // ── Animation controllers ─────────────────────────────────────────────────
+  // Animation controllers
   late final AnimationController _entranceCtrl;
   late final AnimationController _logoFloatCtrl;
 
@@ -66,7 +66,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   late final Animation<double>  _ctaFade;
   late final Animation<double>  _logoFloat;
 
-  // ── State ─────────────────────────────────────────────────────────────────
   bool _emailFocused    = false;
   bool _passwordFocused = false;
 
@@ -78,7 +77,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   }
 
   void _initAnimations() {
-    // Staggered entrance
     _entranceCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 900),
@@ -123,7 +121,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
       ),
     );
 
-    // Logo gentle float loop
     _logoFloatCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 3200),
@@ -231,76 +228,61 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     return Scaffold(
       backgroundColor: _Tok.white,
       resizeToAvoidBottomInset: true,
-      body: Stack(
-        children: [
-          // ── Background ───────────────────────────────────────────────────
-          Positioned.fill(
-            child: CustomPaint(painter: _LoginBgPainter()),
-          ),
-
-          // ── Main content ─────────────────────────────────────────────────
-          SafeArea(
-            child: Center(
-              child: SingleChildScrollView(
-                physics: const BouncingScrollPhysics(),
-                padding: EdgeInsets.fromLTRB(
-                  hPad,
-                  _Tok.xxl,
-                  hPad,
-                  math.max(bottomPad + _Tok.xl, _Tok.xxl),
-                ),
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 480),
-                  child: ShakeWidget(
-                    key: _shakeKey,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        // ── Logo + Header ────────────────────────────────
-                        _buildHeader(),
-
-                        const SizedBox(height: _Tok.xxl),
-
-                        // ── Role badge ───────────────────────────────────
-                        _buildRoleBadge(),
-
-                        const SizedBox(height: _Tok.xxl),
-
-                        // ── Form fields ──────────────────────────────────
-                        _buildForm(isLoading),
-
-                        const SizedBox(height: _Tok.xl),
-
-                        // ── CTAs ─────────────────────────────────────────
-                        _buildCTAs(isLoading),
-
-                        SizedBox(height: _Tok.xl),
-                      ],
+      body: AppBackground(
+        showCenterWarmth: true,
+        child: Stack(
+          children: [
+            SafeArea(
+              child: Center(
+                child: SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  padding: EdgeInsets.fromLTRB(
+                    hPad,
+                    _Tok.xxl,
+                    hPad,
+                    math.max(bottomPad + _Tok.xl, _Tok.xxl),
+                  ),
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 480),
+                    child: ShakeWidget(
+                      key: _shakeKey,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          _buildHeader(),
+                          const SizedBox(height: _Tok.xxl),
+                          _buildRoleBadge(),
+                          const SizedBox(height: _Tok.xxl),
+                          _buildForm(isLoading),
+                          const SizedBox(height: _Tok.xl),
+                          _buildCTAs(isLoading),
+                          const SizedBox(height: _Tok.xl),
+                        ],
+                      ),
                     ),
                   ),
                 ),
               ),
             ),
-          ),
 
-          // ── Back button ──────────────────────────────────────────────────
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.only(left: _Tok.sm, top: _Tok.sm),
-              child: Semantics(
-                button: true,
-                label: 'Go back to role selection',
-                child: _BackButton(onPressed: () => context.go('/welcome')),
+            // Back button
+            SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.only(left: _Tok.sm, top: _Tok.sm),
+                child: Semantics(
+                  button: true,
+                  label: 'Go back to role selection',
+                  child: AppBackButton(onPressed: () => context.go('/welcome')),
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
-  // ── Logo + Header section ─────────────────────────────────────────────────
   Widget _buildHeader() {
     return AnimatedBuilder(
       animation: _entranceCtrl,
@@ -311,20 +293,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Floating logo
           AnimatedBuilder(
             animation: _logoFloat,
             builder: (_, child) => Transform.translate(
               offset: Offset(0, _logoFloat.value),
               child: child,
             ),
-            child: _LogoBadge(),
+            child: const BrandIconBadge(text: 'ॐ', size: 80),
           ),
-
           const SizedBox(height: _Tok.xl),
-
-          // Title
-          Text(
+          const Text(
             'Welcome Back',
             style: TextStyle(
               fontFamily: 'Inter',
@@ -336,13 +314,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
             ),
             textAlign: TextAlign.center,
           ),
-
           const SizedBox(height: _Tok.sm),
-
-          // Subtitle
           Text(
             _roleStatement,
-            style: TextStyle(
+            style: const TextStyle(
               fontFamily: 'Inter',
               fontSize: 14,
               color: _Tok.medText,
@@ -355,7 +330,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     );
   }
 
-  // ── Role badge ────────────────────────────────────────────────────────────
   Widget _buildRoleBadge() {
     final role = widget.selectedRole?.toLowerCase().trim();
     if (role == null) return const SizedBox.shrink();
@@ -396,7 +370,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
               const SizedBox(width: _Tok.xs),
               Text(
                 label,
-                style: TextStyle(
+                style: const TextStyle(
                   fontFamily: 'Inter',
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
@@ -411,7 +385,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     );
   }
 
-  // ── Form ──────────────────────────────────────────────────────────────────
   Widget _buildForm(bool isLoading) {
     return AnimatedBuilder(
       animation: _entranceCtrl,
@@ -424,8 +397,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // ── Email field ─────────────────────────────────────────────
-            _AnimatedFieldContainer(
+            AnimatedFieldGlow(
               isFocused: _emailFocused,
               child: AppTextField(
                 controller: _emailController,
@@ -442,11 +414,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                 },
               ),
             ),
-
             const SizedBox(height: _Tok.lg),
-
-            // ── Password field ──────────────────────────────────────────
-            _AnimatedFieldContainer(
+            AnimatedFieldGlow(
               isFocused: _passwordFocused,
               child: AppTextField(
                 controller: _passwordController,
@@ -461,10 +430,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                 onFieldSubmitted: (_) => isLoading ? null : _login(),
               ),
             ),
-
             const SizedBox(height: _Tok.sm),
-
-            // ── Forgot password ─────────────────────────────────────────
             Align(
               alignment: Alignment.centerRight,
               child: Semantics(
@@ -481,7 +447,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                     ),
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
-                  child: Text(
+                  child: const Text(
                     'Forgot Password?',
                     style: TextStyle(
                       fontFamily: 'Inter',
@@ -499,7 +465,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     );
   }
 
-  // ── CTAs ──────────────────────────────────────────────────────────────────
   Widget _buildCTAs(bool isLoading) {
     return AnimatedBuilder(
       animation: _entranceCtrl,
@@ -510,7 +475,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Primary login button
           Semantics(
             button: true,
             label: widget.selectedRole == 'admin'
@@ -524,10 +488,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
               onPressed: isLoading ? null : _login,
             ),
           ),
-
           const SizedBox(height: _Tok.lg),
-
-          // Biometric placeholder
           Semantics(
             button: true,
             label: 'Biometric fingerprint login placeholder',
@@ -557,7 +518,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(
+                    const Icon(
                       Icons.fingerprint_rounded,
                       size: 22,
                       color: _Tok.primary,
@@ -577,15 +538,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
               ),
             ),
           ),
-
           const SizedBox(height: _Tok.xl),
-
-          // Sign-up link (hidden for admin)
           if (widget.selectedRole?.toLowerCase().trim() != 'admin')
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text(
+                const Text(
                   "Don't have an account?  ",
                   style: TextStyle(
                     fontFamily: 'Inter',
@@ -598,7 +556,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                     '/signup',
                     extra: widget.selectedRole,
                   ),
-                  child: Text(
+                  child: const Text(
                     'Create Account',
                     style: TextStyle(
                       fontFamily: 'Inter',
@@ -615,221 +573,3 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     );
   }
 }
-
-// ─── LOGO BADGE ───────────────────────────────────────────────────────────────
-class _LogoBadge extends StatelessWidget {
-  const _LogoBadge();
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Hero(
-        tag: 'app_logo',
-        child: Material(
-          type: MaterialType.transparency,
-          child: Container(
-            width: 80,
-            height: 80,
-            padding: const EdgeInsets.all(3.5),
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: AppTheme.primarySolarGradient,
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFFFF6600).withValues(alpha: 0.28),
-                  blurRadius: 24,
-                  offset: const Offset(0, 8),
-                ),
-                BoxShadow(
-                  color: const Color(0xFFFF9E4F).withValues(alpha: 0.14),
-                  blurRadius: 40,
-                  offset: const Offset(0, 12),
-                ),
-              ],
-            ),
-            child: Container(
-              decoration: const BoxDecoration(
-                color: Color(0xFFFFFFFF),
-                shape: BoxShape.circle,
-              ),
-              child: const Center(
-                child: Text(
-                  'ॐ',
-                  style: TextStyle(
-                    color: Color(0xFFFF6600),
-                    fontSize: 32,
-                    fontWeight: FontWeight.bold,
-                    height: 1.0,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ─── ANIMATED FIELD CONTAINER ─────────────────────────────────────────────────
-// Adds a subtle animated left-border accent when the field is focused
-class _AnimatedFieldContainer extends StatelessWidget {
-  final bool isFocused;
-  final Widget child;
-
-  const _AnimatedFieldContainer({
-    required this.isFocused,
-    required this.child,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
-      curve: Curves.easeOutCubic,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(_Tok.rMd),
-        boxShadow: isFocused
-            ? [
-                BoxShadow(
-                  color: const Color(0xFFFF6600).withValues(alpha: 0.12),
-                  blurRadius: 16,
-                  offset: const Offset(0, 4),
-                ),
-              ]
-            : [],
-      ),
-      child: child,
-    );
-  }
-}
-
-// ─── BACK BUTTON ──────────────────────────────────────────────────────────────
-class _BackButton extends StatefulWidget {
-  final VoidCallback onPressed;
-
-  const _BackButton({required this.onPressed});
-
-  @override
-  State<_BackButton> createState() => _BackButtonState();
-}
-
-class _BackButtonState extends State<_BackButton>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _ctrl;
-  late final Animation<double>   _scale;
-
-  @override
-  void initState() {
-    super.initState();
-    _ctrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 100),
-    );
-    _scale = Tween<double>(begin: 1.0, end: 0.88).animate(
-      CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut),
-    );
-  }
-
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTapDown: (_) => _ctrl.forward(),
-      onTapUp: (_) {
-        _ctrl.reverse();
-        widget.onPressed();
-      },
-      onTapCancel: () => _ctrl.reverse(),
-      child: AnimatedBuilder(
-        animation: _scale,
-        builder: (_, child) => Transform.scale(scale: _scale.value, child: child),
-        child: Container(
-          width: 40,
-          height: 40,
-          decoration: BoxDecoration(
-            color: _Tok.surface,
-            borderRadius: BorderRadius.circular(_Tok.rMd),
-            border: Border.all(color: _Tok.border),
-          ),
-          child: const Icon(
-            Icons.arrow_back_ios_new_rounded,
-            size: 16,
-            color: _Tok.charcoal,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ─── BACKGROUND PAINTER ───────────────────────────────────────────────────────
-class _LoginBgPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final rect = Rect.fromLTWH(0, 0, size.width, size.height);
-
-    // White base
-    canvas.drawRect(rect, Paint()..color = const Color(0xFFFFFFFF));
-
-    // Top-right saffron bloom
-    canvas.drawRect(
-      rect,
-      Paint()
-        ..shader = RadialGradient(
-          colors: [
-            const Color(0xFFFF9E4F).withValues(alpha: 0.055),
-            Colors.transparent,
-          ],
-        ).createShader(
-          Rect.fromCircle(
-            center: Offset(size.width, 0),
-            radius: size.width * 0.9,
-          ),
-        ),
-    );
-
-    // Bottom-left orange bloom
-    canvas.drawRect(
-      rect,
-      Paint()
-        ..shader = RadialGradient(
-          colors: [
-            const Color(0xFFFF6600).withValues(alpha: 0.038),
-            Colors.transparent,
-          ],
-        ).createShader(
-          Rect.fromCircle(
-            center: Offset(0, size.height),
-            radius: size.width * 0.85,
-          ),
-        ),
-    );
-
-    // Center subtle warmth
-    canvas.drawRect(
-      rect,
-      Paint()
-        ..shader = RadialGradient(
-          colors: [
-            const Color(0xFFFF9E4F).withValues(alpha: 0.022),
-            Colors.transparent,
-          ],
-        ).createShader(
-          Rect.fromCircle(
-            center: Offset(size.width / 2, size.height * 0.38),
-            radius: size.width * 0.55,
-          ),
-        ),
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter old) => false;
-}
-

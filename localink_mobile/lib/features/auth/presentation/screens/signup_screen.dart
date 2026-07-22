@@ -14,6 +14,9 @@ import '../../../shared/presentation/widgets/app_button.dart';
 import '../../../shared/presentation/widgets/shake_widget.dart';
 import '../../../shared/presentation/widgets/app_card.dart';
 import '../../../shared/presentation/widgets/app_dialog.dart';
+import '../../../shared/presentation/widgets/app_back_button.dart';
+import '../../../shared/presentation/widgets/animated_field_glow.dart';
+import '../../../shared/presentation/widgets/app_background.dart';
 import '../../../../core/theme/app_theme.dart';
 
 // ─── DESIGN TOKENS (aligned to DESIGN_SYSTEM.md) ─────────────────────────────
@@ -448,14 +451,11 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
       },
       child: Scaffold(
         backgroundColor: _Tok.white,
-        body: Stack(
-          children: [
-            // Background
-            Positioned.fill(
-              child: CustomPaint(
-                painter: _SignupBgPainter(),
-              ),
-            ),
+        body: AppBackground(
+          child: Stack(
+            children: [
+              // Ambient Radial Background Glows
+              // (glow background handled by AppBackground)
 
             SafeArea(
               child: Row(
@@ -526,7 +526,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
             SafeArea(
               child: Padding(
                 padding: const EdgeInsets.only(left: 12, top: 12),
-                child: _BackButton(
+                child: AppBackButton(
                   onPressed: () {
                     if (_currentStep > 0) {
                       _prevStep();
@@ -540,8 +540,9 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   // ─── STEP DISPATCHER ───
   Widget _buildStepContent() {
@@ -653,7 +654,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
           ),
           const SizedBox(height: 28),
 
-          _AnimatedFieldGlow(
+          AnimatedFieldGlow(
             isFocused: _activeFocusField == 'name',
             child: AppTextField(
               controller: _nameController,
@@ -673,7 +674,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
           _buildPhoneRow(),
           const SizedBox(height: 16),
 
-          _AnimatedFieldGlow(
+          AnimatedFieldGlow(
             isFocused: _activeFocusField == 'email',
             child: AppTextField(
               controller: _emailController,
@@ -751,7 +752,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
             children: [
               Expanded(
                 flex: 2,
-                child: _AnimatedFieldGlow(
+                child: AnimatedFieldGlow(
                   isFocused: _activeFocusField == 'street',
                   child: AppTextField(
                     controller: _streetController,
@@ -767,7 +768,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
               const SizedBox(width: 12),
               Expanded(
                 flex: 1,
-                child: _AnimatedFieldGlow(
+                child: AnimatedFieldGlow(
                   isFocused: _activeFocusField == 'pincode',
                   child: AppTextField(
                     controller: _pincodeController,
@@ -826,7 +827,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
           ),
           const SizedBox(height: 28),
 
-          _AnimatedFieldGlow(
+          AnimatedFieldGlow(
             isFocused: _activeFocusField == 'password',
             child: AppTextField(
               controller: _passwordController,
@@ -845,7 +846,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
           _buildPasswordChecklist(),
           const SizedBox(height: 16),
 
-          _AnimatedFieldGlow(
+          AnimatedFieldGlow(
             isFocused: _activeFocusField == 'confirmPassword',
             child: AppTextField(
               controller: _confirmPasswordController,
@@ -893,7 +894,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // Phone code dropdown selector
-        _AnimatedFieldGlow(
+        AnimatedFieldGlow(
           isFocused: _activeFocusField == 'phone_code',
           child: Container(
             width: 108,
@@ -941,7 +942,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
         const SizedBox(width: 12),
         // Phone input textfield
         Expanded(
-          child: _AnimatedFieldGlow(
+          child: AnimatedFieldGlow(
             isFocused: _activeFocusField == 'phone',
             child: AppTextField(
               controller: _phoneController,
@@ -975,7 +976,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
         const SizedBox(height: 6),
         _loadingCountries
             ? _buildCompactLoadingIndicator()
-            : _AnimatedFieldGlow(
+            : AnimatedFieldGlow(
                 isFocused: _activeFocusField == 'country',
                 child: Container(
                   height: 52,
@@ -1044,7 +1045,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
         const SizedBox(height: 6),
         _loadingStates
             ? _buildCompactLoadingIndicator()
-            : _AnimatedFieldGlow(
+            : AnimatedFieldGlow(
                 isFocused: _activeFocusField == 'state',
                 child: Container(
                   height: 52,
@@ -1108,7 +1109,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
         const SizedBox(height: 6),
         _loadingCities
             ? _buildCompactLoadingIndicator()
-            : _AnimatedFieldGlow(
+            : AnimatedFieldGlow(
                 isFocused: _activeFocusField == 'city',
                 child: Container(
                   height: 52,
@@ -1269,146 +1270,4 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   }
 }
 
-// ─── ANIMATED FIELD GLOW ─────────────────────────────────────────────────────
-class _AnimatedFieldGlow extends StatelessWidget {
-  final bool isFocused;
-  final Widget child;
 
-  const _AnimatedFieldGlow({
-    required this.isFocused,
-    required this.child,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
-      curve: Curves.easeOutCubic,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(_Tok.rMd),
-        boxShadow: isFocused
-            ? [
-                BoxShadow(
-                  color: _Tok.primary.withValues(alpha: 0.12),
-                  blurRadius: 16,
-                  offset: const Offset(0, 4),
-                ),
-              ]
-            : [],
-      ),
-      child: child,
-    );
-  }
-}
-
-// ─── BACK BUTTON ──────────────────────────────────────────────────────────────
-class _BackButton extends StatefulWidget {
-  final VoidCallback onPressed;
-
-  const _BackButton({required this.onPressed});
-
-  @override
-  State<_BackButton> createState() => _BackButtonState();
-}
-
-class _BackButtonState extends State<_BackButton>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _ctrl;
-  late final Animation<double>   _scale;
-
-  @override
-  void initState() {
-    super.initState();
-    _ctrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 100),
-    );
-    _scale = Tween<double>(begin: 1.0, end: 0.88).animate(
-      CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut),
-    );
-  }
-
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTapDown: (_) => _ctrl.forward(),
-      onTapUp: (_) {
-        _ctrl.reverse();
-        widget.onPressed();
-      },
-      onTapCancel: () => _ctrl.reverse(),
-      child: AnimatedBuilder(
-        animation: _scale,
-        builder: (_, child) => Transform.scale(scale: _scale.value, child: child),
-        child: Container(
-          width: 40,
-          height: 40,
-          decoration: BoxDecoration(
-            color: _Tok.surface,
-            borderRadius: BorderRadius.circular(_Tok.rMd),
-            border: Border.all(color: _Tok.border),
-          ),
-          child: const Icon(
-            Icons.arrow_back_ios_new_rounded,
-            size: 16,
-            color: _Tok.charcoal,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ─── BACKGROUND PAINTER ───────────────────────────────────────────────────────
-class _SignupBgPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final rect = Rect.fromLTWH(0, 0, size.width, size.height);
-
-    // White base
-    canvas.drawRect(rect, Paint()..color = const Color(0xFFFFFFFF));
-
-    // Top-right saffron bloom
-    canvas.drawRect(
-      rect,
-      Paint()
-        ..shader = RadialGradient(
-          colors: [
-            const Color(0xFFFF9E4F).withValues(alpha: 0.055),
-            Colors.transparent,
-          ],
-        ).createShader(
-          Rect.fromCircle(
-            center: Offset(size.width, 0),
-            radius: size.width * 0.9,
-          ),
-        ),
-    );
-
-    // Bottom-left orange bloom
-    canvas.drawRect(
-      rect,
-      Paint()
-        ..shader = RadialGradient(
-          colors: [
-            const Color(0xFFFF6600).withValues(alpha: 0.038),
-            Colors.transparent,
-          ],
-        ).createShader(
-          Rect.fromCircle(
-            center: Offset(0, size.height),
-            radius: size.width * 0.85,
-          ),
-        ),
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter old) => false;
-}

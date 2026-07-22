@@ -9,11 +9,14 @@ import '../../../shared/presentation/widgets/app_button.dart';
 import '../../../shared/presentation/widgets/shake_widget.dart';
 import '../../../shared/presentation/widgets/app_card.dart';
 import '../../../shared/presentation/widgets/app_dialog.dart';
+import '../../../shared/presentation/widgets/app_back_button.dart';
+import '../../../shared/presentation/widgets/animated_field_glow.dart';
+import '../../../shared/presentation/widgets/app_background.dart';
+import '../../../shared/presentation/widgets/brand_icon_badge.dart';
 import '../../../../core/theme/app_theme.dart';
 
 // ─── DESIGN TOKENS (aligned to DESIGN_SYSTEM.md) ─────────────────────────────
 class _Tok {
-  static const Color primary  = Color(0xFFFF6600);
   static const Color white    = Color(0xFFFFFFFF);
   static const Color charcoal = Color(0xFF1A1918);
   static const Color medText  = Color(0xFF5F5C58);
@@ -234,173 +237,171 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen>
 
     return Scaffold(
       backgroundColor: _Tok.white,
-      body: Stack(
-        children: [
-          // Background visual radial paint
-          Positioned.fill(
-            child: CustomPaint(
-              painter: _ResetGlowPainter(),
-            ),
-          ),
-
-          SafeArea(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Top header back navigation button
-                Padding(
-                  padding: const EdgeInsets.only(left: 12, top: 12),
-                  child: Semantics(
-                    button: true,
-                    label: 'Go back',
-                    child: _BackButton(onPressed: () => context.pop()),
+      body: AppBackground(
+        child: Stack(
+          children: [
+            SafeArea(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Top header back navigation button
+                  Padding(
+                    padding: const EdgeInsets.only(left: 12, top: 12),
+                    child: Semantics(
+                      button: true,
+                      label: 'Go back',
+                      child: AppBackButton(onPressed: () => context.pop()),
+                    ),
                   ),
-                ),
-                
-                Expanded(
-                  child: Center(
-                    child: SingleChildScrollView(
-                      physics: const BouncingScrollPhysics(),
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                      child: ShakeWidget(
-                        key: _shakeKey,
-                        child: Center(
-                          child: AppCard(
-                            maxWidth: 440,
-                            padding: isMobile ? const EdgeInsets.all(24) : const EdgeInsets.all(40),
-                            child: Form(
-                              key: _formKey,
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: [
-                                  // Reset Icon Emblem
-                                  AnimatedBuilder(
-                                    animation: _entranceCtrl,
-                                    builder: (_, child) => Opacity(
-                                      opacity: _headerFade.value,
-                                      child: Transform.scale(
-                                        scale: _headerFade.value,
-                                        child: child,
+                  
+                  Expanded(
+                    child: Center(
+                      child: SingleChildScrollView(
+                        physics: const BouncingScrollPhysics(),
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                        child: ShakeWidget(
+                          key: _shakeKey,
+                          child: Center(
+                            child: AppCard(
+                              maxWidth: 440,
+                              padding: isMobile ? const EdgeInsets.all(24) : const EdgeInsets.all(40),
+                              child: Form(
+                                key: _formKey,
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                                  children: [
+                                    // Reset Icon Emblem
+                                    AnimatedBuilder(
+                                      animation: _entranceCtrl,
+                                      builder: (_, child) => Opacity(
+                                        opacity: _headerFade.value,
+                                        child: Transform.scale(
+                                          scale: _headerFade.value,
+                                          child: child,
+                                        ),
+                                      ),
+                                      child: AnimatedBuilder(
+                                        animation: _iconFloat,
+                                        builder: (_, child) => Transform.translate(
+                                          offset: Offset(0, _iconFloat.value),
+                                          child: child,
+                                        ),
+                                        child: const BrandIconBadge(
+                                          icon: Icons.lock_open_rounded,
+                                          size: 72,
+                                        ),
                                       ),
                                     ),
-                                    child: AnimatedBuilder(
-                                      animation: _iconFloat,
-                                      builder: (_, child) => Transform.translate(
-                                        offset: Offset(0, _iconFloat.value),
-                                        child: child,
-                                      ),
-                                      child: _IconBadge(),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 24),
+                                    const SizedBox(height: 24),
 
-                                  // Heading Title
-                                  AnimatedBuilder(
-                                    animation: _entranceCtrl,
-                                    builder: (_, child) => FadeTransition(
-                                      opacity: _headerFade,
-                                      child: SlideTransition(
-                                        position: _headerSlide,
-                                        child: child,
-                                      ),
-                                    ),
-                                    child: Column(
-                                      children: [
-                                        const Text(
-                                          'Reset Password',
-                                          style: TextStyle(
-                                            fontFamily: 'Inter',
-                                            fontSize: 24,
-                                            fontWeight: FontWeight.w800,
-                                            color: _Tok.charcoal,
-                                            letterSpacing: -0.5,
-                                          ),
-                                          textAlign: TextAlign.center,
+                                    // Heading Title
+                                    AnimatedBuilder(
+                                      animation: _entranceCtrl,
+                                      builder: (_, child) => FadeTransition(
+                                        opacity: _headerFade,
+                                        child: SlideTransition(
+                                          position: _headerSlide,
+                                          child: child,
                                         ),
-                                        const SizedBox(height: 8),
-
-                                        // Reassuring explanation
-                                        Text(
-                                          'Create a strong, secure new password for your account:\n${widget.email}',
-                                          style: const TextStyle(
-                                            fontFamily: 'Inter',
-                                            fontSize: 13.5,
-                                            height: 1.45,
-                                            color: _Tok.medText,
+                                      ),
+                                      child: Column(
+                                        children: [
+                                          const Text(
+                                            'Reset Password',
+                                            style: TextStyle(
+                                              fontFamily: 'Inter',
+                                              fontSize: 24,
+                                              fontWeight: FontWeight.w800,
+                                              color: _Tok.charcoal,
+                                              letterSpacing: -0.5,
+                                            ),
+                                            textAlign: TextAlign.center,
                                           ),
-                                          textAlign: TextAlign.center,
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  const SizedBox(height: 32),
+                                          const SizedBox(height: 8),
 
-                                  // Form Container
-                                  AnimatedBuilder(
-                                    animation: _entranceCtrl,
-                                    builder: (_, child) => FadeTransition(
-                                      opacity: _formFade,
-                                      child: SlideTransition(
-                                        position: _formSlide,
-                                        child: child,
+                                          // Reassuring explanation
+                                          Text(
+                                            'Create a strong, secure new password for your account:\n${widget.email}',
+                                            style: const TextStyle(
+                                              fontFamily: 'Inter',
+                                              fontSize: 13.5,
+                                              height: 1.45,
+                                              color: _Tok.medText,
+                                            ),
+                                            textAlign: TextAlign.center,
+                                          ),
+                                        ],
                                       ),
                                     ),
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                                      children: [
-                                        // New Password Input field
-                                        _AnimatedFieldGlow(
-                                          isFocused: _passwordFocused,
-                                          child: AppTextField(
-                                            controller: _passwordController,
-                                            labelText: 'New Password',
-                                            hintText: 'Enter new password',
-                                            isPassword: true,
-                                            prefixIcon: Icons.lock_outline_rounded,
-                                            validator: _validatePassword,
-                                            focusNode: _passwordFocus,
-                                            autofillHints: const [AutofillHints.newPassword],
-                                            textInputAction: TextInputAction.next,
-                                            onFieldSubmitted: (_) {
-                                              FocusScope.of(context).requestFocus(_confirmPasswordFocus);
-                                            },
+                                    const SizedBox(height: 32),
+
+                                    // Form Container
+                                    AnimatedBuilder(
+                                      animation: _entranceCtrl,
+                                      builder: (_, child) => FadeTransition(
+                                        opacity: _formFade,
+                                        child: SlideTransition(
+                                          position: _formSlide,
+                                          child: child,
+                                        ),
+                                      ),
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                                        children: [
+                                          // New Password Input field
+                                          AnimatedFieldGlow(
+                                            isFocused: _passwordFocused,
+                                            child: AppTextField(
+                                              controller: _passwordController,
+                                              labelText: 'New Password',
+                                              hintText: 'Enter new password',
+                                              isPassword: true,
+                                              prefixIcon: Icons.lock_outline_rounded,
+                                              validator: _validatePassword,
+                                              focusNode: _passwordFocus,
+                                              autofillHints: const [AutofillHints.newPassword],
+                                              textInputAction: TextInputAction.next,
+                                              onFieldSubmitted: (_) {
+                                                FocusScope.of(context).requestFocus(_confirmPasswordFocus);
+                                              },
+                                            ),
                                           ),
-                                        ),
-                                        const SizedBox(height: 14),
+                                          const SizedBox(height: 14),
 
-                                        // Requirements Checklist
-                                        _buildPasswordChecklist(),
-                                        const SizedBox(height: 16),
+                                          // Requirements Checklist
+                                          _buildPasswordChecklist(),
+                                          const SizedBox(height: 16),
 
-                                        // Confirm Password Input field
-                                        _AnimatedFieldGlow(
-                                          isFocused: _confirmPasswordFocused,
-                                          child: AppTextField(
-                                            controller: _confirmPasswordController,
-                                            labelText: 'Confirm Password',
-                                            hintText: 'Re-enter new password',
-                                            isPassword: true,
-                                            prefixIcon: Icons.lock_outline_rounded,
-                                            validator: _validateConfirmPassword,
-                                            focusNode: _confirmPasswordFocus,
-                                            autofillHints: const [AutofillHints.newPassword],
-                                            textInputAction: TextInputAction.done,
-                                            onFieldSubmitted: (_) => _resetPassword(),
+                                          // Confirm Password Input field
+                                          AnimatedFieldGlow(
+                                            isFocused: _confirmPasswordFocused,
+                                            child: AppTextField(
+                                              controller: _confirmPasswordController,
+                                              labelText: 'Confirm Password',
+                                              hintText: 'Re-enter new password',
+                                              isPassword: true,
+                                              prefixIcon: Icons.lock_outline_rounded,
+                                              validator: _validateConfirmPassword,
+                                              focusNode: _confirmPasswordFocus,
+                                              autofillHints: const [AutofillHints.newPassword],
+                                              textInputAction: TextInputAction.done,
+                                              onFieldSubmitted: (_) => _resetPassword(),
+                                            ),
                                           ),
-                                        ),
-                                        const SizedBox(height: 32),
+                                          const SizedBox(height: 32),
 
-                                        // Submit button
-                                        AppButton(
-                                          label: 'Reset Password',
-                                          isLoading: _isLoading,
-                                          onPressed: _resetPassword,
-                                        ),
-                                      ],
+                                          // Submit button
+                                          AppButton(
+                                            label: 'Reset Password',
+                                            isLoading: _isLoading,
+                                            onPressed: _resetPassword,
+                                          ),
+                                        ],
+                                      ),
                                     ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
                             ),
                           ),
@@ -408,11 +409,11 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen>
                       ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -482,162 +483,4 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen>
       ],
     );
   }
-}
-
-class _IconBadge extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Container(
-        width: 72,
-        height: 72,
-        padding: const EdgeInsets.all(3.5),
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          gradient: AppTheme.primarySolarGradient,
-          boxShadow: [
-            BoxShadow(
-              color: _Tok.primary.withValues(alpha: 0.24),
-              blurRadius: 20,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        ),
-        child: Container(
-          decoration: const BoxDecoration(
-            color: _Tok.white,
-            shape: BoxShape.circle,
-          ),
-          child: const Center(
-            child: Icon(
-              Icons.lock_open_rounded,
-              color: _Tok.primary,
-              size: 32,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _AnimatedFieldGlow extends StatelessWidget {
-  final bool isFocused;
-  final Widget child;
-
-  const _AnimatedFieldGlow({
-    required this.isFocused,
-    required this.child,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
-      curve: Curves.easeOutCubic,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(_Tok.rMd),
-        boxShadow: isFocused
-            ? [
-                BoxShadow(
-                  color: _Tok.primary.withValues(alpha: 0.12),
-                  blurRadius: 16,
-                  offset: const Offset(0, 4),
-                ),
-              ]
-            : [],
-      ),
-      child: child,
-    );
-  }
-}
-
-class _BackButton extends StatefulWidget {
-  final VoidCallback onPressed;
-
-  const _BackButton({required this.onPressed});
-
-  @override
-  State<_BackButton> createState() => _BackButtonState();
-}
-
-class _BackButtonState extends State<_BackButton>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _ctrl;
-  late final Animation<double>   _scale;
-
-  @override
-  void initState() {
-    super.initState();
-    _ctrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 100),
-    );
-    _scale = Tween<double>(begin: 1.0, end: 0.88).animate(
-      CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut),
-    );
-  }
-
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTapDown: (_) => _ctrl.forward(),
-      onTapUp: (_) {
-        _ctrl.reverse();
-        widget.onPressed();
-      },
-      onTapCancel: () => _ctrl.reverse(),
-      child: AnimatedBuilder(
-        animation: _scale,
-        builder: (_, child) => Transform.scale(scale: _scale.value, child: child),
-        child: Container(
-          width: 40,
-          height: 40,
-          decoration: BoxDecoration(
-            color: _Tok.surface,
-            borderRadius: BorderRadius.circular(_Tok.rMd),
-            border: Border.all(color: _Tok.border),
-          ),
-          child: const Icon(
-            Icons.arrow_back_ios_new_rounded,
-            size: 16,
-            color: _Tok.charcoal,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ResetGlowPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final rect = Rect.fromLTWH(0, 0, size.width, size.height);
-    final p1 = Paint()
-      ..shader = RadialGradient(
-        colors: [
-          const Color(0xFFFF9E4F).withValues(alpha: 0.055),
-          Colors.transparent,
-        ],
-      ).createShader(Rect.fromCircle(center: Offset.zero, radius: size.width * 0.9));
-    canvas.drawRect(rect, p1);
-
-    final p2 = Paint()
-      ..shader = RadialGradient(
-        colors: [
-          const Color(0xFFFF6600).withValues(alpha: 0.038),
-          Colors.transparent,
-        ],
-      ).createShader(Rect.fromCircle(center: Offset(size.width, size.height), radius: size.width * 0.9));
-    canvas.drawRect(rect, p2);
-  }
-
-  @override
-  bool shouldRepaint(covariant _ResetGlowPainter oldDelegate) => false;
 }

@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import '../../../shared/presentation/widgets/brand_icon_badge.dart';
 import '../../../../core/theme/app_theme.dart';
 
 // ─── DESIGN TOKENS ────────────────────────────────────────────────────────────
@@ -989,51 +990,16 @@ class _RoleSelectionViewState extends State<_RoleSelectionView>
   Widget _buildHeroSection(BuildContext context) {
     return Column(
       children: [
-        // Logo with admin gateway
         GestureDetector(
           onTap: widget.onLogoTap,
           behavior: HitTestBehavior.opaque,
-          child: Hero(
+          child: const Hero(
             tag: 'app_logo',
             child: Material(
               type: MaterialType.transparency,
-              child: Container(
-                width: 76,
-                height: 76,
-                padding: const EdgeInsets.all(3.5),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: AppTheme.primarySolarGradient,
-                  boxShadow: [
-                    BoxShadow(
-                      color: _Token.primary.withValues(alpha: 0.26),
-                      blurRadius: 24,
-                      offset: const Offset(0, 8),
-                    ),
-                    BoxShadow(
-                      color: const Color(0xFFFF9E4F).withValues(alpha: 0.14),
-                      blurRadius: 40,
-                      offset: const Offset(0, 14),
-                    ),
-                  ],
-                ),
-                child: Container(
-                  decoration: const BoxDecoration(
-                    color: _Token.white,
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Center(
-                    child: Text(
-                      'ॐ',
-                      style: TextStyle(
-                        color: _Token.primary,
-                        fontSize: 30,
-                        fontWeight: FontWeight.bold,
-                        height: 1.0,
-                      ),
-                    ),
-                  ),
-                ),
+              child: BrandIconBadge(
+                text: 'ॐ',
+                size: 76,
               ),
             ),
           ),
