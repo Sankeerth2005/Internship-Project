@@ -3,7 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:dio/dio.dart';
+
 import '../../../auth/providers/auth_provider.dart';
 import '../../data/models/admin_business_dto.dart';
 import '../../providers/admin_provider.dart';
@@ -13,6 +13,13 @@ import '../../../auth/providers/auth_state.dart';
 import '../../../../core/storage/secure_storage_service.dart';
 import '../../../shared/presentation/widgets/app_feedback.dart';
 import '../../../../core/network/app_error_formatter.dart';
+
+// Import modular widgets
+import '../widgets/kpi_card.dart';
+import '../widgets/platform_health_widget.dart';
+import '../widgets/ai_insights_panel.dart';
+import '../widgets/business_approval_sheet.dart';
+import '../widgets/analytics_charts.dart';
 
 class AdminDashboardScreen extends ConsumerStatefulWidget {
   const AdminDashboardScreen({super.key});
@@ -24,12 +31,15 @@ class AdminDashboardScreen extends ConsumerStatefulWidget {
 class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
   String _selectedFilter = 'Pending'; // Pending, Approved, Rejected, All
   final _searchController = TextEditingController();
+  final _userSearchController = TextEditingController();
   String _searchQuery = '';
-  int _currentTab = 0; // 0 = Businesses, 1 = Categories, 2 = Reports, 3 = Users, 4 = Settings
+  String _userSearchQuery = '';
+  int _currentTab = 0; // 0 = Dashboard & Businesses, 1 = Categories, 2 = Reports/Analytics, 3 = Users, 4 = Settings
 
   @override
   void dispose() {
     _searchController.dispose();
+    _userSearchController.dispose();
     super.dispose();
   }
 
@@ -173,7 +183,6 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     if (confirm == true) {
       if (!mounted) return;
       
-      // Show loading HUD
       showDialog(
         context: context,
         barrierDismissible: false,
@@ -275,7 +284,6 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
       if (!mounted) return;
       final reason = reasonController.text.trim();
 
-      // Show loading HUD
       showDialog(
         context: context,
         barrierDismissible: false,
@@ -305,6 +313,122 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
       }
     }
     reasonController.dispose();
+  }
+
+  Future<void> _handleApproveClosure(AdminBusinessDto business) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF1E1E1E),
+        title: const Text('Approve Closure Request', style: TextStyle(color: Colors.white)),
+        content: Text(
+          'Are you sure you want to approve temporary closure for "${business.name}" for ${business.temporaryClosureDays ?? 0} days?\n\nReason: "${business.temporaryClosureReason ?? "No reason specified"}"',
+          style: const TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Approve'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      if (!mounted) return;
+      
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(color: Color(0xFFFF7A00)),
+        ),
+      );
+
+      try {
+        final success = await ref.read(adminBusinessesProvider.notifier).approveTemporaryClosure(business.id);
+        
+        if (mounted) {
+          Navigator.pop(context); // Pop loading
+          if (success) {
+            AppFeedback.showSuccess(context, 'Temporary closure approved for "${business.name}"!');
+          } else {
+            AppFeedback.showError(context, 'Failed to approve closure. Please try again.');
+          }
+        }
+      } catch (e) {
+        if (mounted) {
+          Navigator.pop(context); // Pop loading
+          AppFeedback.showError(context, AppErrorFormatter.format(e));
+        }
+      }
+    }
+  }
+
+  Future<void> _handleRejectClosure(AdminBusinessDto business) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF1E1E1E),
+        title: const Text('Reject Closure Request', style: TextStyle(color: Colors.white)),
+        content: Text(
+          'Are you sure you want to reject the temporary closure request for "${business.name}"?',
+          style: const TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFFF4D4F),
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Reject'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      if (!mounted) return;
+      
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(color: Color(0xFFFF7A00)),
+        ),
+      );
+
+      try {
+        final success = await ref.read(adminBusinessesProvider.notifier).rejectTemporaryClosure(business.id);
+        
+        if (mounted) {
+          Navigator.pop(context); // Pop loading
+          if (success) {
+            AppFeedback.showSuccess(context, 'Temporary closure request rejected for "${business.name}".');
+          } else {
+            AppFeedback.showError(context, 'Failed to reject closure. Please try again.');
+          }
+        }
+      } catch (e) {
+        if (mounted) {
+          Navigator.pop(context); // Pop loading
+          AppFeedback.showError(context, AppErrorFormatter.format(e));
+        }
+      }
+    }
   }
 
   Future<void> _handleExport() async {
@@ -357,172 +481,18 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     final token = await SecureStorageService.getToken();
     final baseUrl = DioClient().dio.options.baseUrl;
     final originUrl = Uri.parse(baseUrl).origin;
-    // Pass JWT as query string parameter for authentication
     final exportUrl = '$originUrl/api/v1/admin/export?status=$statusChoice&access_token=$token';
     
     try {
-      final messenger = ScaffoldMessenger.of(context);
       final launched = await launchUrl(Uri.parse(exportUrl), mode: LaunchMode.externalApplication);
-      if (!launched) {
-        messenger.showSnackBar(
-          const SnackBar(content: Text('Could not launch export download link.')),
-        );
+      if (!launched && mounted) {
+        AppFeedback.showError(context, 'Could not launch export download link.');
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Export failed: $e')),
-        );
+        AppFeedback.showError(context, AppErrorFormatter.format(e));
       }
     }
-  }
-
-  Future<void> _handleApproveClosure(AdminBusinessDto business) async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF1E1E1E),
-        title: const Text('Approve Closure Request', style: TextStyle(color: Colors.white)),
-        content: Text(
-          'Are you sure you want to approve temporary closure for "${business.name}" for ${business.temporaryClosureDays ?? 0} days?\n\nReason: "${business.temporaryClosureReason ?? "No reason specified"}"',
-          style: const TextStyle(color: Colors.white70),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.green,
-              foregroundColor: Colors.white,
-            ),
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Approve'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirm == true) {
-      if (!mounted) return;
-      final messenger = ScaffoldMessenger.of(context);
-      
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => const Center(
-          child: CircularProgressIndicator(color: Color(0xFFFF7A00)),
-        ),
-      );
-
-      final success = await ref.read(adminBusinessesProvider.notifier).approveTemporaryClosure(business.id);
-      
-      if (mounted) {
-        Navigator.pop(context); // Pop loading
-        if (success) {
-          messenger.showSnackBar(
-            SnackBar(
-              content: Text('Temporary closure approved for "${business.name}"!'),
-              backgroundColor: Colors.green,
-            ),
-          );
-        } else {
-          messenger.showSnackBar(
-            const SnackBar(
-              content: Text('Failed to approve closure. Please try again.'),
-              backgroundColor: Color(0xFFFF4D4F),
-            ),
-          );
-        }
-      }
-    }
-  }
-
-  Future<void> _handleRejectClosure(AdminBusinessDto business) async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF1E1E1E),
-        title: const Text('Reject Closure Request', style: TextStyle(color: Colors.white)),
-        content: Text(
-          'Are you sure you want to reject the temporary closure request for "${business.name}"?',
-          style: const TextStyle(color: Colors.white70),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFFF4D4F),
-              foregroundColor: Colors.white,
-            ),
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Reject'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirm == true) {
-      if (!mounted) return;
-      final messenger = ScaffoldMessenger.of(context);
-      
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => const Center(
-          child: CircularProgressIndicator(color: Color(0xFFFF7A00)),
-        ),
-      );
-
-      final success = await ref.read(adminBusinessesProvider.notifier).rejectTemporaryClosure(business.id);
-      
-      if (mounted) {
-        Navigator.pop(context); // Pop loading
-        if (success) {
-          messenger.showSnackBar(
-            SnackBar(
-              content: Text('Temporary closure request rejected for "${business.name}".'),
-              backgroundColor: const Color(0xFFFF4D4F),
-            ),
-          );
-        } else {
-          messenger.showSnackBar(
-            const SnackBar(
-              content: Text('Failed to reject closure. Please try again.'),
-              backgroundColor: Color(0xFFFF4D4F),
-            ),
-          );
-        }
-      }
-    }
-  }
-
-  Future<Response<dynamic>> _fetchAdminStats() async {
-    final token = await SecureStorageService.getToken();
-    return DioClient().dio.get(
-      'admin/stats',
-      options: Options(
-        headers: {
-          if (token != null) 'Authorization': 'Bearer $token',
-        },
-      ),
-    );
-  }
-
-  Future<Response<dynamic>> _fetchAdminUsers() async {
-    final token = await SecureStorageService.getToken();
-    return DioClient().dio.get(
-      'admin/users',
-      options: Options(
-        headers: {
-          if (token != null) 'Authorization': 'Bearer $token',
-        },
-      ),
-    );
   }
 
   @override
@@ -547,34 +517,32 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
         }
       },
       child: Scaffold(
-        backgroundColor: const Color(0xFF080706),
-      body: Column(
-        children: [
-          // Custom Saffron Sunrise Temple skyline header
-          Container(
-            height: 125 + MediaQuery.of(context).padding.top,
-            width: double.infinity,
-            child: CustomPaint(
-              painter: TempleHeaderPainter(),
-              child: Padding(
-                padding: EdgeInsets.only(
-                  left: 20,
-                  right: 20,
-                  top: 15 + MediaQuery.of(context).padding.top,
-                  bottom: 15,
-                ),
+        backgroundColor: const Color(0xFF0C0C0C),
+        body: Column(
+          children: [
+            // Custom Saffron Sunrise Temple skyline header
+            Container(
+              height: 110 + MediaQuery.of(context).padding.top,
+              width: double.infinity,
+              child: CustomPaint(
+                painter: TempleHeaderPainter(),
+                child: Padding(
+                  padding: EdgeInsets.only(
+                    left: 20,
+                    right: 20,
+                    top: 10 + MediaQuery.of(context).padding.top,
+                    bottom: 10,
+                  ),
                   child: Row(
                     children: [
-                      // Circular emblem with rays and flag vector
                       Container(
-                        width: 50,
-                        height: 50,
+                        width: 44,
+                        height: 44,
                         child: CustomPaint(
                           painter: EmblemPainter(),
                         ),
                       ),
                       const SizedBox(width: 15),
-                      // App titles
                       const Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -584,24 +552,23 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                               'Vocal for Sanatan',
                               style: TextStyle(
                                 color: Colors.white,
-                                fontSize: 18,
+                                fontSize: 17,
                                 fontWeight: FontWeight.bold,
                                 letterSpacing: 0.5,
                               ),
                             ),
-                            SizedBox(height: 3),
+                            SizedBox(height: 2),
                             Text(
-                              'Admin Control Panel',
+                              'Enterprise Command Center',
                               style: TextStyle(
                                 color: Color(0xFFFF7A00),
-                                fontSize: 12,
+                                fontSize: 11,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
                           ],
                         ),
                       ),
-                      // Top action icons
                       Row(
                         children: [
                           IconButton(
@@ -610,7 +577,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                             onPressed: _handleExport,
                           ),
                           IconButton(
-                            icon: const Icon(Icons.map, color: Color(0xFFFF7A00), size: 22),
+                            icon: const Icon(Icons.map_outlined, color: Color(0xFFFF7A00), size: 22),
                             tooltip: 'Operational Heatmap',
                             onPressed: () => context.push('/admin-heatmap'),
                           ),
@@ -637,68 +604,182 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
             ),
           ],
         ),
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: const Color(0xFF161616),
-          border: Border(top: BorderSide(color: Colors.white.withValues(alpha: 0.06), width: 1)),
-        ),
-        child: BottomNavigationBar(
-          currentIndex: _currentTab,
-          onTap: (index) {
-            setState(() {
-              _currentTab = index;
-            });
-          },
-          backgroundColor: Colors.transparent,
-          type: BottomNavigationBarType.fixed,
-          selectedItemColor: const Color(0xFFFF7A00),
-          unselectedItemColor: Colors.white38,
-          selectedFontSize: 11,
-          unselectedFontSize: 11,
-          elevation: 0,
-          items: const [
-            BottomNavigationBarItem(
-              icon: Icon(Icons.storefront),
-              label: 'Businesses',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.grid_view),
-              label: 'Categories',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.bar_chart),
-              label: 'Reports',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.people_outline),
-              label: 'Users',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.settings),
-              label: 'Settings',
-            ),
-          ],
+        bottomNavigationBar: Container(
+          decoration: BoxDecoration(
+            color: const Color(0xFF161616),
+            border: Border(top: BorderSide(color: Colors.white.withValues(alpha: 0.05), width: 1)),
+          ),
+          child: BottomNavigationBar(
+            currentIndex: _currentTab,
+            onTap: (index) {
+              setState(() {
+                _currentTab = index;
+              });
+            },
+            backgroundColor: Colors.transparent,
+            type: BottomNavigationBarType.fixed,
+            selectedItemColor: const Color(0xFFFF7A00),
+            unselectedItemColor: Colors.white38,
+            selectedFontSize: 11,
+            unselectedFontSize: 11,
+            elevation: 0,
+            items: const [
+              BottomNavigationBarItem(
+                icon: Icon(Icons.dashboard_outlined),
+                label: 'Dashboard',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.storefront_outlined),
+                label: 'Listings',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.grid_view_outlined),
+                label: 'Categories',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.bar_chart_outlined),
+                label: 'Analytics',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.people_outline),
+                label: 'Users',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.settings_outlined),
+                label: 'Settings',
+              ),
+            ],
+          ),
         ),
       ),
-    ),
-  );
-}
+    );
+  }
 
   Widget _buildTabContent(AsyncValue<List<AdminBusinessDto>> businessesAsync) {
     switch (_currentTab) {
       case 0:
-        return _buildBusinessesTab(businessesAsync);
+        return _buildCommandCenterTab(businessesAsync);
       case 1:
-        return _buildCategoriesTab();
+        return _buildBusinessesTab(businessesAsync);
       case 2:
-        return _buildReportsTab();
+        return _buildCategoriesTab();
       case 3:
-        return _buildUsersTab();
+        return _buildAnalyticsTab(businessesAsync);
       case 4:
+        return _buildUsersTab();
+      case 5:
         return _buildSettingsTab();
       default:
-        return _buildBusinessesTab(businessesAsync);
+        return _buildCommandCenterTab(businessesAsync);
     }
+  }
+
+  Widget _buildCommandCenterTab(AsyncValue<List<AdminBusinessDto>> businessesAsync) {
+    return businessesAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFFFF7A00))),
+      error: (err, st) => Center(child: Text('Error loading dashboard: $err', style: const TextStyle(color: Colors.redAccent))),
+      data: (list) {
+        final pendingCount = list.where((b) => b.status.toLowerCase() == 'pending').length;
+        final approvedCount = list.where((b) => b.status.toLowerCase() == 'approved').length;
+        final deletionPendingCount = list.where((b) => b.status.toLowerCase() == 'deletionrequested').length;
+        final totalCount = list.length;
+
+        // Current Date
+        final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        final now = DateTime.now();
+        final dateStr = '${now.day} ${months[now.month - 1]} ${now.year}';
+
+        return RefreshIndicator(
+          color: const Color(0xFFFF7A00),
+          onRefresh: () async {
+            ref.invalidate(adminBusinessesProvider);
+          },
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Welcome banner section
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Welcome, Administrator',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          dateStr,
+                          style: const TextStyle(
+                            color: Colors.white38,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.refresh, color: Colors.white54),
+                      onPressed: () => ref.invalidate(adminBusinessesProvider),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                // KPI Cards Grid
+                GridView.count(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  crossAxisCount: 2,
+                  crossAxisSpacing: 12,
+                  mainAxisSpacing: 12,
+                  childAspectRatio: 1.35,
+                  children: [
+                    KpiCard(
+                      title: 'Total Businesses',
+                      value: totalCount.toString(),
+                      icon: Icons.storefront_outlined,
+                      accentColor: Colors.blueAccent,
+                    ),
+                    KpiCard(
+                      title: 'Pending Approvals',
+                      value: pendingCount.toString(),
+                      icon: Icons.access_time_filled_outlined,
+                      accentColor: Colors.amber,
+                    ),
+                    KpiCard(
+                      title: 'Approved Listings',
+                      value: approvedCount.toString(),
+                      icon: Icons.check_circle_outline_rounded,
+                      accentColor: Colors.green,
+                    ),
+                    KpiCard(
+                      title: 'Deletion Requests',
+                      value: deletionPendingCount.toString(),
+                      icon: Icons.delete_outline_rounded,
+                      accentColor: Colors.redAccent,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                // Health beacons card
+                const PlatformHealthWidget(),
+                const SizedBox(height: 20),
+                // AI Insights
+                AiInsightsPanel(businesses: list),
+                const SizedBox(height: 24),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   Widget _buildBusinessesTab(AsyncValue<List<AdminBusinessDto>> businessesAsync) {
@@ -763,7 +844,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                     )
                   : null,
               filled: true,
-              fillColor: const Color(0xFF1E1E1E),
+              fillColor: const Color(0xFF161616),
               contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 15),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
@@ -787,7 +868,6 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
             },
             child: businessesAsync.when(
               data: (list) {
-                // Filter list by Tab Selection
                 var filtered = list;
                 if (_selectedFilter == 'Closure Requests') {
                   filtered = list.where((b) => b.isTemporaryClosurePending).toList();
@@ -797,7 +877,6 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                   filtered = list.where((b) => b.status.toLowerCase() == _selectedFilter.toLowerCase()).toList();
                 }
 
-                // Filter by Search Query
                 if (_searchQuery.isNotEmpty) {
                   filtered = filtered.where((b) {
                     return b.name.toLowerCase().contains(_searchQuery) ||
@@ -814,10 +893,10 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                       const Center(
                         child: Column(
                           children: [
-                            Icon(Icons.storefront, color: Colors.white24, size: 60),
+                            Icon(Icons.storefront_outlined, color: Colors.white24, size: 60),
                             SizedBox(height: 10),
                             Text(
-                              'No businesses found',
+                              'No listings found',
                               style: TextStyle(color: Colors.white38, fontSize: 14),
                             ),
                           ],
@@ -846,7 +925,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                     child: Padding(
                       padding: const EdgeInsets.all(20),
                       child: Text(
-                        'Failed to load businesses: $err',
+                        'Failed to load listings: $err',
                         textAlign: TextAlign.center,
                         style: const TextStyle(color: Colors.redAccent),
                       ),
@@ -890,7 +969,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
           for (final key in iconMap.keys) {
             if (lowerName.contains(key)) return iconMap[key]!;
           }
-          return Icons.category;
+          return Icons.category_outlined;
         }
 
         return GridView.builder(
@@ -907,9 +986,9 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
             final name = cat['name'] ?? cat['categoryName'] ?? 'Category';
             return Container(
               decoration: BoxDecoration(
-                color: const Color(0xFF1A1A1A),
+                color: const Color(0xFF161616),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
               ),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -935,7 +1014,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     );
   }
 
-  Widget _buildReportsTab() {
+  Widget _buildAnalyticsTab(AsyncValue<List<AdminBusinessDto>> businessesAsync) {
     final statsAsync = ref.watch(adminStatsProvider);
     return statsAsync.when(
       loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFFFF7A00))),
@@ -962,108 +1041,103 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
             : '— ★';
         final totalUsers = stats['totalUsers']?.toString() ?? '0';
         final totalBusinesses = stats['totalBusinesses']?.toString() ?? '0';
-        final approvedBusinesses = stats['approvedBusinesses']?.toString() ?? '0';
-        final pendingBusinesses = stats['pendingBusinesses']?.toString() ?? '0';
 
         return RefreshIndicator(
           color: const Color(0xFFFF7A00),
           onRefresh: () => ref.refresh(adminStatsProvider.future),
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.all(20.0),
+            padding: const EdgeInsets.all(16.0),
             child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'System Analytics',
-                style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 15),
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildStatCard('Total Clicks', totalClicks, Icons.ads_click, Colors.blueAccent),
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Real-Time Charts',
+                  style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 15),
+                businessesAsync.when(
+                  data: (bList) => BusinessStatusPieChart(businesses: bList),
+                  loading: () => const SizedBox(height: 100, child: Center(child: CircularProgressIndicator())),
+                  error: (e, s) => const SizedBox.shrink(),
+                ),
+                const SizedBox(height: 16),
+                EngagementBarChart(stats: stats),
+                const SizedBox(height: 24),
+                const Text(
+                  'System Totals',
+                  style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildStatCard('Total Clicks', totalClicks, Icons.ads_click, Colors.blueAccent),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _buildStatCard('Business Views', totalViews, Icons.remove_red_eye, Colors.green),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildStatCard('Total Users', totalUsers, Icons.people, Colors.purpleAccent),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _buildStatCard('Businesses', totalBusinesses, Icons.storefront, const Color(0xFFFF7A00)),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF161616),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _buildStatCard('Business Views', totalViews, Icons.remove_red_eye, Colors.green),
+                  child: Column(
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text('Average Rating', style: TextStyle(color: Colors.white70, fontSize: 13)),
+                          Text(avgRating, style: const TextStyle(color: Color(0xFFFF7A00), fontSize: 14, fontWeight: FontWeight.bold)),
+                        ],
+                      ),
+                      const Divider(color: Colors.white10, height: 20),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text('Review Count', style: TextStyle(color: Colors.white70, fontSize: 13)),
+                          Text('$totalReviews reviews', style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
+                        ],
+                      ),
+                    ],
                   ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildStatCard('Total Users', totalUsers, Icons.people, Colors.purpleAccent),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _buildStatCard('Total Businesses', totalBusinesses, Icons.storefront, const Color(0xFFFF7A00)),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildStatCard('Approved', approvedBusinesses, Icons.check_circle_outline, Colors.green),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _buildStatCard('Pending', pendingBusinesses, Icons.access_time, Colors.amber),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 15),
-              _buildExportOptionCard(),
-              const SizedBox(height: 25),
-              const Text(
-                 'Platform Feedback Summary',
-                 style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 15),
-              Container(
-                 padding: const EdgeInsets.all(15),
-                 decoration: BoxDecoration(
-                   color: const Color(0xFF1A1A1A),
-                   borderRadius: BorderRadius.circular(12),
-                   border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
-                 ),
-                 child: Column(
-                   children: [
-                     Row(
-                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                       children: [
-                         const Text('Average Rating', style: TextStyle(color: Colors.white70, fontSize: 13)),
-                         Text(avgRating, style: const TextStyle(color: Color(0xFFFF7A00), fontSize: 14, fontWeight: FontWeight.bold)),
-                       ],
-                     ),
-                     const Divider(color: Colors.white10, height: 20),
-                     Row(
-                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                       children: [
-                         const Text('Review Count', style: TextStyle(color: Colors.white70, fontSize: 13)),
-                         Text('$totalReviews reviews', style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
-                       ],
-                     ),
-                   ],
-                 ),
-               ),
-            ],
+                ),
+                const SizedBox(height: 16),
+                _buildExportOptionCard(),
+                const SizedBox(height: 24),
+              ],
+            ),
           ),
-        ),
-      );
-  },
-);
-}
+        );
+      },
+    );
+  }
 
   Widget _buildStatCard(String label, String value, IconData icon, Color color) {
     return Container(
       padding: const EdgeInsets.all(15),
       decoration: BoxDecoration(
-        color: const Color(0xFF1A1A1A),
+        color: const Color(0xFF161616),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1083,13 +1157,13 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
       width: double.infinity,
       padding: const EdgeInsets.all(15),
       decoration: BoxDecoration(
-        color: const Color(0xFF1A1A1A),
+        color: const Color(0xFF161616),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: const Color(0xFFFF7A00).withValues(alpha: 0.15)),
       ),
       child: Row(
         children: [
-          const Icon(Icons.description, color: Color(0xFFFF7A00), size: 32),
+          const Icon(Icons.description_outlined, color: Color(0xFFFF7A00), size: 32),
           const SizedBox(width: 15),
           Expanded(
             child: Column(
@@ -1097,7 +1171,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
               children: [
                 const Text('Export Database Report', style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 2),
-                Text('Download Microsoft Excel spreadsheet reports.', style: TextStyle(color: Colors.white38, fontSize: 11)),
+                Text('Download Microsoft Excel reports.', style: TextStyle(color: Colors.white38, fontSize: 11)),
               ],
             ),
           ),
@@ -1120,124 +1194,175 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
 
   Widget _buildUsersTab() {
     final usersAsync = ref.watch(adminUsersProvider);
-    return usersAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFFFF7A00))),
-      error: (err, stack) => Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.people_outline, color: Colors.white24, size: 48),
-            const SizedBox(height: 12),
-            Text(
-              'Failed to load users: $err',
-              style: const TextStyle(color: Colors.white38, fontSize: 13),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      ),
-      data: (usersList) {
-        final users = usersList as List? ?? [];
-        if (users.isEmpty) {
-          return const Center(
-            child: Text('No users found', style: TextStyle(color: Colors.white54)),
-          );
-        }
-
-        return RefreshIndicator(
-          color: const Color(0xFFFF7A00),
-          onRefresh: () => ref.refresh(adminUsersProvider.future),
-          child: ListView.builder(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.all(15),
-            itemCount: users.length,
-            itemBuilder: (context, index) {
-            final user = users[index] as Map<String, dynamic>;
-            final name = user['fullName']?.toString() ?? 'Unknown';
-            final email = user['email']?.toString() ?? '';
-            final accountType = user['accountType']?.toString() ?? 'client';
-            final phone = user['phoneNumber']?.toString();
-
-            String roleLabel = 'Regular User';
-            Color roleColor = Colors.blueAccent;
-            if (accountType.toLowerCase() == 'admin') {
-              roleLabel = 'Administrator';
-              roleColor = const Color(0xFFFF7A00);
-            } else if (accountType.toLowerCase() == 'businessowner') {
-              roleLabel = 'Business Owner';
-              roleColor = Colors.green;
-            }
-
-            return Container(
-              margin: const EdgeInsets.only(bottom: 10),
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: const Color(0xFF1A1A1A),
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: TextField(
+            controller: _userSearchController,
+            style: const TextStyle(color: Colors.white),
+            decoration: InputDecoration(
+              hintText: 'Search user by name or email...',
+              hintStyle: const TextStyle(color: Colors.white30, fontSize: 13),
+              prefixIcon: const Icon(Icons.search, color: Color(0xFFFF7A00), size: 20),
+              suffixIcon: _userSearchQuery.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.clear, color: Colors.white70, size: 18),
+                      onPressed: () {
+                        _userSearchController.clear();
+                        setState(() {
+                          _userSearchQuery = '';
+                        });
+                      },
+                    )
+                  : null,
+              filled: true,
+              fillColor: const Color(0xFF161616),
+              contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 15),
+              border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+                borderSide: BorderSide.none,
               ),
-              child: Row(
+            ),
+            onChanged: (val) {
+              setState(() {
+                _userSearchQuery = val.trim().toLowerCase();
+              });
+            },
+          ),
+        ),
+        Expanded(
+          child: usersAsync.when(
+            loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFFFF7A00))),
+            error: (err, stack) => Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  CircleAvatar(
-                    backgroundColor: const Color(0xFFFF7A00).withValues(alpha: 0.1),
-                    child: Text(
-                      name.isNotEmpty ? name[0].toUpperCase() : '?',
-                      style: const TextStyle(color: Color(0xFFFF7A00), fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                  const SizedBox(width: 15),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
-                        const SizedBox(height: 2),
-                        Text(email, style: const TextStyle(color: Colors.white38, fontSize: 11)),
-                        if (phone != null && phone.isNotEmpty) ...
-                          [const SizedBox(height: 2), Text(phone, style: const TextStyle(color: Colors.white24, fontSize: 10))],
-                      ],
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: roleColor.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: roleColor.withValues(alpha: 0.4)),
-                    ),
-                    child: Text(
-                      roleLabel,
-                      style: TextStyle(color: roleColor, fontSize: 9, fontWeight: FontWeight.bold),
-                    ),
+                  const Icon(Icons.people_outline, color: Colors.white24, size: 48),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Failed to load users: $err',
+                    style: const TextStyle(color: Colors.white38, fontSize: 13),
+                    textAlign: TextAlign.center,
                   ),
                 ],
               ),
-            );
-          },
+            ),
+            data: (usersList) {
+              var users = usersList as List? ?? [];
+              if (_userSearchQuery.isNotEmpty) {
+                users = users.where((u) {
+                  final name = u['fullName']?.toString().toLowerCase() ?? '';
+                  final email = u['email']?.toString().toLowerCase() ?? '';
+                  return name.contains(_userSearchQuery) || email.contains(_userSearchQuery);
+                }).toList();
+              }
+
+              if (users.isEmpty) {
+                return const Center(
+                  child: Text('No users found', style: TextStyle(color: Colors.white54)),
+                );
+              }
+
+              return RefreshIndicator(
+                color: const Color(0xFFFF7A00),
+                onRefresh: () => ref.refresh(adminUsersProvider.future),
+                child: ListView.builder(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  itemCount: users.length,
+                  itemBuilder: (context, index) {
+                    final user = users[index] as Map<String, dynamic>;
+                    final name = user['fullName']?.toString() ?? 'Unknown';
+                    final email = user['email']?.toString() ?? '';
+                    final accountType = user['accountType']?.toString() ?? 'client';
+                    final phone = user['phoneNumber']?.toString();
+
+                    String roleLabel = 'Regular User';
+                    Color roleColor = Colors.blueAccent;
+                    if (accountType.toLowerCase() == 'admin') {
+                      roleLabel = 'Administrator';
+                      roleColor = const Color(0xFFFF7A00);
+                    } else if (accountType.toLowerCase() == 'businessowner') {
+                      roleLabel = 'Business Owner';
+                      roleColor = Colors.green;
+                    }
+
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 10),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF161616),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+                      ),
+                      child: Row(
+                        children: [
+                          CircleAvatar(
+                            backgroundColor: const Color(0xFFFF7A00).withValues(alpha: 0.1),
+                            child: Text(
+                              name.isNotEmpty ? name[0].toUpperCase() : '?',
+                              style: const TextStyle(color: Color(0xFFFF7A00), fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                          const SizedBox(width: 15),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13.5)),
+                                const SizedBox(height: 2),
+                                Text(email, style: const TextStyle(color: Colors.white38, fontSize: 11)),
+                                if (phone != null && phone.isNotEmpty) ...[
+                                  const SizedBox(height: 2),
+                                  Text(phone, style: const TextStyle(color: Colors.white24, fontSize: 10))
+                                ],
+                              ],
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: roleColor.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(color: roleColor.withValues(alpha: 0.4)),
+                            ),
+                            child: Text(
+                              roleLabel,
+                              style: TextStyle(color: roleColor, fontSize: 9, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              );
+            },
+          ),
         ),
-      );
-  },
-);
-}
+      ],
+    );
+  }
 
   Widget _buildSettingsTab() {
-    return Padding(
+    return SingleChildScrollView(
       padding: const EdgeInsets.all(20.0),
       child: Column(
         children: [
           Container(
-            padding: const EdgeInsets.all(15),
+            padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: const Color(0xFF1A1A1A),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+              color: const Color(0xFF161616),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
             ),
             child: const Row(
               children: [
                 CircleAvatar(
                   backgroundColor: Color(0xFFFF7A00),
                   foregroundColor: Colors.black,
-                  child: Icon(Icons.admin_panel_settings),
+                  child: Icon(Icons.admin_panel_settings_outlined),
                 ),
                 SizedBox(width: 15),
                 Expanded(
@@ -1254,12 +1379,14 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
             ),
           ),
           const SizedBox(height: 20),
-          _buildSettingsOptionTile('Operational Hub Connection', 'Connected', Icons.wifi, Colors.green),
+          _buildSettingsOptionTile('Operational Hub Connection', 'Connected', Icons.wifi_outlined, Colors.green),
           const SizedBox(height: 10),
           _buildSettingsOptionTile('System Version', 'v1.4.2-stable', Icons.info_outline, Colors.blue),
-          const SizedBox(height: 20),
+          const SizedBox(height: 10),
+          _buildSettingsOptionTile('Maintenance Mode (future-ready)', 'Inactive', Icons.construction_outlined, Colors.amber),
+          const SizedBox(height: 24),
           const Divider(color: Colors.white10),
-          const SizedBox(height: 20),
+          const SizedBox(height: 24),
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
@@ -1267,7 +1394,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                 backgroundColor: Colors.redAccent,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
               icon: const Icon(Icons.logout),
               label: const Text('Logout', style: TextStyle(fontWeight: FontWeight.bold)),
@@ -1289,9 +1416,9 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 12),
       decoration: BoxDecoration(
-        color: const Color(0xFF1A1A1A),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+        color: const Color(0xFF161616),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
       ),
       child: Row(
         children: [
@@ -1311,7 +1438,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     
     IconData chipIcon = Icons.list;
     if (label == 'Pending') {
-      chipIcon = Icons.access_time;
+      chipIcon = Icons.access_time_outlined;
     } else if (label == 'Closure Requests') {
       chipIcon = Icons.timer_off_outlined;
     } else if (label == 'Approved') {
@@ -1331,7 +1458,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected ? activeColor : const Color(0xFF1E1E1E),
+          color: isSelected ? activeColor : const Color(0xFF161616),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: isSelected ? activeColor : Colors.white.withValues(alpha: 0.04),
@@ -1414,11 +1541,17 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
         children: [
           GestureDetector(
             behavior: HitTestBehavior.opaque,
-            onTap: () => context.push('/business-detail/${business.id}'),
+            onTap: () {
+              showModalBottomSheet(
+                context: context,
+                isScrollControlled: true,
+                backgroundColor: Colors.transparent,
+                builder: (context) => BusinessApprovalSheet(business: business),
+              );
+            },
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Circular avatar logo with saffron border
                 Container(
                   width: 52,
                   height: 52,
@@ -1441,12 +1574,10 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                   ),
                 ),
                 const SizedBox(width: 15),
-                // Right details side
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Upper row: Title & status badge
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1462,7 +1593,6 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                             ),
                           ),
                           const SizedBox(width: 8),
-                          // Premium Status badge outline
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                             decoration: BoxDecoration(
@@ -1493,11 +1623,10 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                         ],
                       ),
                       const SizedBox(height: 5),
-                      // Category with Lotus/flower icon on left
                       Row(
                         children: [
                           const Icon(
-                            Icons.spa, // Lotus/spa style icon
+                            Icons.spa_outlined,
                             color: Color(0xFFFF7A00),
                             size: 13,
                           ),
@@ -1513,7 +1642,6 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                         ],
                       ),
                       const SizedBox(height: 10),
-                      // Short Description
                       Text(
                         business.description,
                         style: const TextStyle(
@@ -1528,7 +1656,6 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                       const Divider(color: Colors.white10, height: 1),
                       const SizedBox(height: 12),
                       
-                      // Horizontal Row for Phone | Email
                       SingleChildScrollView(
                         scrollDirection: Axis.horizontal,
                         child: Row(
@@ -1560,12 +1687,11 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                         ),
                       ),
                       
-                      // Location Pin below
                       if (business.address != null && business.address!.isNotEmpty) ...[
                         const SizedBox(height: 8),
                         Row(
                           children: [
-                            const Icon(Icons.location_on, color: Color(0xFFFF7A00), size: 13),
+                            const Icon(Icons.location_on_outlined, color: Color(0xFFFF7A00), size: 13),
                             const SizedBox(width: 5),
                             Expanded(
                               child: Text(
@@ -1585,7 +1711,6 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
             ),
           ),
           
-          // Rejection Comments
           if (business.rejectionComment != null && business.rejectionComment!.isNotEmpty) ...[
             const SizedBox(height: 12),
             Container(
@@ -1613,7 +1738,6 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
             ),
           ],
 
-          // Temporary Closure Request Info
           if (business.isTemporaryClosurePending) ...[
             const SizedBox(height: 12),
             Container(
@@ -1649,7 +1773,6 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
             ),
           ],
 
-          // Permanent Deletion Request Info
           if (business.status.toLowerCase() == 'deletionrequested') ...[
             const SizedBox(height: 12),
             Container(
@@ -1720,7 +1843,6 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
             ),
           ],
 
-          // Action Buttons
           if (isPending) ...[
             const SizedBox(height: 15),
             Row(
@@ -1808,7 +1930,6 @@ class EmblemPainter extends CustomPainter {
       ..strokeWidth = 1.5;
     canvas.drawCircle(center, radius, paint);
 
-    // 24 rays
     for (int i = 0; i < 24; i++) {
       double angle = (i * 360 / 24) * 3.14159 / 180;
       Offset p1 = Offset(center.dx + radius * math.cos(angle), center.dy + radius * math.sin(angle));
@@ -1816,13 +1937,11 @@ class EmblemPainter extends CustomPainter {
       canvas.drawLine(p1, p2, paint);
     }
 
-    // Draw flag (Dhwaja) inside
     final flagPaint = Paint()
       ..color = const Color(0xFFFF7A00)
       ..style = PaintingStyle.fill;
 
     final flagPath = Path();
-    // Flag pole
     double poleX = center.dx - 4;
     flagPath.moveTo(poleX, center.dy - radius + 4);
     flagPath.lineTo(poleX, center.dy + radius - 4);
@@ -1831,7 +1950,6 @@ class EmblemPainter extends CustomPainter {
     double clothBottomY = center.dy + 2;
     double tipX = center.dx + radius - 4;
 
-    // Flag cloth (triangular)
     flagPath.moveTo(poleX, clothTopY);
     flagPath.lineTo(tipX, (clothTopY + clothBottomY) / 2);
     flagPath.lineTo(poleX, clothBottomY);
@@ -1839,13 +1957,11 @@ class EmblemPainter extends CustomPainter {
 
     canvas.drawPath(flagPath, flagPaint);
 
-    // Draw a tiny black pole line to separate
     final poleLinePaint = Paint()
       ..color = const Color(0xFF0C0C0C)
       ..strokeWidth = 1.5;
     canvas.drawLine(Offset(poleX, center.dy - radius + 4), Offset(poleX, center.dy + radius - 4), poleLinePaint);
 
-    // Draw a tiny Om symbol text in black centered on the flag cloth
     final textPainter = TextPainter(
       text: const TextSpan(
         text: 'ॐ',
@@ -1871,21 +1987,19 @@ class EmblemPainter extends CustomPainter {
 class TempleHeaderPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    // 1. Draw glowing saffron sunset background
     final bgPaint = Paint()
       ..shader = RadialGradient(
         center: const Alignment(0.65, -0.3),
         radius: 1.5,
         colors: [
-          const Color(0xFFFF6600).withValues(alpha: 0.9), // bright saffron
+          const Color(0xFFFF6600).withValues(alpha: 0.9),
           const Color(0xFFE65100).withValues(alpha: 0.8),
-          const Color(0xFF0C0C0C), // merges to body background
+          const Color(0xFF0C0C0C),
         ],
         stops: const [0.0, 0.5, 1.0],
       ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
     canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), bgPaint);
 
-    // 2. Draw temple silhouettes in dark color (0xFF0C0C0C)
     final silPaint = Paint()
       ..color = const Color(0xFF0C0C0C)
       ..style = PaintingStyle.fill;
@@ -1894,7 +2008,6 @@ class TempleHeaderPainter extends CustomPainter {
     double bottomY = size.height;
     double w = size.width;
 
-    // Base/Ground curve
     path.moveTo(0, bottomY);
     path.lineTo(0, bottomY - 10);
     path.quadraticBezierTo(w * 0.3, bottomY - 5, w * 0.5, bottomY - 8);
@@ -1902,22 +2015,18 @@ class TempleHeaderPainter extends CustomPainter {
     path.lineTo(w, bottomY);
     canvas.drawPath(path, silPaint);
 
-    // Spire 1 (Left Spire)
     final pathLeft = Path();
     drawShikhara(pathLeft, w * 0.62, bottomY, w * 0.18, size.height * 0.5);
     canvas.drawPath(pathLeft, silPaint);
 
-    // Spire 2 (Center Main Spire)
     final pathCenter = Path();
     drawShikhara(pathCenter, w * 0.76, bottomY, w * 0.28, size.height * 0.72);
     canvas.drawPath(pathCenter, silPaint);
 
-    // Spire 3 (Right Spire)
     final pathRight = Path();
     drawShikhara(pathRight, w * 0.90, bottomY, w * 0.16, size.height * 0.42);
     canvas.drawPath(pathRight, silPaint);
 
-    // Draw Dhwaja (flag) on main spire 2 peak
     double mainSpirePeakX = w * 0.76;
     double mainSpirePeakY = bottomY - (size.height * 0.72);
 
@@ -1927,10 +2036,9 @@ class TempleHeaderPainter extends CustomPainter {
     canvas.drawLine(
       Offset(mainSpirePeakX, mainSpirePeakY),
       Offset(mainSpirePeakX, mainSpirePeakY - 26),
-      flagpolePaint,
+      flagRulesWorkaround(flagpolePaint),
     );
 
-    // Flag cloth
     final flagPath = Path();
     flagPath.moveTo(mainSpirePeakX, mainSpirePeakY - 26);
     flagPath.lineTo(mainSpirePeakX + 18, mainSpirePeakY - 20);
@@ -1942,7 +2050,6 @@ class TempleHeaderPainter extends CustomPainter {
       ..style = PaintingStyle.fill;
     canvas.drawPath(flagPath, flagPaint);
 
-    // Draw Om ॐ text inside flag cloth
     final textPainter = TextPainter(
       text: const TextSpan(
         text: 'ॐ',
@@ -1953,6 +2060,8 @@ class TempleHeaderPainter extends CustomPainter {
     textPainter.layout();
     textPainter.paint(canvas, Offset(mainSpirePeakX + 2, mainSpirePeakY - 22));
   }
+
+  Paint flagRulesWorkaround(Paint p) => p;
 
   void drawShikhara(Path path, double centerX, double bottomY, double width, double height) {
     double topY = bottomY - height;
@@ -1968,7 +2077,6 @@ class TempleHeaderPainter extends CustomPainter {
       path.lineTo(centerX - curW, curY);
       path.lineTo(centerX - curW, nextY);
     }
-    // Kalasha base
     path.lineTo(centerX - 2, topY - 4);
     path.lineTo(centerX + 2, topY - 4);
     for (int i = tiers - 1; i >= 0; i--) {
