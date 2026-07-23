@@ -81,7 +81,8 @@ class _SupportScreenState extends State<SupportScreen> {
       
       // Post to the backend FeedbackController
       await dio.post('../feedback', data: {
-        'feedback': '[$_selectedCategory] ${_feedbackController.text.trim()}',
+        'category': _selectedCategory,
+        'feedback': _feedbackController.text.trim(),
       });
 
       if (mounted) {
@@ -116,7 +117,7 @@ class _SupportScreenState extends State<SupportScreen> {
           onTap: () => FocusScope.of(context).unfocus(),
           child: SingleChildScrollView(
             physics: const BouncingScrollPhysics(),
-            padding: const EdgeInsets.only(bottom: 40),
+            padding: EdgeInsets.only(bottom: 120 + MediaQuery.of(context).padding.bottom),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -379,6 +380,12 @@ class _SupportScreenState extends State<SupportScreen> {
                   DropdownMenuItem(value: 'Request', child: Text('Feature Request')),
                   DropdownMenuItem(value: 'Inquiry', child: Text('Business Listing Inquiry')),
                 ],
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Please select a category';
+                  }
+                  return null;
+                },
                 onChanged: (val) {
                   if (val != null) {
                     setState(() {

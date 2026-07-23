@@ -14,12 +14,19 @@ class MainShell extends StatefulWidget {
 class _MainShellState extends State<MainShell> {
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFFFFFFF),
-      // Use extendBody: true so the Scaffold content flows behind our floating bottom bar
-      extendBody: true,
-      body: widget.navigationShell,
-      bottomNavigationBar: SafeArea(
+    final currentIndex = widget.navigationShell.currentIndex;
+    return PopScope(
+      canPop: currentIndex == 0,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        widget.navigationShell.goBranch(0);
+      },
+      child: Scaffold(
+        backgroundColor: const Color(0xFFFFFFFF),
+        // Use extendBody: true so the Scaffold content flows behind our floating bottom bar
+        extendBody: true,
+        body: widget.navigationShell,
+        bottomNavigationBar: SafeArea(
         top: false,
         child: Container(
           height: 80,
@@ -110,6 +117,6 @@ class _MainShellState extends State<MainShell> {
           ),
         ),
       ),
-    );
+    ),);
   }
 }

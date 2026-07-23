@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../core/network/dio_client.dart';
 import '../../../shared/presentation/widgets/app_back_button.dart';
@@ -112,16 +113,22 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
   Widget build(BuildContext context) {
     final showSuggestions = _messages.length == 1 && !_isLoading;
 
-    return Scaffold(
-      backgroundColor: _AiTok.bg,
-      appBar: AppBar(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        context.go('/home');
+      },
+      child: Scaffold(
         backgroundColor: _AiTok.bg,
-        elevation: 0,
-        leadingWidth: 70,
-        leading: Padding(
-          padding: const EdgeInsets.only(left: 16, top: 8, bottom: 8),
-          child: AppBackButton(onPressed: () => Navigator.pop(context)),
-        ),
+        appBar: AppBar(
+          backgroundColor: _AiTok.bg,
+          elevation: 0,
+          leadingWidth: 70,
+          leading: Padding(
+            padding: const EdgeInsets.only(left: 16, top: 8, bottom: 8),
+            child: AppBackButton(onPressed: () => context.go('/home')),
+          ),
         title: const Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -243,6 +250,6 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
           )
         ],
       ),
-    );
+    ),);
   }
 }

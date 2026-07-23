@@ -20,15 +20,20 @@ public class FeedbackController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> SaveFeedback([FromBody] FeedbackDto dto)
     {
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(ModelState);
+        }
+
         var userIdClaim = User.Claims.FirstOrDefault(c =>
-    c.Type == ClaimTypes.NameIdentifier || c.Type == "sub"
-);
+            c.Type == ClaimTypes.NameIdentifier || c.Type == "sub"
+        );
 
         int? userId = userIdClaim != null ? int.Parse(userIdClaim.Value) : null;
 
         var feedback = new Feedback
         {
-            Message = dto.Feedback,
+            Message = $"[{dto.Category}] {dto.Feedback}",
             UserId = userId,
             CreatedAt = DateTime.UtcNow
         };
