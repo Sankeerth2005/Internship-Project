@@ -525,9 +525,15 @@ namespace localink_be.Services.Implementations
                         .Select(a => a.Status.ToString())
                         .FirstOrDefault(),
                     PrimaryImage = _db.BusinessPhotos
-                        .Where(p => p.BusinessId == b.BusinessId && p.IsPrimary)
+                        .Where(p => p.BusinessId == b.BusinessId)
+                        .OrderByDescending(p => p.IsPrimary)
                         .Select(p => p.ImageUrl)
                         .FirstOrDefault(),
+                    Photos = _db.BusinessPhotos
+                        .Where(p => p.BusinessId == b.BusinessId)
+                        .OrderByDescending(p => p.IsPrimary)
+                        .Select(p => p.ImageUrl)
+                        .ToList(),
                     IsTemporarilyClosed = b.TemporaryClosureStatus == "Approved" && b.TemporaryClosureReopenDate.HasValue && b.TemporaryClosureReopenDate.Value > DateTime.UtcNow,
                     TemporaryClosureReason = b.TemporaryClosureReason,
                     TemporaryClosureStatus = b.TemporaryClosureStatus,
@@ -572,9 +578,15 @@ namespace localink_be.Services.Implementations
                         .Select(c => c.Country)
                         .FirstOrDefault(),
                     PrimaryImage = _db.BusinessPhotos
-                        .Where(p => p.BusinessId == b.BusinessId && p.IsPrimary)
+                        .Where(p => p.BusinessId == b.BusinessId)
+                        .OrderByDescending(p => p.IsPrimary)
                         .Select(p => p.ImageUrl)
                         .FirstOrDefault(),
+                    Photos = _db.BusinessPhotos
+                        .Where(p => p.BusinessId == b.BusinessId)
+                        .OrderByDescending(p => p.IsPrimary)
+                        .Select(p => p.ImageUrl)
+                        .ToList(),
                     StreetAddress = _db.BusinessContacts
                         .Where(c => c.BusinessId == b.BusinessId)
                         .Select(c => c.StreetAddress)
@@ -747,9 +759,15 @@ namespace localink_be.Services.Implementations
                     .Select(a => a.Status.ToString())
                     .FirstOrDefault(),
                 PrimaryImage = _db.BusinessPhotos
-                    .Where(p => p.BusinessId == b.BusinessId && p.IsPrimary)
+                    .Where(p => p.BusinessId == b.BusinessId)
+                    .OrderByDescending(p => p.IsPrimary)
                     .Select(p => p.ImageUrl)
                     .FirstOrDefault(),
+                Photos = _db.BusinessPhotos
+                    .Where(p => p.BusinessId == b.BusinessId)
+                    .OrderByDescending(p => p.IsPrimary)
+                    .Select(p => p.ImageUrl)
+                    .ToList(),
                 AverageRating = _db.BusinessReviews
                     .Where(r => r.BusinessId == b.BusinessId)
                     .Select(r => (double?)r.Rating)
@@ -986,9 +1004,15 @@ namespace localink_be.Services.Implementations
                         .Select(a => a.Status.ToString())
                         .FirstOrDefault(),
                     PrimaryImage = _db.BusinessPhotos
-                        .Where(p => p.BusinessId == b.BusinessId && p.IsPrimary)
+                        .Where(p => p.BusinessId == b.BusinessId)
+                        .OrderByDescending(p => p.IsPrimary)
                         .Select(p => p.ImageUrl)
                         .FirstOrDefault(),
+                    Photos = _db.BusinessPhotos
+                        .Where(p => p.BusinessId == b.BusinessId)
+                        .OrderByDescending(p => p.IsPrimary)
+                        .Select(p => p.ImageUrl)
+                        .ToList(),
                     // Calculate distance using Haversine formula approximation
                     Distance = userLat.HasValue && userLng.HasValue
                         ? _db.BusinessContacts
@@ -1064,7 +1088,8 @@ namespace localink_be.Services.Implementations
                         Latitude = _db.BusinessContacts.Where(c => c.BusinessId == b.BusinessId).Select(c => c.Latitude).FirstOrDefault(),
                         Longitude = _db.BusinessContacts.Where(c => c.BusinessId == b.BusinessId).Select(c => c.Longitude).FirstOrDefault(),
                         Status = _db.AdminDashboards.Where(a => a.BusinessId == b.BusinessId).Select(a => a.Status.ToString()).FirstOrDefault(),
-                        PrimaryImage = _db.BusinessPhotos.Where(p => p.BusinessId == b.BusinessId && p.IsPrimary).Select(p => p.ImageUrl).FirstOrDefault(),
+                        PrimaryImage = _db.BusinessPhotos.Where(p => p.BusinessId == b.BusinessId).OrderByDescending(p => p.IsPrimary).Select(p => p.ImageUrl).FirstOrDefault(),
+                        Photos = _db.BusinessPhotos.Where(p => p.BusinessId == b.BusinessId).OrderByDescending(p => p.IsPrimary).Select(p => p.ImageUrl).ToList(),
                         Distance = userLat.HasValue && userLng.HasValue
                             ? _db.BusinessContacts
                                 .Where(c => c.BusinessId == b.BusinessId && c.Latitude.HasValue && c.Longitude.HasValue)

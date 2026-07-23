@@ -21,15 +21,15 @@ namespace localink_be.Services.Implementations
         private readonly localink_be.Data.AppDbContext _db;
         
         // Groq API configuration
-        private const string GROQ_BASE_URL = "https://api.groq.com/openai/v1";
-        private const string WHISPER_MODEL = "whisper-1";
-        private const string LLM_MODEL = "llama3-8b-8192";
+        private const string GROQ_BASE_URL = "https://api.groq.com/openai/v1/";
+        private const string WHISPER_MODEL = "whisper-large-v3-turbo";
+        private const string LLM_MODEL = "llama-3.1-8b-instant";
         
         // Cache configuration
         private static readonly TimeSpan CACHE_TTL = TimeSpan.FromHours(24);
         private const int MAX_RETRIES = 3;
         private const int RETRY_DELAY_MS = 1000;
-
+ 
         public AIGatewayService(
             IHttpClientFactory httpClientFactory,
             IConfiguration config,
@@ -97,7 +97,7 @@ namespace localink_be.Services.Implementations
                     }
                     content.Add(new StringContent("json"), "response_format");
 
-                    var response = await _httpClient.PostAsync("/audio/transcriptions", content);
+                    var response = await _httpClient.PostAsync("audio/transcriptions", content);
 
                     if (response.IsSuccessStatusCode)
                     {
@@ -269,7 +269,7 @@ namespace localink_be.Services.Implementations
                         max_tokens = 1000
                     };
 
-                    var response = await _httpClient.PostAsJsonAsync("/chat/completions", requestBody);
+                    var response = await _httpClient.PostAsJsonAsync("chat/completions", requestBody);
 
                     if (response.IsSuccessStatusCode)
                     {
@@ -435,7 +435,7 @@ Return ONLY the JSON object, no markdown, no explanation."
                         response_format = new { type = "json_object" }
                     };
 
-                    var response = await _httpClient.PostAsJsonAsync("/chat/completions", requestBody);
+                    var response = await _httpClient.PostAsJsonAsync("chat/completions", requestBody);
 
                     if (response.IsSuccessStatusCode)
                     {
@@ -534,7 +534,7 @@ Return ONLY the JSON object, no markdown, no explanation."
                     max_tokens = 1
                 };
 
-                var response = await _httpClient.PostAsJsonAsync("/chat/completions", requestBody);
+                var response = await _httpClient.PostAsJsonAsync("chat/completions", requestBody);
                 return response.IsSuccessStatusCode;
             }
             catch
@@ -650,7 +650,7 @@ Return ONLY the translated JSON object."
                         response_format = new { type = "json_object" }
                     };
 
-                    var response = await _httpClient.PostAsJsonAsync("/chat/completions", requestBody);
+                    var response = await _httpClient.PostAsJsonAsync("chat/completions", requestBody);
 
                     if (response.IsSuccessStatusCode)
                     {

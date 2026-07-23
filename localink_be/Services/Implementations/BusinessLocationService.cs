@@ -39,6 +39,54 @@ public class BusinessLocationService : IBusinessLocationService
         );
     }
 
+    private string GetFallbackCountries()
+    {
+        return "[{\"name\": \"India\", \"iso2\": \"IN\", \"phonecode\": \"91\", \"emoji\": \"🇮🇳\"}, {\"name\": \"United States\", \"iso2\": \"US\", \"phonecode\": \"1\", \"emoji\": \"🇺🇸\"}, {\"name\": \"United Kingdom\", \"iso2\": \"GB\", \"phonecode\": \"44\", \"emoji\": \"🇬🇧\"}]";
+    }
+
+    private string GetFallbackStates(string countryCode)
+    {
+        countryCode = countryCode.ToUpperInvariant();
+        if (countryCode == "IN")
+        {
+            return "[{\"name\": \"Maharashtra\", \"iso2\": \"MH\"}, {\"name\": \"Delhi\", \"iso2\": \"DL\"}, {\"name\": \"Karnataka\", \"iso2\": \"KA\"}, {\"name\": \"Telangana\", \"iso2\": \"TG\"}, {\"name\": \"Tamil Nadu\", \"iso2\": \"TN\"}, {\"name\": \"Gujarat\", \"iso2\": \"GJ\"}, {\"name\": \"Uttar Pradesh\", \"iso2\": \"UP\"}]";
+        }
+        if (countryCode == "US")
+        {
+            return "[{\"name\": \"California\", \"iso2\": \"CA\"}, {\"name\": \"New York\", \"iso2\": \"NY\"}, {\"name\": \"Texas\", \"iso2\": \"TX\"}]";
+        }
+        return "[]";
+    }
+
+    private string GetFallbackCities(string countryCode, string stateCode)
+    {
+        countryCode = countryCode.ToUpperInvariant();
+        stateCode = stateCode.ToUpperInvariant();
+        if (countryCode == "IN")
+        {
+            switch (stateCode)
+            {
+                case "MH": return "[{\"name\": \"Mumbai\"}, {\"name\": \"Pune\"}, {\"name\": \"Nagpur\"}]";
+                case "DL": return "[{\"name\": \"New Delhi\"}]";
+                case "KA": return "[{\"name\": \"Bengaluru\"}, {\"name\": \"Mysore\"}]";
+                case "TG": return "[{\"name\": \"Hyderabad\"}, {\"name\": \"Warangal\"}]";
+                case "TN": return "[{\"name\": \"Chennai\"}, {\"name\": \"Coimbatore\"}]";
+                case "GJ": return "[{\"name\": \"Ahmedabad\"}, {\"name\": \"Surat\"}]";
+                case "UP": return "[{\"name\": \"Noida\"}, {\"name\": \"Lucknow\"}, {\"name\": \"Varanasi\"}]";
+            }
+        }
+        if (countryCode == "US")
+        {
+            switch (stateCode)
+            {
+                case "CA": return "[{\"name\": \"Los Angeles\"}, {\"name\": \"San Francisco\"}]";
+                case "NY": return "[{\"name\": \"New York City\"}]";
+                case "TX": return "[{\"name\": \"Houston\"}, {\"name\": \"Austin\"}]";
+            }
+        }
+        return "[]";
+    }
+
     /// <summary>
     /// Gets all countries with caching.
     /// Cache duration: 24 hours
@@ -49,15 +97,31 @@ public class BusinessLocationService : IBusinessLocationService
             CountriesCacheKey,
             async () =>
             {
-                _logger.LogInformation("Fetching countries from external API");
-                SetHeaders();
                 var url = $"{_config["CountryApi:BaseUrl"]}/countries";
-                var response = await _httpClient.GetStringAsync(url);
-                _logger.LogInformation("Successfully fetched countries from external API");
-                return response;
+                _logger.LogInformation("Fetching countries from external API: {Url}", url);
+                try
+                {
+                    SetHeaders();
+                    var response = await _httpClient.GetAsync(url);
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        var errBody = await response.Content.ReadAsStringAsync();
+                        _logger.LogError("External API Failure: Endpoint={Url}, Status={Status}, Message={Message}", 
+                            url, (int)response.StatusCode, errBody);
+                        return GetFallbackCountries();
+                    }
+                    var content = await response.Content.ReadAsStringAsync();
+                    _logger.LogInformation("Successfully fetched countries from external API");
+                    return content;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "External API Exception: Endpoint={Url}, Message={Message}", url, ex.Message);
+                    return GetFallbackCountries();
+                }
             },
             CountriesCacheExpiration
-        ) ?? "[]"; // Return empty JSON array if null
+        ) ?? "[]";
     }
 
     /// <summary>
@@ -76,15 +140,31 @@ public class BusinessLocationService : IBusinessLocationService
             cacheKey,
             async () =>
             {
-                _logger.LogInformation("Fetching states for country {CountryCode} from external API", countryCode);
-                SetHeaders();
                 var url = $"{_config["CountryApi:BaseUrl"]}/countries/{countryCode}/states";
-                var response = await _httpClient.GetStringAsync(url);
-                _logger.LogInformation("Successfully fetched states for country {CountryCode}", countryCode);
-                return response;
+                _logger.LogInformation("Fetching states for country {CountryCode} from external API: {Url}", countryCode, url);
+                try
+                {
+                    SetHeaders();
+                    var response = await _httpClient.GetAsync(url);
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        var errBody = await response.Content.ReadAsStringAsync();
+                        _logger.LogError("External API Failure: Endpoint={Url}, Status={Status}, Message={Message}", 
+                            url, (int)response.StatusCode, errBody);
+                        return GetFallbackStates(countryCode);
+                    }
+                    var content = await response.Content.ReadAsStringAsync();
+                    _logger.LogInformation("Successfully fetched states for country {CountryCode}", countryCode);
+                    return content;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "External API Exception: Endpoint={Url}, Message={Message}", url, ex.Message);
+                    return GetFallbackStates(countryCode);
+                }
             },
             StatesCacheExpiration
-        ) ?? "[]"; // Return empty JSON array if null
+        ) ?? "[]";
     }
 
     /// <summary>
@@ -105,17 +185,31 @@ public class BusinessLocationService : IBusinessLocationService
             cacheKey,
             async () =>
             {
-                _logger.LogInformation("Fetching cities for country {CountryCode}, state {StateCode} from external API", 
-                    countryCode, stateCode);
-                SetHeaders();
                 var url = $"{_config["CountryApi:BaseUrl"]}/countries/{countryCode}/states/{stateCode}/cities";
-                var response = await _httpClient.GetStringAsync(url);
-                _logger.LogInformation("Successfully fetched cities for country {CountryCode}, state {StateCode}", 
-                    countryCode, stateCode);
-                return response;
+                _logger.LogInformation("Fetching cities for country {CountryCode}, state {StateCode} from external API: {Url}", countryCode, stateCode, url);
+                try
+                {
+                    SetHeaders();
+                    var response = await _httpClient.GetAsync(url);
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        var errBody = await response.Content.ReadAsStringAsync();
+                        _logger.LogError("External API Failure: Endpoint={Url}, Status={Status}, Message={Message}", 
+                            url, (int)response.StatusCode, errBody);
+                        return GetFallbackCities(countryCode, stateCode);
+                    }
+                    var content = await response.Content.ReadAsStringAsync();
+                    _logger.LogInformation("Successfully fetched cities for country {CountryCode}, state {StateCode}", countryCode, stateCode);
+                    return content;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "External API Exception: Endpoint={Url}, Message={Message}", url, ex.Message);
+                    return GetFallbackCities(countryCode, stateCode);
+                }
             },
             CitiesCacheExpiration
-        ) ?? "[]"; // Return empty JSON array if null
+        ) ?? "[]";
     }
 
     public async Task<bool> ValidateAddressAsync(string countryName, string stateName, string cityName)

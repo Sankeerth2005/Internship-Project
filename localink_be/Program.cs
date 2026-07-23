@@ -220,7 +220,10 @@ app.UseMiddleware<ExceptionMiddleware>();
 // TRANSLATION MIDDLEWARE - Global response translation
 app.UseResponseTranslation();
 
-app.UseHttpsRedirection();
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
 
 // Serve default wwwroot static files & ensure wwwroot/uploads directory
 var webRootPath = builder.Environment.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");

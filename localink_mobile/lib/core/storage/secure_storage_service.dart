@@ -1,42 +1,83 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class SecureStorageService {
-  static const _storage = FlutterSecureStorage();
+  static const _storage = FlutterSecureStorage(
+    aOptions: AndroidOptions(encryptedSharedPreferences: true),
+  );
 
   static const _tokenKey = 'jwt_token';
   static const _userTypeKey = 'user_type';
   static const _userIdKey = 'user_id';
 
   static Future<void> saveToken(String token) async {
-    await _storage.write(key: _tokenKey, value: token);
+    try {
+      await _storage.write(key: _tokenKey, value: token);
+    } catch (e) {
+      debugPrint('SecureStorageService: Error writing token: $e');
+    }
   }
 
   static Future<String?> getToken() async {
-    return await _storage.read(key: _tokenKey);
+    try {
+      return await _storage.read(key: _tokenKey);
+    } catch (e) {
+      debugPrint('SecureStorageService: Error reading token: $e. Clearing storage.');
+      await clearAll();
+      return null;
+    }
   }
 
   static Future<void> deleteToken() async {
-    await _storage.delete(key: _tokenKey);
+    try {
+      await _storage.delete(key: _tokenKey);
+    } catch (e) {
+      debugPrint('SecureStorageService: Error deleting token: $e');
+    }
   }
 
   static Future<void> saveUserType(String userType) async {
-    await _storage.write(key: _userTypeKey, value: userType);
+    try {
+      await _storage.write(key: _userTypeKey, value: userType);
+    } catch (e) {
+      debugPrint('SecureStorageService: Error writing userType: $e');
+    }
   }
 
   static Future<String?> getUserType() async {
-    return await _storage.read(key: _userTypeKey);
+    try {
+      return await _storage.read(key: _userTypeKey);
+    } catch (e) {
+      debugPrint('SecureStorageService: Error reading userType: $e. Clearing storage.');
+      await clearAll();
+      return null;
+    }
   }
 
   static Future<void> saveUserId(int userId) async {
-    await _storage.write(key: _userIdKey, value: userId.toString());
+    try {
+      await _storage.write(key: _userIdKey, value: userId.toString());
+    } catch (e) {
+      debugPrint('SecureStorageService: Error writing userId: $e');
+    }
   }
 
   static Future<int?> getUserId() async {
-    final val = await _storage.read(key: _userIdKey);
-    return val != null ? int.tryParse(val) : null;
+    try {
+      final val = await _storage.read(key: _userIdKey);
+      return val != null ? int.tryParse(val) : null;
+    } catch (e) {
+      debugPrint('SecureStorageService: Error reading userId: $e. Clearing storage.');
+      await clearAll();
+      return null;
+    }
   }
 
   static Future<void> clearAll() async {
-    await _storage.deleteAll();
+    try {
+      await _storage.deleteAll();
+    } catch (e) {
+      debugPrint('SecureStorageService: Error deleting all: $e');
+    }
   }
 }
