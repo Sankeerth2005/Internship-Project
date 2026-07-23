@@ -5,6 +5,7 @@ import '../data/repositories/business_repository.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../auth/providers/auth_state.dart';
 import '../../auth/providers/user_provider.dart';
+import 'category_usage_tracker.dart';
 
 final businessRepositoryProvider = Provider<BusinessRepository>((ref) {
   return BusinessRepository(dio: DioClient().dio);
@@ -14,6 +15,20 @@ final businessRepositoryProvider = Provider<BusinessRepository>((ref) {
 final categoriesProvider = FutureProvider<List<CategoryDto>>((ref) async {
   final repo = ref.watch(businessRepositoryProvider);
   return await repo.getCategories();
+});
+
+// Sorted categories provider by usage
+final sortedCategoriesProvider = FutureProvider<List<CategoryDto>>((ref) async {
+  final categories = await ref.watch(categoriesProvider.future);
+  final usageMap = ref.watch(categoryUsageProvider).value ?? {};
+
+  final list = List<CategoryDto>.from(categories);
+  list.sort((a, b) {
+    final countA = usageMap[a.categoryId] ?? 0;
+    final countB = usageMap[b.categoryId] ?? 0;
+    return countB.compareTo(countA);
+  });
+  return list;
 });
 
 // Subcategories by category provider
@@ -226,6 +241,17 @@ final searchResultsProvider = FutureProvider<List<BusinessDto>>((ref) async {
   List<BusinessDto> filtered = rawResults;
 
   if (searchWord.isNotEmpty) {
+    try {
+      final cats = ref.read(categoriesProvider).value;
+      if (cats != null) {
+        for (final cat in cats) {
+          if (cat.categoryName.toLowerCase().contains(searchWord)) {
+            Future.microtask(() => ref.read(categoryUsageProvider.notifier).increment(cat.categoryId, 1));
+          }
+        }
+      }
+    } catch (_) {}
+
     filtered = rawResults.where((b) {
       final nameMatch = b.businessName.toLowerCase().contains(searchWord);
       final ownerMatch = b.ownerName.toLowerCase().contains(searchWord);

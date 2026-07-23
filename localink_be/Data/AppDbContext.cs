@@ -26,6 +26,7 @@ namespace localink_be.Data
         public DbSet<Favorite> Favorites { get; set; }
         public DbSet<BusinessMetric> BusinessMetrics { get; set; }
         public DbSet<SearchQueryLog> SearchQueryLogs { get; set; }
+        public DbSet<TranslationCache> TranslationCaches { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -38,6 +39,7 @@ namespace localink_be.Data
             ConfigureUser(modelBuilder);
             ConfigureBusinessReview(modelBuilder);
             ConfigureFavorite(modelBuilder);
+            ConfigureTranslationCache(modelBuilder);
         }
 
         private void ConfigureCategory(ModelBuilder modelBuilder)
@@ -78,6 +80,10 @@ namespace localink_be.Data
                 entity.Property(b => b.SubcategoryId).HasColumnName("subcategory_id");
                 entity.Property(b => b.UserId).HasColumnName("user_id");
 
+                entity.HasIndex(b => b.CategoryId);
+                entity.HasIndex(b => b.SubcategoryId);
+                entity.HasIndex(b => b.UserId);
+
                 entity.HasOne(b => b.Category)
                     .WithMany()
                     .HasForeignKey(b => b.CategoryId)
@@ -111,6 +117,8 @@ namespace localink_be.Data
                 entity.Property(c => c.UpdatedAt).HasColumnName("updated_at");
                 entity.Property(c => c.Latitude).HasColumnName("latitude");
                 entity.Property(c => c.Longitude).HasColumnName("longitude");
+
+                entity.HasIndex(c => c.BusinessId);
             });
         }
 
@@ -124,6 +132,8 @@ namespace localink_be.Data
                 entity.Property(p => p.BusinessId).HasColumnName("business_id");
                 entity.Property(p => p.ImageUrl).HasColumnName("image_url");
                 entity.Property(p => p.IsPrimary).HasColumnName("is_primary");
+
+                entity.HasIndex(p => p.BusinessId);
             });
         }
 
@@ -174,6 +184,10 @@ namespace localink_be.Data
                 entity.Property(r => r.CreatedAt).HasColumnName("created_at");
                 entity.Property(r => r.UpdatedAt).HasColumnName("updated_at");
                 entity.Property(r => r.ImageUrl).HasColumnName("image_url");
+
+                entity.HasIndex(r => r.BusinessId);
+                entity.HasIndex(r => r.UserId);
+
                 entity.HasOne(r => r.User)
                     .WithMany()
                     .HasForeignKey(r => r.UserId)
@@ -206,6 +220,15 @@ namespace localink_be.Data
 
                 entity.HasIndex(f => new { f.UserId, f.BusinessId })
                     .IsUnique();
+            });
+        }
+
+        private void ConfigureTranslationCache(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<TranslationCache>(entity =>
+            {
+                entity.ToTable("translation_cache");
+                entity.HasIndex(t => t.CacheKey).IsUnique();
             });
         }
     }

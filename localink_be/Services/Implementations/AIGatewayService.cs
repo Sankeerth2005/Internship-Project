@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.EntityFrameworkCore;
 using localink_be.Services.Interfaces;
 
 namespace localink_be.Services.Implementations
@@ -17,6 +18,7 @@ namespace localink_be.Services.Implementations
         private readonly IConfiguration _config;
         private readonly ILogger<AIGatewayService> _logger;
         private readonly IMemoryCache _memoryCache;
+        private readonly localink_be.Data.AppDbContext _db;
         
         // Groq API configuration
         private const string GROQ_BASE_URL = "https://api.groq.com/openai/v1";
@@ -32,11 +34,13 @@ namespace localink_be.Services.Implementations
             IHttpClientFactory httpClientFactory,
             IConfiguration config,
             ILogger<AIGatewayService> logger,
-            IMemoryCache memoryCache)
+            IMemoryCache memoryCache,
+            localink_be.Data.AppDbContext db)
         {
             _config = config;
             _logger = logger;
             _memoryCache = memoryCache;
+            _db = db;
             _httpClient = httpClientFactory.CreateClient("GroqAI");
             _httpClient.DefaultRequestHeaders.Authorization = 
                 new AuthenticationHeaderValue("Bearer", _config["Groq:ApiKey"] ?? "");
@@ -218,6 +222,30 @@ namespace localink_be.Services.Implementations
                 return cachedResult;
             }
 
+            // Check database persistent cache
+            try
+            {
+                var dbCached = await _db.TranslationCaches.FirstOrDefaultAsync(t => t.CacheKey == cacheKey);
+                if (dbCached != null)
+                {
+                    var translationResult = new TranslationResult
+                    {
+                        Success = true,
+                        TranslatedText = dbCached.TranslatedText,
+                        SourceLang = sourceLang ?? "en",
+                        TargetLang = targetLang,
+                        UsedFallback = false
+                    };
+                    _memoryCache.Set(cacheKey, translationResult, CACHE_TTL);
+                    _logger.LogInformation("Database Cache HIT for translation: {CacheKey}", cacheKey);
+                    return translationResult;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to query database translation cache for key: {CacheKey}", cacheKey);
+            }
+
             // Try API with retries
             for (int attempt = 1; attempt <= MAX_RETRIES; attempt++)
             {
@@ -262,8 +290,27 @@ namespace localink_be.Services.Implementations
                                 UsedFallback = false
                             };
 
-                            // Cache the result
+                            // Cache the result in memory
                             CacheResult(cacheKey, translationResult);
+
+                            // Save to database cache
+                            try
+                            {
+                                var dbEntry = new localink_be.Models.Entities.TranslationCache
+                                {
+                                    CacheKey = cacheKey,
+                                    OriginalText = text,
+                                    TranslatedText = translatedText,
+                                    TargetLang = targetLang,
+                                    CreatedAt = DateTime.UtcNow
+                                };
+                                _db.TranslationCaches.Add(dbEntry);
+                                await _db.SaveChangesAsync();
+                            }
+                            catch (Exception ex)
+                            {
+                                _logger.LogWarning(ex, "Failed to persist translation cache in database for key: {CacheKey}", cacheKey);
+                            }
                             
                             _logger.LogDebug("Translation successful: {SourceLang} -> {TargetLang}", 
                                 translationResult.SourceLang, translationResult.TargetLang);
@@ -540,6 +587,29 @@ Return ONLY the JSON object, no markdown, no explanation."
                 return cachedResult;
             }
 
+            // Check database persistent cache
+            try
+            {
+                var dbCached = await _db.TranslationCaches.FirstOrDefaultAsync(t => t.CacheKey == cacheKey);
+                if (dbCached != null)
+                {
+                    var translationResult = new JsonTranslationResult
+                    {
+                        Success = true,
+                        TranslatedJson = dbCached.TranslatedText,
+                        TargetLang = targetLang,
+                        UsedFallback = false
+                    };
+                    _memoryCache.Set(cacheKey, translationResult, CACHE_TTL);
+                    _logger.LogInformation("Database Cache HIT for JSON translation: {CacheKey}", cacheKey);
+                    return translationResult;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to query database JSON translation cache for key: {CacheKey}", cacheKey);
+            }
+
             // Try API with retries
             for (int attempt = 1; attempt <= MAX_RETRIES; attempt++)
             {
@@ -602,8 +672,27 @@ Return ONLY the translated JSON object."
                                     UsedFallback = false
                                 };
 
-                                // Cache the result (24 hours)
+                                // Cache the result (24 hours) in memory
                                 CacheResult(cacheKey, translationResult);
+
+                                // Save to database cache
+                                try
+                                {
+                                    var dbEntry = new localink_be.Models.Entities.TranslationCache
+                                    {
+                                        CacheKey = cacheKey,
+                                        OriginalText = json,
+                                        TranslatedText = translatedJson,
+                                        TargetLang = targetLang,
+                                        CreatedAt = DateTime.UtcNow
+                                    };
+                                    _db.TranslationCaches.Add(dbEntry);
+                                    await _db.SaveChangesAsync();
+                                }
+                                catch (Exception ex)
+                                {
+                                    _logger.LogWarning(ex, "Failed to persist JSON translation cache in database for key: {CacheKey}", cacheKey);
+                                }
                                 
                                 _logger.LogInformation("JSON Translation successful to {TargetLang}", targetLang);
                                 return translationResult;

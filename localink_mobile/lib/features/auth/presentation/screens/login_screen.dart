@@ -20,19 +20,15 @@ class _Tok {
   static const Color white    = Color(0xFFFFFFFF);
   static const Color charcoal = Color(0xFF1A1918);
   static const Color medText  = Color(0xFF5F5C58);
-  static const Color surface  = Color(0xFFF9F8F6);
-  static const Color border   = Color(0xFFEAE8E3);
 
   // Spacing
   static const double xs  = 4;
   static const double sm  = 8;
-  static const double md  = 12;
   static const double lg  = 16;
   static const double xl  = 24;
   static const double xxl = 32;
 
   // Radii
-  static const double rRound = 999;
 }
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -182,7 +178,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   // ─────────────────────────────────────────────────────────────────────────
 
   String get _subtitle =>
-      'Sign in to your account to continue.';
+      'Sign in to list, discover, and support local community businesses.';
 
   @override
   Widget build(BuildContext context) {
@@ -323,6 +319,31 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
               height: 1.5,
             ),
             textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: _Tok.lg),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            decoration: BoxDecoration(
+              color: _Tok.primary.withValues(alpha: 0.06),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: _Tok.primary.withValues(alpha: 0.15)),
+            ),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.storefront_rounded, color: _Tok.primary, size: 16),
+                SizedBox(width: 8),
+                Text(
+                  'Unified Portal: Customers & Business Owners',
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: _Tok.primary,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),

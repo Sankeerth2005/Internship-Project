@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:geolocator/geolocator.dart';
 import '../../providers/business_provider.dart';
+import '../../providers/category_usage_tracker.dart';
 import '../../data/models/business_models.dart';
 import '../../../auth/providers/auth_provider.dart';
 import '../../../auth/providers/auth_state.dart';
@@ -327,7 +328,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
 
   @override
   Widget build(BuildContext context) {
-    final categoriesAsync = ref.watch(categoriesProvider);
+    final categoriesAsync = ref.watch(sortedCategoriesProvider);
     final searchResultsAsync = ref.watch(searchResultsProvider);
     final queryState = ref.watch(searchQueryProvider);
     final favorites = ref.watch(favoritesProvider);
@@ -445,6 +446,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
                         ref.read(searchQueryProvider.notifier).clearCategory();
                       } else {
                         ref.read(searchQueryProvider.notifier).setCategory(catId);
+                        ref.read(categoryUsageProvider.notifier).increment(catId, 2);
                       }
                     },
                     onSubcategoryChanged: (subId) {
@@ -715,6 +717,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
                       onTap: () {
                         HapticFeedback.mediumImpact();
                         ref.read(favoritesProvider.notifier).toggleFavorite(business.businessId);
+                        if (!isFav) {
+                          ref.read(categoryUsageProvider.notifier).increment(business.categoryId, 3);
+                        }
                       },
                       child: AnimatedScale(
                         scale: isFav ? 1.25 : 1.0,

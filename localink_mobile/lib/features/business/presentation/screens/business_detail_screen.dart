@@ -8,6 +8,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:geolocator/geolocator.dart';
 
 import '../../providers/business_provider.dart';
+import '../../providers/category_usage_tracker.dart';
 import '../../data/models/business_models.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/network/signalr_service.dart';
@@ -284,6 +285,13 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<AsyncValue<BusinessDto>>(singleBusinessProvider(widget.businessId), (previous, next) {
+      if (next.hasValue) {
+        final categoryId = next.value!.categoryId;
+        ref.read(categoryUsageProvider.notifier).increment(categoryId, 1);
+      }
+    });
+
     final businessAsync = ref.watch(singleBusinessProvider(widget.businessId));
     final reviewsAsync = ref.watch(reviewsProvider(widget.businessId));
     final authState = ref.watch(authProvider);

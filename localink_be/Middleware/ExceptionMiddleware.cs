@@ -1,15 +1,19 @@
 using System.Net;
 using System.Text.Json;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.Hosting;
 
 public class ExceptionMiddleware
 {
     private readonly RequestDelegate _next;
     private readonly ILogger<ExceptionMiddleware> _logger;
+    private readonly IWebHostEnvironment _env;
 
-    public ExceptionMiddleware(RequestDelegate next, ILogger<ExceptionMiddleware> logger)
+    public ExceptionMiddleware(RequestDelegate next, ILogger<ExceptionMiddleware> logger, IWebHostEnvironment env)
     {
         _next = next;
         _logger = logger;
+        _env = env;
     }
 
     public async Task InvokeAsync(HttpContext context)
@@ -41,8 +45,12 @@ public class ExceptionMiddleware
         catch (Exception ex)
         {
             _logger.LogError(ex, "Internal Server Error");
-            var userMsg = string.IsNullOrWhiteSpace(ex.Message) ? "Something went wrong" : ex.Message;
-            await HandleException(context, HttpStatusCode.InternalServerError, userMsg, ex.Message);
+            
+            var isDev = _env.IsDevelopment();
+            var userMsg = "An unexpected error occurred. Please try again later.";
+            var errorDetails = isDev ? ex.ToString() : null;
+
+            await HandleException(context, HttpStatusCode.InternalServerError, userMsg, errorDetails);
         }
     }
 

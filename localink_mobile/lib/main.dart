@@ -41,8 +41,8 @@ final routerProvider = Provider<GoRouter>((ref) {
     refreshListenable: GoRouterRefreshListenable(ref),
     errorBuilder: (context, state) => _RouteErrorScreen(error: state.error?.toString()),
     redirect: (BuildContext context, GoRouterState state) {
-      final authState = ref.watch(authProvider); // Listen to auth state changes
-      final splashShown = ref.watch(splashShownProvider);
+      final authState = ref.read(authProvider); // Read auth state without re-creating router
+      final splashShown = ref.read(splashShownProvider);
       final currentLocation = state.matchedLocation;
 
       // If splash has not completed displaying yet, force staying on /splash

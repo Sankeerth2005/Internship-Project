@@ -4,12 +4,14 @@ import '../../business/data/models/business_models.dart';
 
 class CategorySheet extends StatefulWidget {
   final List<CategoryDto> categories;
+  final int? selectedCategoryId;
   final ValueChanged<int?> onCategorySelected;
   final IconData Function(String) iconResolver;
 
   const CategorySheet({
     super.key,
     required this.categories,
+    required this.selectedCategoryId,
     required this.onCategorySelected,
     required this.iconResolver,
   });
@@ -51,6 +53,12 @@ class _CategorySheetState extends State<CategorySheet> {
 
   @override
   Widget build(BuildContext context) {
+    final hasActiveFilter = widget.selectedCategoryId != null;
+    final isSearching = _searchCtrl.text.isNotEmpty;
+
+    // We only display the "All Categories" option when not searching, or if it matches "all"
+    final showAllCategoriesCard = !isSearching;
+
     return Container(
       height: MediaQuery.of(context).size.height * 0.85,
       decoration: const BoxDecoration(
@@ -86,9 +94,35 @@ class _CategorySheetState extends State<CategorySheet> {
                     fontWeight: FontWeight.w900,
                   ),
                 ),
-                IconButton(
-                  onPressed: () => Navigator.pop(context),
-                  icon: const Icon(Icons.close_rounded, color: Color(0xFF5F5C58)),
+                Row(
+                  children: [
+                    if (hasActiveFilter) ...[
+                      TextButton.icon(
+                        style: TextButton.styleFrom(
+                          foregroundColor: const Color(0xFFFF6600),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        onPressed: () {
+                          HapticFeedback.mediumImpact();
+                          widget.onCategorySelected(null);
+                          Navigator.pop(context);
+                        },
+                        icon: const Icon(Icons.clear_all_rounded, size: 16),
+                        label: const Text(
+                          'Clear Filter',
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                    ],
+                    IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Icons.close_rounded, color: Color(0xFF5F5C58)),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -150,7 +184,7 @@ class _CategorySheetState extends State<CategorySheet> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Suggestions / Recents when search query is empty
-                  if (_searchCtrl.text.isEmpty) ...[
+                  if (!isSearching) ...[
                     const Text(
                       'Recent Searches',
                       style: TextStyle(
@@ -188,7 +222,7 @@ class _CategorySheetState extends State<CategorySheet> {
 
                   // Category title
                   Text(
-                    _searchCtrl.text.isEmpty ? 'All Categories' : 'Search Results',
+                    isSearching ? 'Search Results' : 'All Categories',
                     style: const TextStyle(
                       color: Color(0xFF1A1918),
                       fontSize: 14,
@@ -223,30 +257,32 @@ class _CategorySheetState extends State<CategorySheet> {
                         mainAxisSpacing: 12,
                         childAspectRatio: 1.45,
                       ),
-                      itemCount: _filteredCategories.length,
+                      itemCount: showAllCategoriesCard ? _filteredCategories.length + 1 : _filteredCategories.length,
                       itemBuilder: (context, index) {
-                        final cat = _filteredCategories[index];
-                        final icon = widget.iconResolver(cat.categoryName);
+                        final isAllCard = showAllCategoriesCard && index == 0;
+                        final cat = isAllCard ? null : _filteredCategories[showAllCategoriesCard ? index - 1 : index];
+                        
+                        final label = isAllCard ? 'All Categories' : cat!.categoryName;
+                        final icon = isAllCard ? Icons.apps_rounded : widget.iconResolver(label);
+                        final isSelected = isAllCard
+                            ? widget.selectedCategoryId == null
+                            : widget.selectedCategoryId == cat!.categoryId;
 
                         return GestureDetector(
                           onTap: () {
                             HapticFeedback.mediumImpact();
-                            widget.onCategorySelected(cat.categoryId);
+                            widget.onCategorySelected(isAllCard ? null : cat!.categoryId);
                             Navigator.pop(context);
                           },
                           child: Container(
                             padding: const EdgeInsets.all(16),
                             decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [
-                                  Colors.white,
-                                  const Color(0xFFF9F8F6).withValues(alpha: 0.6),
-                                ],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              ),
+                              color: isSelected ? const Color(0xFFFFF0E6) : Colors.white,
                               borderRadius: BorderRadius.circular(16),
-                              border: Border.all(color: const Color(0xFFEAE8E3)),
+                              border: Border.all(
+                                color: isSelected ? const Color(0xFFFF6600) : const Color(0xFFEAE8E3),
+                                width: isSelected ? 2 : 1,
+                              ),
                               boxShadow: [
                                 BoxShadow(
                                   color: const Color(0xFF1A1918).withValues(alpha: 0.02),
@@ -255,33 +291,47 @@ class _CategorySheetState extends State<CategorySheet> {
                                 ),
                               ],
                             ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            child: Stack(
                               children: [
-                                Container(
-                                  padding: const EdgeInsets.all(8),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFFF6600).withValues(alpha: 0.08),
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: Icon(
-                                    icon,
-                                    color: const Color(0xFFFF6600),
-                                    size: 20,
-                                  ),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(8),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFFF6600).withValues(alpha: 0.08),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: Icon(
+                                        icon,
+                                        color: const Color(0xFFFF6600),
+                                        size: 20,
+                                      ),
+                                    ),
+                                    Text(
+                                      label,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontFamily: 'Inter',
+                                        color: const Color(0xFF1A1918),
+                                        fontSize: 13,
+                                        fontWeight: isSelected ? FontWeight.w900 : FontWeight.w800,
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                                Text(
-                                  cat.categoryName,
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    fontFamily: 'Inter',
-                                    color: Color(0xFF1A1918),
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w800,
+                                if (isSelected)
+                                  const Positioned(
+                                    top: 0,
+                                    right: 0,
+                                    child: Icon(
+                                      Icons.check_circle_rounded,
+                                      color: Color(0xFFFF6600),
+                                      size: 18,
+                                    ),
                                   ),
-                                ),
                               ],
                             ),
                           ),

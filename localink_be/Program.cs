@@ -46,6 +46,19 @@ foreach (var mapping in envMappings)
 
 builder.Configuration.AddEnvironmentVariables();
 
+// Validate critical configuration elements on startup (Fail-Fast pattern)
+var dbConn = builder.Configuration.GetConnectionString("DefaultConnection");
+if (string.IsNullOrWhiteSpace(dbConn))
+{
+    throw new InvalidOperationException("Startup Error: ConnectionStrings:DefaultConnection is empty or missing. Please set it in appsettings.json or via DB_CONNECTION_STRING environment variable.");
+}
+
+var jwtKeySetting = builder.Configuration["Jwt:Key"];
+if (string.IsNullOrWhiteSpace(jwtKeySetting) || jwtKeySetting.Length < 16)
+{
+    throw new InvalidOperationException("Startup Error: Jwt:Key is empty, missing, or too short. It must be at least 16 characters long.");
+}
+
 builder.Services.AddHttpClient();
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(

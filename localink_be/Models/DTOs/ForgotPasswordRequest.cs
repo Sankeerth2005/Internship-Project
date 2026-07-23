@@ -10,6 +10,8 @@ namespace localink_be.Models.DTOs
 
         [Required]
         [MinLength(8)]
+        [RegularExpression(@"^(?=.*[A-Z])(?=.*[a-z])(?=.*\d).+$",
+        ErrorMessage = "Password must contain uppercase, lowercase and number")]
         public string NewPassword { get; set; } = string.Empty;
     }
 }

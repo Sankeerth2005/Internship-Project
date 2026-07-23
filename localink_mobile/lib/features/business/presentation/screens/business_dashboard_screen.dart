@@ -283,35 +283,48 @@ class _BusinessDashboardScreenState extends ConsumerState<BusinessDashboardScree
                   SliverToBoxAdapter(
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(20, 16, 20, 10),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
-                            'Analytics Insights',
-                            style: TextStyle(
-                              fontFamily: 'Inter',
-                              color: _DashTok.textHigh,
-                              fontSize: 15,
-                              fontWeight: FontWeight.w900,
-                            ),
-                          ),
-                          GestureDetector(
-                            onTap: () {
-                              HapticFeedback.lightImpact();
-                              context.push('/analytics/${activeBusiness.businessId}', extra: activeBusiness);
-                            },
-                            child: const Row(
-                              children: [
-                                Text(
-                                  'View Details',
-                                  style: TextStyle(
-                                    color: _DashTok.primary,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text(
+                                'Analytics Insights',
+                                style: TextStyle(
+                                  fontFamily: 'Inter',
+                                  color: _DashTok.textHigh,
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w900,
                                 ),
-                                Icon(Icons.arrow_forward_ios_rounded, color: _DashTok.primary, size: 10),
-                              ],
+                              ),
+                              GestureDetector(
+                                onTap: () {
+                                  HapticFeedback.lightImpact();
+                                  context.push('/analytics/${activeBusiness.businessId}', extra: activeBusiness);
+                                },
+                                child: const Row(
+                                  children: [
+                                    Text(
+                                      'View Details',
+                                      style: TextStyle(
+                                        color: _DashTok.primary,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    Icon(Icons.arrow_forward_ios_rounded, color: _DashTok.primary, size: 10),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          const Text(
+                            'Track how many customers discover, view, call, or navigate to your store listing.',
+                            style: TextStyle(
+                              color: _DashTok.textMedium,
+                              fontSize: 12.5,
                             ),
                           ),
                         ],
@@ -446,43 +459,73 @@ class _BusinessDashboardScreenState extends ConsumerState<BusinessDashboardScree
                   SliverToBoxAdapter(
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: Row(
+                      child: Column(
                         children: [
-                          Expanded(
-                            child: _buildActionBtn(
-                              icon: Icons.edit_rounded,
-                              label: 'Edit Profile',
-                              onTap: () {
-                                HapticFeedback.lightImpact();
-                                context.push('/edit-business/${activeBusiness.businessId}', extra: activeBusiness);
-                              },
+                          GestureDetector(
+                            onTap: () {
+                              HapticFeedback.lightImpact();
+                              context.push('/edit-business/${activeBusiness.businessId}', extra: activeBusiness);
+                            },
+                            child: Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+                              decoration: BoxDecoration(
+                                color: _DashTok.primary,
+                                borderRadius: BorderRadius.circular(16),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: _DashTok.primary.withValues(alpha: 0.12),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: const Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.edit_note_rounded, color: Colors.white, size: 24),
+                                  SizedBox(width: 10),
+                                  Text(
+                                    'Update Store Details (Hours, Photos, Info)',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: _buildActionBtn(
-                              icon: activeBusiness.isTemporarilyClosed
-                                  ? Icons.play_arrow_rounded
-                                  : Icons.pause_rounded,
-                              label: activeBusiness.isTemporarilyClosed ? 'Reopen Store' : 'Temp Closure',
-                              onTap: () {
-                                HapticFeedback.mediumImpact();
-                                _showTemporaryClosureDialog(context, ref, activeBusiness);
-                              },
-                              accentColor: activeBusiness.isTemporarilyClosed ? _DashTok.success : _DashTok.warning,
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: _buildActionBtn(
-                              icon: Icons.delete_outline_rounded,
-                              label: 'Delete Listing',
-                              onTap: () {
-                                HapticFeedback.heavyImpact();
-                                _showDeletionDialog(context, ref, activeBusiness);
-                              },
-                              accentColor: _DashTok.danger,
-                            ),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _buildActionBtn(
+                                  icon: activeBusiness.isTemporarilyClosed
+                                      ? Icons.play_arrow_rounded
+                                      : Icons.pause_rounded,
+                                  label: activeBusiness.isTemporarilyClosed ? 'Reopen Store' : 'Temporary Closure',
+                                  onTap: () {
+                                    HapticFeedback.mediumImpact();
+                                    _showTemporaryClosureDialog(context, ref, activeBusiness);
+                                  },
+                                  accentColor: activeBusiness.isTemporarilyClosed ? _DashTok.success : _DashTok.warning,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: _buildActionBtn(
+                                  icon: Icons.delete_outline_rounded,
+                                  label: 'Delete Store Listing',
+                                  onTap: () {
+                                    HapticFeedback.heavyImpact();
+                                    _showDeletionDialog(context, ref, activeBusiness);
+                                  },
+                                  accentColor: _DashTok.danger,
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
