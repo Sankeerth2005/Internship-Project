@@ -1,6 +1,6 @@
 class AppConfig {
   static const String geoapifyApiKey = String.fromEnvironment(
     'GEOAPIFY_API_KEY',
-    defaultValue: 'feb3435b6a114f87a463088cd085394d',
+    defaultValue: '8850f08de04f408ea18d8c8942d90394',
   );
 }
