@@ -67,7 +67,7 @@ namespace localink_be.Controllers
             var mappedList = list.Select(b => {
                 var address = _db.Addresses.FirstOrDefault(a => a.UserId == b.UserId);
                 var contact = _db.BusinessContacts.FirstOrDefault(c => c.BusinessId == b.BusinessId);
-                var photo = _db.BusinessPhotos.FirstOrDefault(p => p.BusinessId == b.BusinessId);
+                var photo = _db.BusinessPhotos.Where(p => p.BusinessId == b.BusinessId).OrderByDescending(p => p.IsPrimary).FirstOrDefault();
 
                 double distance = 0;
                 if (lat.HasValue && lng.HasValue)
