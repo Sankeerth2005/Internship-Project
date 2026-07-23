@@ -65,3 +65,10 @@ localink_mobile/app-release.apk
 .env.production
 .env.local
 .env.*
+
+# Build/Publish artifact directories
+publish_be/
+localink_be/publish_be/
+*.dll
+*.pdb
+*.exe
