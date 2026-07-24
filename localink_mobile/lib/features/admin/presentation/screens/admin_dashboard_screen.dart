@@ -3,10 +3,12 @@ import 'dart:math' as math;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:file_picker/file_picker.dart' as fp;
 
 import '../../../auth/providers/auth_provider.dart';
 import '../../data/models/admin_business_dto.dart';
 import '../../providers/admin_provider.dart';
+import '../../../shared/presentation/widgets/app_dialog.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/network/signalr_service.dart';
 import '../../../auth/providers/auth_state.dart';
@@ -34,7 +36,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
   final _userSearchController = TextEditingController();
   String _searchQuery = '';
   String _userSearchQuery = '';
-  int _currentTab = 0; // 0 = Dashboard & Businesses, 1 = Categories, 2 = Reports/Analytics, 3 = Users, 4 = Settings
+  int _currentTab = 0; // 0=Dashboard, 1=Listings, 2=Categories, 3=Analytics, 4=Users, 5=Moderation, 6=Settings
 
   @override
   void dispose() {
@@ -645,6 +647,10 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                 label: 'Users',
               ),
               BottomNavigationBarItem(
+                icon: Icon(Icons.shield_outlined),
+                label: 'Moderation',
+              ),
+              BottomNavigationBarItem(
                 icon: Icon(Icons.settings_outlined),
                 label: 'Settings',
               ),
@@ -668,6 +674,8 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
       case 4:
         return _buildUsersTab();
       case 5:
+        return _buildModerationTab();
+      case 6:
         return _buildSettingsTab();
       default:
         return _buildCommandCenterTab(businessesAsync);
@@ -785,6 +793,50 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
   Widget _buildBusinessesTab(AsyncValue<List<AdminBusinessDto>> businessesAsync) {
     return Column(
       children: [
+        // Bulk Import Row
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 15.0, vertical: 8.0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              ElevatedButton.icon(
+                icon: const Icon(Icons.upload_file, size: 16),
+                label: const Text('Bulk Import (CSV)'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF1E1E1E),
+                  foregroundColor: const Color(0xFFFF7A00),
+                  side: const BorderSide(color: Color(0xFFFF7A00)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                ),
+                onPressed: () async {
+                  fp.FilePickerResult? result = await fp.FilePicker.platform.pickFiles(
+                    type: fp.FileType.custom,
+                    allowedExtensions: ['csv'],
+                  );
+                  if (result != null && result.files.single.path != null) {
+                    if (!mounted) return;
+                    showDialog(
+                      context: context,
+                      barrierDismissible: false,
+                      builder: (context) => const Center(child: CircularProgressIndicator(color: Color(0xFFFF7A00))),
+                    );
+                    final uploadResult = await ref.read(adminBusinessesProvider.notifier).uploadBulkImport(result.files.single.path!);
+                    if (mounted) {
+                      Navigator.pop(context); // close loader
+                      if (uploadResult['success'] == true) {
+                        AppFeedback.showSuccess(context, 'Bulk import completed successfully.');
+                        ref.read(adminBusinessesProvider.notifier).refresh();
+                      } else {
+                        AppFeedback.showError(context, uploadResult['message'] ?? 'Import failed.');
+                      }
+                    }
+                  }
+                },
+              ),
+            ],
+          ),
+        ),
         // Filter Tabs row
         businessesAsync.when(
           data: (list) {
@@ -1331,6 +1383,219 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                               roleLabel,
                               style: TextStyle(color: roleColor, fontSize: 9, fontWeight: FontWeight.bold),
                             ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildModerationTab() {
+    final flaggedReviewsAsync = ref.watch(adminFlaggedReviewsProvider);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Moderation Queue',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.refresh, color: Colors.white54),
+                onPressed: () => ref.refresh(adminFlaggedReviewsProvider.future),
+              ),
+            ],
+          ),
+        ),
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 16),
+          child: Text(
+            'Review AI-flagged content for policy violations.',
+            style: TextStyle(color: Colors.white54, fontSize: 13),
+          ),
+        ),
+        const SizedBox(height: 10),
+        Expanded(
+          child: flaggedReviewsAsync.when(
+            loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFFFF7A00))),
+            error: (err, st) => Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.error_outline, color: Colors.redAccent, size: 40),
+                  const SizedBox(height: 10),
+                  Text(
+                    'Failed to load flagged reviews: $err',
+                    style: const TextStyle(color: Colors.white38, fontSize: 13),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+            data: (reviewsList) {
+              if (reviewsList.isEmpty) {
+                return const Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.check_circle_outline, color: Colors.green, size: 60),
+                      SizedBox(height: 16),
+                      Text('No flagged content found.', style: TextStyle(color: Colors.white54, fontSize: 16)),
+                      Text('The queue is empty.', style: TextStyle(color: Colors.white38, fontSize: 13)),
+                    ],
+                  ),
+                );
+              }
+
+              return RefreshIndicator(
+                color: const Color(0xFFFF7A00),
+                onRefresh: () => ref.refresh(adminFlaggedReviewsProvider.future),
+                child: ListView.builder(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  itemCount: reviewsList.length,
+                  itemBuilder: (context, index) {
+                    final review = reviewsList[index] as Map<String, dynamic>;
+                    final id = review['id'] as int;
+                    final businessId = review['businessId'];
+                    final authorName = review['authorName']?.toString() ?? 'Unknown';
+                    final comment = review['comment']?.toString() ?? 'No comment';
+                    final aiReason = review['aiFlagReason']?.toString() ?? 'No reason provided';
+                    final isFlagged = review['isFlagged'] == true;
+
+                    if (!isFlagged) return const SizedBox.shrink();
+
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF161616),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.redAccent.withValues(alpha: 0.3)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(Icons.warning_amber_rounded, color: Colors.redAccent, size: 20),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Flagged by AI Moderation',
+                                  style: const TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold, fontSize: 13),
+                                ),
+                              ),
+                              Text(
+                                '#$id',
+                                style: const TextStyle(color: Colors.white38, fontSize: 11),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            '"$comment"',
+                            style: const TextStyle(color: Colors.white, fontSize: 14, fontStyle: FontStyle.italic),
+                          ),
+                          const SizedBox(height: 12),
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.redAccent.withValues(alpha: 0.05),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Icon(Icons.psychology, color: Colors.redAccent, size: 16),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    'Reason: $aiReason',
+                                    style: const TextStyle(color: Colors.white70, fontSize: 12),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text('By $authorName on Business $businessId', style: const TextStyle(color: Colors.white54, fontSize: 11)),
+                              Row(
+                                children: [
+                                  TextButton(
+                                    onPressed: () async {
+                                      final confirm = await showDialog<bool>(
+                                        context: context,
+                                        builder: (ctx) => AlertDialog(
+                                          title: Text('Unflag Review'),
+                                          content: Text('Are you sure you want to unflag this review? It will be visible to the public.'),
+                                          actions: [
+                                            TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text('Cancel')),
+                                            TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text('Unflag', style: TextStyle(color: Colors.green))),
+                                          ],
+                                        ),
+                                      );
+                                      if (confirm == true) {
+                                        final success = await ref.read(adminBusinessesProvider.notifier).unflagReview(id);
+                                        if (!mounted) return;
+                                        if (success) {
+                                          AppFeedback.showSuccess(context, 'Review unflagged successfully.');
+                                          ref.invalidate(adminFlaggedReviewsProvider);
+                                        } else {
+                                          AppFeedback.showError(context, 'Failed to unflag review.');
+                                        }
+                                      }
+                                    },
+                                    child: const Text('Unflag & Approve', style: TextStyle(color: Colors.green, fontSize: 12)),
+                                  ),
+                                  TextButton(
+                                    onPressed: () async {
+                                      final confirm = await showDialog<bool>(
+                                        context: context,
+                                        builder: (ctx) => AlertDialog(
+                                          title: Text('Delete Review'),
+                                          content: Text('Are you sure you want to delete this review permanently?'),
+                                          actions: [
+                                            TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text('Cancel')),
+                                            TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text('Delete', style: TextStyle(color: Colors.redAccent))),
+                                          ],
+                                        ),
+                                      );
+                                      if (confirm == true) {
+                                        final success = await ref.read(adminBusinessesProvider.notifier).deleteReview(id);
+                                        if (!mounted) return;
+                                        if (success) {
+                                          AppFeedback.showSuccess(context, 'Review deleted successfully.');
+                                          ref.invalidate(adminFlaggedReviewsProvider);
+                                        } else {
+                                          AppFeedback.showError(context, 'Failed to delete review.');
+                                        }
+                                      }
+                                    },
+                                    child: const Text('Delete Permanently', style: TextStyle(color: Colors.redAccent, fontSize: 12)),
+                                  ),
+                                ],
+                              ),
+                            ],
                           ),
                         ],
                       ),

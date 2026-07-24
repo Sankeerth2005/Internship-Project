@@ -65,6 +65,7 @@ localink_mobile/app-release.apk
 .env.production
 .env.local
 .env.*
+.env copy
 
 # Build/Publish artifact directories
 publish_be/

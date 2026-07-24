@@ -212,6 +212,58 @@ namespace localink_be.Services.Implementations
             return true;
         }
 
+        public async Task<string?> UploadImageAsync(IFormFile file, string folderName)
+        {
+            if (file == null || file.Length == 0) return null;
+
+            // Size Validation (Max 5MB)
+            if (file.Length > 5 * 1024 * 1024)
+            {
+                _logger.LogWarning("Upload image rejected: File size {Length} exceeds limit", file.Length);
+                throw new ArgumentException("File size exceeds 5MB limit.");
+            }
+
+            // Extension Validation
+            var ext = Path.GetExtension(file.FileName)?.ToLower();
+            if (string.IsNullOrEmpty(ext) || !_allowedExtensions.Contains(ext))
+            {
+                _logger.LogWarning("Upload image rejected: Invalid file extension {Extension}", ext);
+                throw new ArgumentException("Invalid file extension.");
+            }
+
+            // MIME Type Validation
+            var contentType = file.ContentType?.ToLower();
+            if (string.IsNullOrEmpty(contentType) || !_allowedMimeTypes.Contains(contentType))
+            {
+                _logger.LogWarning("Upload image rejected: Invalid MIME type {MimeType}", contentType);
+                throw new ArgumentException("Invalid MIME type.");
+            }
+
+            // Magic Bytes Check
+            using (var checkStream = file.OpenReadStream())
+            {
+                if (!ValidateImageMagicBytes(checkStream))
+                {
+                    _logger.LogWarning("Upload image rejected: Magic bytes validation failed");
+                    throw new ArgumentException("Invalid image file format (magic bytes check failed).");
+                }
+            }
+
+            var webRoot = _env.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+            var uploadsPath = Path.Combine(webRoot, "uploads", folderName);
+            
+            if (!Directory.Exists(uploadsPath)) Directory.CreateDirectory(uploadsPath);
+            var fileName = $"{Guid.NewGuid()}{ext}";
+            var filePath = Path.Combine(uploadsPath, fileName);
+
+            using (var stream = new FileStream(filePath, FileMode.Create))
+            {
+                await file.CopyToAsync(stream);
+            }
+
+            return $"/uploads/{folderName}/{fileName}";
+        }
+
         public async Task SavePhotoAsync(string photoBase64, long businessId)
         {
             if (string.IsNullOrWhiteSpace(photoBase64)) return;

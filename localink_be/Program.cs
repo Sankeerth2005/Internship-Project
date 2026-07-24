@@ -89,12 +89,15 @@ builder.Services.AddScoped<IBusinessLocationService, BusinessLocationService>();
 builder.Services.AddScoped<IBusinessPincodeService, BusinessPincodeService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IAdminService, AdminService>();
+builder.Services.AddScoped<IBulkImportService, BulkImportService>();
 builder.Services.AddScoped<IReviewService, ReviewService>();
 builder.Services.AddScoped<ICaptchaService, CaptchaService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IFavoritesService, FavoritesService>();
 builder.Services.AddScoped<IAIService, AIService>();
+builder.Services.AddScoped<IChatService, ChatService>();
+builder.Services.AddScoped<ICatalogService, CatalogService>();
 
 // AI GATEWAY SERVICE - Unified AI operations
 builder.Services.AddHttpClient("GroqAI");
@@ -246,6 +249,7 @@ app.UseAuthorization();
 app.MapGet("/", () => "Vocal For Sanatan API is running");
 app.MapControllers();
 app.MapHub<NotificationHub>("/notifications");
+app.MapHub<ChatHub>("/chat");
 
 // SEED ADMIN PASSWORD RESET & EMAIL UPDATE
 using (var scope = app.Services.CreateScope())

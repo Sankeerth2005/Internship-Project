@@ -82,6 +82,24 @@ namespace localink_be.Controllers
             var reply = await _aiService.ChatSearchAsync(request.Message, request.ChatHistoryJson ?? "");
             return Ok(new { success = true, data = reply });
         }
+
+        [HttpPost("transcribe")]
+        public async Task<IActionResult> TranscribeAudio(Microsoft.AspNetCore.Http.IFormFile file)
+        {
+            if (file == null || file.Length == 0)
+            {
+                return BadRequest(new { success = false, message = "No audio file provided." });
+            }
+
+            var text = await _aiService.TranscribeAudioAsync(file);
+
+            if (text == null)
+            {
+                return StatusCode(500, new { success = false, message = "Failed to transcribe audio." });
+            }
+
+            return Ok(new { success = true, data = text });
+        }
     }
 
     public class GenerateDescriptionRequest

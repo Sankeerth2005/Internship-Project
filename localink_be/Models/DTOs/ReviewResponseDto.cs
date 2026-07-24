@@ -6,4 +6,6 @@ public class ReviewResponseDto
     public string UserName { get; set; }
     public DateTime CreatedAt { get; set; }
     public string? ImageUrl { get; set; }
+    public bool IsFlagged { get; set; }
+    public string? ModerationReason { get; set; }
 }

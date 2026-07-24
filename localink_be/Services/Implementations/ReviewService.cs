@@ -18,11 +18,14 @@ namespace localink_be.Services.Implementations
         private readonly IHubContext<NotificationHub> _hubContext;
         private readonly IPhotoService _photoService;
 
-        public ReviewService(AppDbContext context, IHubContext<NotificationHub> hubContext, IPhotoService photoService)
+        private readonly IAIService _aiService;
+
+        public ReviewService(AppDbContext context, IHubContext<NotificationHub> hubContext, IPhotoService photoService, IAIService aiService)
         {
             _context = context;
             _hubContext = hubContext;
             _photoService = photoService;
+            _aiService = aiService;
         }
 
         public async Task AddOrUpdateReview(long userId, ReviewRequestDto dto)
@@ -36,10 +39,17 @@ namespace localink_be.Services.Implementations
                 reviewImageUrl = await _photoService.SaveReviewPhotoAsync(dto.Image);
             }
 
+            bool isFlagged = false;
+            string? moderationReason = null;
+            if (!string.IsNullOrWhiteSpace(dto.Comment))
+            {
+                var modResult = await _aiService.ModerateContentAsync(dto.Comment);
+                isFlagged = modResult.isFlagged;
+                moderationReason = modResult.reason;
+            }
+
             var existingReview = await _context.BusinessReviews
-                .FirstOrDefaultAsync(r =>
-                    r.UserId == userId &&
-                    r.BusinessId == dto.BusinessId);
+                .FirstOrDefaultAsync(r => r.BusinessId == dto.BusinessId && r.UserId == userId);
 
             if (existingReview != null)
             {
@@ -50,6 +60,8 @@ namespace localink_be.Services.Implementations
                     existingReview.ImageUrl = reviewImageUrl;
                 }
                 existingReview.UpdatedAt = DateTime.UtcNow;
+                existingReview.IsFlagged = isFlagged;
+                existingReview.ModerationReason = moderationReason;
             }
             else
             {
@@ -60,7 +72,9 @@ namespace localink_be.Services.Implementations
                     Rating = dto.Rating,
                     Comment = dto.Comment,
                     ImageUrl = reviewImageUrl,
-                    CreatedAt = DateTime.UtcNow
+                    CreatedAt = DateTime.UtcNow,
+                    IsFlagged = isFlagged,
+                    ModerationReason = moderationReason
                 };
 
                 await _context.BusinessReviews.AddAsync(newReview);

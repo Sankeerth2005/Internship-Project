@@ -12,6 +12,9 @@ namespace localink_be.Models.Entities
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
         public string? ImageUrl { get; set; }
+        
+        public bool IsFlagged { get; set; }
+        public string? ModerationReason { get; set; }
 
         public User User { get; set; }  
     }

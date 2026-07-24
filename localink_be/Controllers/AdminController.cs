@@ -129,4 +129,58 @@ public class AdminController : ControllerBase
         var data = await _service.GetStatsAsync();
         return Ok(data);
     }
+
+    [HttpGet("flagged-reviews")]
+    public async Task<IActionResult> GetFlaggedReviews([FromServices] localink_be.Data.AppDbContext db)
+    {
+        var reviews = await db.BusinessReviews
+            .Include(r => r.User)
+            .Where(r => r.IsFlagged)
+            .Select(r => new
+            {
+                r.ReviewId,
+                r.BusinessId,
+                r.Rating,
+                r.Comment,
+                r.CreatedAt,
+                r.ModerationReason,
+                UserName = r.User.FullName
+            })
+            .ToListAsync();
+        return Ok(new { success = true, data = reviews });
+    }
+
+    [HttpDelete("reviews/{reviewId}")]
+    public async Task<IActionResult> DeleteReview(long reviewId, [FromServices] localink_be.Data.AppDbContext db)
+    {
+        var review = await db.BusinessReviews.FindAsync(reviewId);
+        if (review == null) return NotFound(new { message = "Review not found" });
+
+        db.BusinessReviews.Remove(review);
+        await db.SaveChangesAsync();
+
+        return Ok(new { success = true, message = "Review deleted" });
+    }
+
+    [HttpPut("reviews/{reviewId}/unflag")]
+    public async Task<IActionResult> UnflagReview(long reviewId, [FromServices] localink_be.Data.AppDbContext db)
+    {
+        var review = await db.BusinessReviews.FindAsync(reviewId);
+        if (review == null) return NotFound(new { message = "Review not found" });
+
+        review.IsFlagged = false;
+        review.ModerationReason = null;
+        await db.SaveChangesAsync();
+
+        return Ok(new { success = true, message = "Review unflagged" });
+    }
+
+    [HttpPost("bulk-import")]
+    public async Task<IActionResult> BulkImport(
+        IFormFile file,
+        [FromServices] localink_be.Services.Interfaces.IBulkImportService bulkImportService)
+    {
+        var result = await bulkImportService.ProcessBulkImportAsync(file);
+        return Ok(new { success = true, data = result });
+    }
 }

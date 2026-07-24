@@ -24,6 +24,9 @@ import 'features/shared/presentation/screens/support_screen.dart';
 import 'features/admin/presentation/screens/admin_dashboard_screen.dart';
 import 'features/auth/presentation/screens/splash_screen.dart';
 import 'features/auth/presentation/screens/welcome_screen.dart';
+import 'features/chat/presentation/screens/conversations_screen.dart';
+import 'features/chat/presentation/screens/chat_screen.dart';
+import 'features/catalog/presentation/screens/manage_catalog_screen.dart';
 
 import 'core/theme/app_theme.dart';
 import 'core/network/dio_client.dart';
@@ -193,6 +196,22 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const AdminDashboardScreen(),
       ),
       GoRoute(
+        path: '/conversations',
+        builder: (context, state) {
+          final isOwner = state.uri.queryParameters['isOwner'] == 'true';
+          return ConversationsScreen(isOwner: isOwner);
+        },
+      ),
+      GoRoute(
+        path: '/chat/:id',
+        builder: (context, state) {
+          final id = int.parse(state.pathParameters['id']!);
+          final role = state.uri.queryParameters['role'] ?? 'User';
+          final title = state.uri.queryParameters['title'] ?? 'Chat';
+          return ChatScreen(conversationId: id, role: role, title: title);
+        },
+      ),
+      GoRoute(
         path: '/register-business',
         builder: (context, state) {
           final business = state.extra as BusinessDto?;
@@ -253,6 +272,12 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/admin-heatmap',
         builder: (context, state) => const AdminHeatmapScreen(),
+      ),
+      GoRoute(
+        path: '/manage-catalog/:id',
+        builder: (context, state) => ManageCatalogScreen(
+          businessId: int.parse(state.pathParameters['id']!),
+        ),
       ),
     ],
   );

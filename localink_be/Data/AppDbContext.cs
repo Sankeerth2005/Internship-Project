@@ -27,6 +27,14 @@ namespace localink_be.Data
         public DbSet<BusinessMetric> BusinessMetrics { get; set; }
         public DbSet<SearchQueryLog> SearchQueryLogs { get; set; }
         public DbSet<TranslationCache> TranslationCaches { get; set; }
+        
+        // Phase 2: Chat & Messaging
+        public DbSet<Conversation> Conversations { get; set; }
+        public DbSet<Message> Messages { get; set; }
+        
+        // Phase 2: Catalogs
+        public DbSet<localink_be.Data.Models.Catalog> Catalogs { get; set; }
+        public DbSet<localink_be.Data.Models.CatalogItem> CatalogItems { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -40,6 +48,7 @@ namespace localink_be.Data
             ConfigureBusinessReview(modelBuilder);
             ConfigureFavorite(modelBuilder);
             ConfigureTranslationCache(modelBuilder);
+            ConfigureMessaging(modelBuilder);
         }
 
         private void ConfigureCategory(ModelBuilder modelBuilder)
@@ -229,6 +238,34 @@ namespace localink_be.Data
             {
                 entity.ToTable("translation_cache");
                 entity.HasIndex(t => t.CacheKey).IsUnique();
+            });
+        }
+
+        private void ConfigureMessaging(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<Conversation>(entity =>
+            {
+                entity.ToTable("conversations");
+                
+                entity.HasOne(c => c.User)
+                    .WithMany()
+                    .HasForeignKey(c => c.UserId)
+                    .OnDelete(DeleteBehavior.NoAction); // Prevent cycle
+                    
+                entity.HasOne(c => c.Business)
+                    .WithMany()
+                    .HasForeignKey(c => c.BusinessId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<Message>(entity =>
+            {
+                entity.ToTable("messages");
+                
+                entity.HasOne(m => m.Conversation)
+                    .WithMany(c => c.Messages)
+                    .HasForeignKey(m => m.ConversationId)
+                    .OnDelete(DeleteBehavior.Cascade);
             });
         }
     }

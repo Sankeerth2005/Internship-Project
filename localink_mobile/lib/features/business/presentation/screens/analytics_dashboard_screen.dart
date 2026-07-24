@@ -2,6 +2,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:fl_chart/fl_chart.dart';
 import '../../../../core/network/dio_client.dart';
 
 // ─── DESIGN TOKENS ────────────────────────────────────────────────────────────
@@ -238,24 +239,85 @@ class _AnalyticsDashboardScreenState extends ConsumerState<AnalyticsDashboardScr
                       const SizedBox(height: 14),
 
                       Container(
-                        height: 180,
+                        height: 220,
                         width: double.infinity,
-                        padding: const EdgeInsets.all(12),
+                        padding: const EdgeInsets.only(right: 22, left: 12, top: 24, bottom: 12),
                         decoration: BoxDecoration(
                           color: _AnalTok.surface,
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(color: _AnalTok.border),
                         ),
-                        child: AnimatedBuilder(
-                          animation: _chartAnimCtrl,
-                          builder: (context, child) {
-                            return CustomPaint(
-                              painter: _BezierTrendPainter(
-                                values: _getCalculatedTrendData(_selectedTimeframe, _views),
-                                progress: _chartAnimCtrl.value,
+                        child: LineChart(
+                          LineChartData(
+                            gridData: FlGridData(
+                              show: true,
+                              drawVerticalLine: false,
+                              horizontalInterval: 1,
+                              getDrawingHorizontalLine: (value) {
+                                return FlLine(
+                                  color: _AnalTok.border,
+                                  strokeWidth: 1,
+                                );
+                              },
+                            ),
+                            titlesData: FlTitlesData(
+                              show: true,
+                              rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                              topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                              bottomTitles: AxisTitles(
+                                sideTitles: SideTitles(
+                                  showTitles: true,
+                                  reservedSize: 22,
+                                  interval: 1,
+                                  getTitlesWidget: (value, meta) {
+                                    return SideTitleWidget(
+                                      meta: meta,
+                                      child: Text(
+                                        'Day ${value.toInt() + 1}',
+                                        style: const TextStyle(color: _AnalTok.textMedium, fontSize: 10),
+                                      ),
+                                    );
+                                  },
+                                ),
                               ),
-                            );
-                          },
+                              leftTitles: AxisTitles(
+                                sideTitles: SideTitles(
+                                  showTitles: true,
+                                  interval: 1,
+                                  reservedSize: 28,
+                                  getTitlesWidget: (value, meta) {
+                                    if (value % 2 != 0) return const SizedBox.shrink();
+                                    return Text(
+                                      value.toInt().toString(),
+                                      style: const TextStyle(color: _AnalTok.textMedium, fontSize: 10),
+                                      textAlign: TextAlign.right,
+                                    );
+                                  },
+                                ),
+                              ),
+                            ),
+                            borderData: FlBorderData(show: false),
+                            minX: 0,
+                            maxX: 6,
+                            minY: 0,
+                            maxY: (_views.toDouble() * 0.3).clamp(5, double.infinity),
+                            lineBarsData: [
+                              LineChartBarData(
+                                spots: _getFlChartTrendData(_selectedTimeframe, _views),
+                                isCurved: true,
+                                color: _AnalTok.primary,
+                                barWidth: 3,
+                                isStrokeCapRound: true,
+                                dotData: const FlDotData(show: true),
+                                belowBarData: BarAreaData(
+                                  show: true,
+                                  color: _AnalTok.primary.withValues(alpha: 0.15),
+                                ),
+                              ),
+                            ],
+                          ),
+                          duration: const Duration(milliseconds: 800),
+                          curve: Curves.easeOutCubic,
                         ),
                       ),
                       const SizedBox(height: 28),
@@ -273,25 +335,68 @@ class _AnalyticsDashboardScreenState extends ConsumerState<AnalyticsDashboardScr
                       const SizedBox(height: 14),
 
                       Container(
-                        height: 180,
+                        height: 200,
                         width: double.infinity,
-                        padding: const EdgeInsets.all(12),
+                        padding: const EdgeInsets.only(top: 24, bottom: 12),
                         decoration: BoxDecoration(
                           color: _AnalTok.surface,
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(color: _AnalTok.border),
                         ),
-                        child: AnimatedBuilder(
-                          animation: _chartAnimCtrl,
-                          builder: (context, child) {
-                            return CustomPaint(
-                              painter: _ComparisonBarPainter(
-                                clicks: _clicks.toDouble(),
-                                saves: _favorites.toDouble(),
-                                progress: _chartAnimCtrl.value,
+                        child: BarChart(
+                          BarChartData(
+                            alignment: BarChartAlignment.spaceEvenly,
+                            maxY: (max(_clicks, _favorites).toDouble() * 1.2).clamp(5, double.infinity),
+                            barTouchData: BarTouchData(enabled: false),
+                            titlesData: FlTitlesData(
+                              show: true,
+                              bottomTitles: AxisTitles(
+                                sideTitles: SideTitles(
+                                  showTitles: true,
+                                  getTitlesWidget: (double value, TitleMeta meta) {
+                                    const style = TextStyle(color: _AnalTok.textMedium, fontWeight: FontWeight.bold, fontSize: 12);
+                                    String text = value.toInt() == 0 ? 'Clicks' : 'Saves';
+                                    return SideTitleWidget(
+                                      meta: meta,
+                                      space: 4,
+                                      child: Text(text, style: style),
+                                    );
+                                  },
+                                ),
                               ),
-                            );
-                          },
+                              leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                              topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                              rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                            ),
+                            gridData: const FlGridData(show: false),
+                            borderData: FlBorderData(show: false),
+                            barGroups: [
+                              BarChartGroupData(
+                                x: 0,
+                                barRods: [
+                                  BarChartRodData(
+                                    toY: _clicks.toDouble(),
+                                    color: _AnalTok.primary,
+                                    width: 40,
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                ],
+                              ),
+                              BarChartGroupData(
+                                x: 1,
+                                barRods: [
+                                  BarChartRodData(
+                                    toY: _favorites.toDouble(),
+                                    color: _AnalTok.info,
+                                    width: 40,
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                          duration: const Duration(milliseconds: 800),
+                          curve: Curves.easeOutCubic,
                         ),
                       ),
                       const SizedBox(height: 28),
@@ -398,10 +503,12 @@ class _AnalyticsDashboardScreenState extends ConsumerState<AnalyticsDashboardScr
     );
   }
 
-  List<double> _getCalculatedTrendData(String timeframe, int totalViews) {
+  List<FlSpot> _getFlChartTrendData(String timeframe, int totalViews) {
     if (totalViews == 0) {
-      if (timeframe == 'Weekly') return List.filled(7, 0.0);
-      return List.filled(12, 0.0);
+      if (timeframe == 'Weekly') {
+        return List.generate(7, (index) => FlSpot(index.toDouble(), 0));
+      }
+      return List.generate(12, (index) => FlSpot(index.toDouble(), 0));
     }
     
     final List<double> factors;
@@ -414,201 +521,8 @@ class _AnalyticsDashboardScreenState extends ConsumerState<AnalyticsDashboardScr
     }
 
     final sumFactors = factors.reduce((a, b) => a + b);
-    return factors.map((f) => (f / sumFactors) * totalViews).toList();
-  }
-}
-
-// ─── BEZIER LINE CHART PAINTER ────────────────────────────────────────────────
-class _BezierTrendPainter extends CustomPainter {
-  final List<double> values;
-  final double progress;
-
-  _BezierTrendPainter({required this.values, required this.progress});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    if (values.isEmpty) return;
-
-    final double maxVal = values.reduce(max);
-    final double minVal = values.reduce(min);
-    final double range = maxVal - minVal == 0 ? 1 : maxVal - minVal;
-
-    final double widthStep = size.width / (values.length - 1);
-    final double heightScale = size.height * 0.7;
-    final double heightOffset = size.height * 0.15;
-
-    final path = Path();
-    final fillPath = Path();
-
-    // 1. Draw horizontal gridline marks
-    final gridPaint = Paint()
-      ..color = _AnalTok.border
-      ..strokeWidth = 1.0;
-    
-    for (int i = 1; i <= 3; i++) {
-      final y = size.height * (i / 4);
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), gridPaint);
-    }
-
-    // 2. Build Bezier curve path
-    for (int i = 0; i < values.length; i++) {
-      final double x = i * widthStep;
-      final double y = size.height - ((values[i] - minVal) / range * heightScale + heightOffset);
-
-      if (i == 0) {
-        path.moveTo(x, y);
-        fillPath.moveTo(x, size.height);
-        fillPath.lineTo(x, y);
-      } else {
-        final prevX = (i - 1) * widthStep;
-        final prevY = size.height - ((values[i - 1] - minVal) / range * heightScale + heightOffset);
-        final controlX1 = prevX + widthStep / 2;
-        final controlY1 = prevY;
-        final controlX2 = prevX + widthStep / 2;
-        final controlY2 = y;
-
-        path.cubicTo(controlX1, controlY1, controlX2, controlY2, x, y);
-        fillPath.cubicTo(controlX1, controlY1, controlX2, controlY2, x, y);
-      }
-    }
-
-    fillPath.lineTo((values.length - 1) * widthStep, size.height);
-    fillPath.close();
-
-    // 3. Draw gradient fill (clipped by progress animation)
-    canvas.save();
-    canvas.clipRect(Rect.fromLTWH(0, 0, size.width * progress, size.height));
-
-    final gradientPaint = Paint()
-      ..shader = LinearGradient(
-        colors: [
-          _AnalTok.primary.withValues(alpha: 0.25),
-          _AnalTok.primary.withValues(alpha: 0.0),
-        ],
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-      ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
-    canvas.drawPath(fillPath, gradientPaint);
-
-    final linePaint = Paint()
-      ..color = _AnalTok.primary
-      ..strokeWidth = 2.5
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round;
-    canvas.drawPath(path, linePaint);
-
-    // Draw active end pointer circle
-    if (progress > 0) {
-      final double currentIdxDouble = (values.length - 1) * progress;
-      final int lowerIdx = currentIdxDouble.floor();
-      final int upperIdx = currentIdxDouble.ceil().clamp(0, values.length - 1);
-      final double t = currentIdxDouble - lowerIdx;
-
-      final double x = currentIdxDouble * widthStep;
-      final double y1 = size.height - ((values[lowerIdx] - minVal) / range * heightScale + heightOffset);
-      final double y2 = size.height - ((values[upperIdx] - minVal) / range * heightScale + heightOffset);
-      final double y = y1 + (y2 - y1) * t;
-
-      final pointerOutlinePaint = Paint()..color = Colors.white;
-      final pointerFillPaint = Paint()..color = _AnalTok.primary;
-
-      canvas.drawCircle(Offset(x, y), 6, pointerOutlinePaint);
-      canvas.drawCircle(Offset(x, y), 4, pointerFillPaint);
-    }
-
-    canvas.restore();
-  }
-
-  @override
-  bool shouldRepaint(covariant _BezierTrendPainter oldDelegate) {
-    return oldDelegate.progress != progress || oldDelegate.values != values;
-  }
-}
-
-// ─── COMPARISON BAR CHART PAINTER ────────────────────────────────────────────
-class _ComparisonBarPainter extends CustomPainter {
-  final double clicks;
-  final double saves;
-  final double progress;
-
-  _ComparisonBarPainter({required this.clicks, required this.saves, required this.progress});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final double maxVal = max(clicks, saves);
-    final double scaleMax = maxVal == 0 ? 1 : maxVal * 1.25;
-
-    final barWidth = size.width * 0.16;
-    final spacing = size.width * 0.22;
-
-    // Draw grid marks
-    final gridPaint = Paint()
-      ..color = _AnalTok.border
-      ..strokeWidth = 1.0;
-    
-    for (int i = 1; i <= 3; i++) {
-      final y = size.height * (i / 4);
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), gridPaint);
-    }
-
-    // Bar 1: Clicks (Primary color)
-    final double clicksHeight = (clicks / scaleMax) * size.height * progress;
-    final clicksRect = RRect.fromRectAndRadius(
-      Rect.fromLTWH(
-        size.width * 0.2 - barWidth / 2,
-        size.height - clicksHeight,
-        barWidth,
-        clicksHeight,
-      ),
-      const Radius.circular(8),
-    );
-    final clicksPaint = Paint()..color = _AnalTok.primary;
-    canvas.drawRRect(clicksRect, clicksPaint);
-
-    // Bar 2: Saves (Blue/Info color)
-    final double savesHeight = (saves / scaleMax) * size.height * progress;
-    final savesRect = RRect.fromRectAndRadius(
-      Rect.fromLTWH(
-        size.width * 0.2 + spacing - barWidth / 2,
-        size.height - savesHeight,
-        barWidth,
-        savesHeight,
-      ),
-      const Radius.circular(8),
-    );
-    final savesPaint = Paint()..color = _AnalTok.info;
-    canvas.drawRRect(savesRect, savesPaint);
-
-    // Draw Labels
-    final textPainter = TextPainter(
-      textDirection: TextDirection.ltr,
-    );
-
-    // Label 1
-    textPainter.text = const TextSpan(
-      text: 'Clicks',
-      style: TextStyle(color: _AnalTok.textMedium, fontSize: 10, fontWeight: FontWeight.bold),
-    );
-    textPainter.layout();
-    textPainter.paint(
-      canvas,
-      Offset(size.width * 0.2 - textPainter.width / 2, size.height - 18 - clicksHeight.clamp(20, size.height)),
-    );
-
-    // Label 2
-    textPainter.text = const TextSpan(
-      text: 'Saves',
-      style: TextStyle(color: _AnalTok.textMedium, fontSize: 10, fontWeight: FontWeight.bold),
-    );
-    textPainter.layout();
-    textPainter.paint(
-      canvas,
-      Offset(size.width * 0.2 + spacing - textPainter.width / 2, size.height - 18 - savesHeight.clamp(20, size.height)),
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant _ComparisonBarPainter oldDelegate) {
-    return oldDelegate.progress != progress || oldDelegate.clicks != clicks || oldDelegate.saves != saves;
+    return List.generate(factors.length, (index) {
+      return FlSpot(index.toDouble(), (factors[index] / sumFactors) * totalViews);
+    });
   }
 }

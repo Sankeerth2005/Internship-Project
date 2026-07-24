@@ -8,5 +8,7 @@ namespace localink_be.Services.Interfaces
         Task<string?> ChatSearchAsync(string message, string chatHistoryJson);
         Task<string?> GetBusinessInsightsAsync(int views, int favorites, int clicks, string businessName);
         Task<string?> GetPersonalizedWelcomeAsync(string categoryPref, string timeOfDay);
+        Task<string?> TranscribeAudioAsync(Microsoft.AspNetCore.Http.IFormFile file);
+        Task<(bool isFlagged, string reason)> ModerateContentAsync(string content);
     }
 }

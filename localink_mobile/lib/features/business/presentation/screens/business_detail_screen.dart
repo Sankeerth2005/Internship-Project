@@ -9,6 +9,7 @@ import 'package:geolocator/geolocator.dart';
 
 import '../../providers/business_provider.dart';
 import '../../providers/category_usage_tracker.dart';
+import '../../../catalog/presentation/providers/catalog_provider.dart';
 import '../../data/models/business_models.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/network/signalr_service.dart';
@@ -639,6 +640,21 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
                             const SizedBox(width: 12),
                             Expanded(
                               child: BusinessActionButton(
+                                icon: Icons.chat_bubble_outline_rounded,
+                                label: 'Message',
+                                onTap: () {
+                                  _incrementClickCount();
+                                  if (isClient) {
+                                    context.push('/chat/${business.businessId}?role=User&title=${business.businessName}');
+                                  } else {
+                                    AppFeedback.showWarning(context, 'Please login as a user to message businesses.');
+                                  }
+                                },
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: BusinessActionButton(
                                 icon: Icons.language_rounded,
                                 label: 'Website',
                                 onTap: () async {
@@ -819,6 +835,64 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
                           ),
                           const SizedBox(height: 24),
                         ],
+
+                        // Menu / Product Catalog Section
+                        const Divider(color: _DetailTok.border, height: 32),
+                        const Text(
+                          'Menu & Services',
+                          style: TextStyle(color: _DetailTok.primary, fontSize: 16, fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 16),
+                        Consumer(
+                          builder: (ctx, ref, child) {
+                            final catalogsAsync = ref.watch(catalogsProvider(widget.businessId));
+                            return catalogsAsync.when(
+                              data: (catalogs) {
+                                if (catalogs.isEmpty) {
+                                  return const Padding(
+                                    padding: EdgeInsets.symmetric(vertical: 24),
+                                    child: Center(
+                                      child: Text(
+                                        'No catalog items available yet.',
+                                        style: TextStyle(color: _DetailTok.textLow, fontSize: 13),
+                                      ),
+                                    ),
+                                  );
+                                }
+                                return Column(
+                                  children: catalogs.map((catalog) {
+                                    return Card(
+                                      color: _DetailTok.cardBg,
+                                      margin: const EdgeInsets.only(bottom: 12),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: const BorderSide(color: _DetailTok.border)),
+                                      elevation: 0,
+                                      child: ExpansionTile(
+                                        title: Text(catalog.title, style: const TextStyle(fontWeight: FontWeight.bold)),
+                                        subtitle: catalog.description != null ? Text(catalog.description!) : null,
+                                        children: catalog.items.where((i) => i.isAvailable).map((item) {
+                                          return ListTile(
+                                            leading: item.imageUrl != null
+                                                ? ClipRRect(
+                                                    borderRadius: BorderRadius.circular(8),
+                                                    child: Image.network('${DioClient().dio.options.baseUrl.replaceAll('/api/v1', '')}${item.imageUrl!}', width: 50, height: 50, fit: BoxFit.cover),
+                                                  )
+                                                : const Icon(Icons.fastfood, size: 40, color: _DetailTok.primary),
+                                            title: Text(item.name, style: const TextStyle(fontWeight: FontWeight.w600)),
+                                            subtitle: item.description != null ? Text(item.description!) : null,
+                                            trailing: Text('\$${item.price.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                                          );
+                                        }).toList(),
+                                      ),
+                                    );
+                                  }).toList(),
+                                );
+                              },
+                              loading: () => const Center(child: CircularProgressIndicator(color: _DetailTok.primary)),
+                              error: (err, st) => const Text('Error loading catalog'),
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 24),
 
                         // Write review form (For regular user login)
                         if (isClient) ...[

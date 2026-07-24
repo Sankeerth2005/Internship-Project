@@ -348,6 +348,93 @@ Rules:
                 return $"Namaste! Wishing you a wonderful {timeOfDay}. Explore local services and businesses near you.";
             }
         }
+
+        public async Task<string?> TranscribeAudioAsync(Microsoft.AspNetCore.Http.IFormFile file)
+        {
+            try
+            {
+                using var content = new MultipartFormDataContent();
+                
+                var fileStream = file.OpenReadStream();
+                var streamContent = new StreamContent(fileStream);
+                streamContent.Headers.ContentType = new MediaTypeHeaderValue(file.ContentType ?? "audio/m4a");
+                content.Add(streamContent, "file", file.FileName);
+                
+                content.Add(new StringContent("whisper-large-v3-turbo"), "model");
+                content.Add(new StringContent("en"), "language");
+
+                var response = await _httpClient.PostAsync("https://api.groq.com/openai/v1/audio/transcriptions", content);
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    var error = await response.Content.ReadAsStringAsync();
+                    _logger.LogError("Groq Whisper API error: {StatusCode} - {Error}", response.StatusCode, error);
+                    return null;
+                }
+
+                var result = await response.Content.ReadFromJsonAsync<JsonElement>();
+                if (result.TryGetProperty("text", out var textProp))
+                {
+                    return textProp.GetString();
+                }
+                
+                return null;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error transcribing audio with Groq");
+                return null;
+            }
+        }
+
+        public async Task<(bool isFlagged, string reason)> ModerateContentAsync(string content)
+        {
+            if (string.IsNullOrWhiteSpace(content)) return (false, string.Empty);
+
+            try
+            {
+                var prompt = $@"Analyze the following user review for any inappropriate content, hate speech, spam, extreme profanity, or harassment.
+If it is inappropriate, respond with exactly: FLAG: [Reason for flagging]
+If it is fine, respond with exactly: OK
+
+Content to review: ""{content}""";
+                
+                var requestBody = new
+                {
+                    model = "llama-3.1-8b-instant",
+                    messages = new[]
+                    {
+                        new { role = "system", content = "You are a strict automated moderation assistant." },
+                        new { role = "user", content = prompt }
+                    },
+                    temperature = 0.1,
+                    max_tokens = 50
+                };
+
+                var response = await _httpClient.PostAsJsonAsync("https://api.groq.com/openai/v1/chat/completions", requestBody);
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    return (false, string.Empty); // Default to allow if API fails
+                }
+
+                var result = await response.Content.ReadFromJsonAsync<GroqResponse>();
+                var aiResponse = result?.choices?.FirstOrDefault()?.message?.content?.Trim() ?? string.Empty;
+
+                if (aiResponse.StartsWith("FLAG:", StringComparison.OrdinalIgnoreCase))
+                {
+                    var reason = aiResponse.Substring(5).Trim();
+                    return (true, reason);
+                }
+
+                return (false, string.Empty);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in automated moderation");
+                return (false, string.Empty);
+            }
+        }
     }
 
     public class GroqResponse
@@ -357,10 +444,10 @@ Rules:
 
     public class Choice
     {
-        public Message message { get; set; } = new Message();
+        public GroqMessage message { get; set; } = new GroqMessage();
     }
 
-    public class Message
+    public class GroqMessage
     {
         public string content { get; set; } = string.Empty;
     }

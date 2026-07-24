@@ -4,6 +4,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/network/dio_client.dart';
+import 'package:dio/dio.dart';
+import 'dart:io';
+import 'package:path_provider/path_provider.dart';
+import 'package:record/record.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:flutter_tts/flutter_tts.dart';
 import '../../../shared/presentation/widgets/app_back_button.dart';
 import '../../../ai/widgets/ai_message_bubble.dart';
 import '../../../ai/widgets/ai_prompt_chips.dart';
@@ -43,8 +49,92 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
     'Top rated local services',
   ];
 
+  final AudioRecorder _audioRecorder = AudioRecorder();
+  final FlutterTts _flutterTts = FlutterTts();
+  bool _isRecording = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _initTts();
+  }
+
+  Future<void> _initTts() async {
+    await _flutterTts.setLanguage("en-IN");
+    await _flutterTts.setSpeechRate(0.5);
+    await _flutterTts.setVolume(1.0);
+    await _flutterTts.setPitch(1.0);
+  }
+
+  Future<void> _speak(String text) async {
+    await _flutterTts.speak(text);
+  }
+
+  Future<void> _toggleRecording() async {
+    try {
+      if (await _audioRecorder.isRecording()) {
+        final path = await _audioRecorder.stop();
+        setState(() => _isRecording = false);
+        if (path != null) {
+          _transcribeAudio(path);
+        }
+      } else {
+        if (await Permission.microphone.request().isGranted) {
+          final dir = await getTemporaryDirectory();
+          final path = '${dir.path}/ai_voice_query_${DateTime.now().millisecondsSinceEpoch}.m4a';
+          await _audioRecorder.start(
+            const RecordConfig(encoder: AudioEncoder.aacLc, numChannels: 1, sampleRate: 44100),
+            path: path,
+          );
+          setState(() => _isRecording = true);
+        } else {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Microphone permission is required.')),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('Recording error: $e');
+      setState(() => _isRecording = false);
+    }
+  }
+
+  Future<void> _transcribeAudio(String path) async {
+    setState(() => _isLoading = true);
+    try {
+      final file = File(path);
+      final formData = FormData.fromMap({
+        'file': await MultipartFile.fromFile(file.path, filename: 'voice_query.m4a'),
+      });
+
+      final response = await DioClient().dio.post('ai/transcribe', data: formData);
+      final text = response.data['data'] as String?;
+      
+      if (text != null && text.trim().isNotEmpty) {
+        _textController.text = text.trim();
+        _sendMessage();
+      } else {
+        setState(() => _isLoading = false);
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not transcribe audio. Please try again.')),
+        );
+      }
+    } catch (e) {
+      setState(() => _isLoading = false);
+      debugPrint('Transcription error: $e');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Transcription failed. Check connection.')),
+      );
+    }
+  }
+
   @override
   void dispose() {
+    _flutterTts.stop();
+    _audioRecorder.dispose();
     _textController.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -97,6 +187,7 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
         _messages.add({'role': 'assistant', 'content': reply});
         _isLoading = false;
       });
+      _speak(reply);
     } catch (e) {
       setState(() {
         _messages.add({
@@ -212,10 +303,10 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
                       textInputAction: TextInputAction.send,
                       onSubmitted: (_) => _sendMessage(),
                       decoration: InputDecoration(
-                        hintText: 'Search or ask for recommendations...',
+                        hintText: _isRecording ? 'Listening...' : 'Search or ask for recommendations...',
                         hintStyle: const TextStyle(color: _AiTok.textLow, fontSize: 13),
                         filled: true,
-                        fillColor: _AiTok.cardBg,
+                        fillColor: _isRecording ? const Color(0xFFFFF2EC) : _AiTok.cardBg,
                         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(24),
@@ -232,7 +323,24 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
                       ),
                     ),
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 8),
+                  GestureDetector(
+                    onTap: _toggleRecording,
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: _isRecording ? Colors.red : _AiTok.cardBg,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: _isRecording ? Colors.red : _AiTok.border),
+                      ),
+                      child: Icon(
+                        _isRecording ? Icons.stop_rounded : Icons.mic_none_rounded,
+                        color: _isRecording ? Colors.white : _AiTok.primary,
+                        size: 18,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
                   GestureDetector(
                     onTap: () => _sendMessage(),
                     child: Container(

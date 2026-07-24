@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:dio/dio.dart';
+import '../../../../core/storage/secure_storage_service.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/network/app_error_formatter.dart';
 import '../widgets/app_feedback.dart';
@@ -78,12 +80,20 @@ class _SupportScreenState extends State<SupportScreen> {
     try {
       HapticFeedback.mediumImpact();
       final dio = DioClient().dio;
+      final token = await SecureStorageService.getToken();
       
       // Post to the backend FeedbackController
-      await dio.post('../feedback', data: {
-        'category': _selectedCategory,
-        'feedback': _feedbackController.text.trim(),
-      });
+      await dio.post('../feedback', 
+        data: {
+          'category': _selectedCategory,
+          'feedback': _feedbackController.text.trim(),
+        },
+        options: Options(
+          headers: {
+            if (token != null) 'Authorization': 'Bearer $token',
+          },
+        ),
+      );
 
       if (mounted) {
         AppFeedback.showSuccess(

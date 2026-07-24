@@ -87,6 +87,36 @@ class AdminNotifier extends AsyncNotifier<List<AdminBusinessDto>> {
       return false;
     }
   }
+
+  // Unflag Review
+  Future<bool> unflagReview(int id) async {
+    final repo = ref.read(adminRepositoryProvider);
+    try {
+      return await repo.unflagReview(id);
+    } catch (e) {
+      return false;
+    }
+  }
+
+  // Delete Review
+  Future<bool> deleteReview(int id) async {
+    final repo = ref.read(adminRepositoryProvider);
+    try {
+      return await repo.deleteReview(id);
+    } catch (e) {
+      return false;
+    }
+  }
+
+  // Upload Bulk Import
+  Future<Map<String, dynamic>> uploadBulkImport(String filePath) async {
+    final repo = ref.read(adminRepositoryProvider);
+    try {
+      return await repo.uploadBulkImport(filePath);
+    } catch (e) {
+      return {'success': false, 'message': 'Upload failed: $e'};
+    }
+  }
 }
 
 final adminBusinessesProvider = AsyncNotifierProvider<AdminNotifier, List<AdminBusinessDto>>(
@@ -96,6 +126,11 @@ final adminBusinessesProvider = AsyncNotifierProvider<AdminNotifier, List<AdminB
 final adminStatsProvider = FutureProvider.autoDispose<Map<String, dynamic>>((ref) async {
   final repo = ref.watch(adminRepositoryProvider);
   return await repo.getAdminStats();
+});
+
+final adminFlaggedReviewsProvider = FutureProvider.autoDispose<List<dynamic>>((ref) async {
+  final repo = ref.watch(adminRepositoryProvider);
+  return await repo.getFlaggedReviews();
 });
 
 final adminUsersProvider = FutureProvider.autoDispose<List<dynamic>>((ref) async {

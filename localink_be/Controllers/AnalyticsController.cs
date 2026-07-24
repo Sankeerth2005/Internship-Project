@@ -165,5 +165,43 @@ namespace localink_be.Controllers
             });
         }
 
+        [HttpGet("insights")]
+        public async Task<IActionResult> GetInsights()
+        {
+            var categoryMetrics = await _db.Businesses
+                .Include(b => b.Category)
+                .Join(_db.BusinessMetrics,
+                    b => b.BusinessId,
+                    m => m.BusinessId,
+                    (b, m) => new { b.Category.CategoryName, m.Views, m.ContactClicks, m.FavoritesCount })
+                .GroupBy(x => x.CategoryName)
+                .Select(g => new
+                {
+                    Category = g.Key,
+                    TotalViews = g.Sum(x => x.Views),
+                    TotalClicks = g.Sum(x => x.ContactClicks),
+                    TotalFavorites = g.Sum(x => x.FavoritesCount)
+                })
+                .ToListAsync();
+
+            var totalBusinesses = await _db.Businesses.CountAsync();
+            var totalUsers = await _db.Users.CountAsync();
+            var activeUsers = await _db.Users.CountAsync(u => u.AccountType == "user");
+
+            return Ok(new
+            {
+                success = true,
+                data = new
+                {
+                    categoryMetrics,
+                    overview = new
+                    {
+                        totalBusinesses,
+                        totalUsers,
+                        activeUsers
+                    }
+                }
+            });
+        }
     }
 }

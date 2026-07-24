@@ -93,6 +93,14 @@ class _BusinessDashboardScreenState extends ConsumerState<BusinessDashboardScree
           ),
           actions: [
             IconButton(
+              icon: const Icon(Icons.chat_bubble_outline_rounded, color: _DashTok.primary),
+              tooltip: 'Inbox',
+              onPressed: () {
+                HapticFeedback.lightImpact();
+                context.push('/conversations?isOwner=true');
+              },
+            ),
+            IconButton(
               icon: const Icon(Icons.add_business_rounded, color: _DashTok.primary),
               tooltip: 'Add Store',
               onPressed: () {
@@ -487,6 +495,43 @@ class _BusinessDashboardScreenState extends ConsumerState<BusinessDashboardScree
                                   SizedBox(width: 10),
                                   Text(
                                     'Update Store Details (Hours, Photos, Info)',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          GestureDetector(
+                            onTap: () {
+                              HapticFeedback.lightImpact();
+                              context.push('/manage-catalog/${activeBusiness.businessId}');
+                            },
+                            child: Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+                              decoration: BoxDecoration(
+                                color: _DashTok.info,
+                                borderRadius: BorderRadius.circular(16),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: _DashTok.info.withValues(alpha: 0.12),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: const Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.restaurant_menu_rounded, color: Colors.white, size: 24),
+                                  SizedBox(width: 10),
+                                  Text(
+                                    'Manage Product / Service Catalog',
                                     style: TextStyle(
                                       color: Colors.white,
                                       fontSize: 14,

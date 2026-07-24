@@ -426,6 +426,8 @@ class _BusinessRegistrationScreenState extends ConsumerState<BusinessRegistratio
   void _onMapCreated(MapLibreMapController controller) {
     _mapController = controller;
     _mapInitialized = true;
+    _userInteractedWithMap = false;
+    _marker = null;
     if (_latitude != null && _longitude != null && _latitude != 0.0 && _longitude != 0.0) {
       _addMarker(LatLng(_latitude!, _longitude!));
     }

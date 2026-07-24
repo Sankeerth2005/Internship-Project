@@ -87,6 +87,42 @@ class AdminRepository {
     final response = await dio.get('admin/users', options: options);
     return response.data as List? ?? [];
   }
+  // GET FLAGGED REVIEWS
+  Future<List<dynamic>> getFlaggedReviews() async {
+    final options = await _getAuthOptions();
+    final response = await dio.get('admin/flagged-reviews', options: options);
+    return response.data as List? ?? [];
+  }
+
+  // UNFLAG REVIEW
+  Future<bool> unflagReview(int id) async {
+    final options = await _getAuthOptions();
+    final response = await dio.put('admin/reviews/$id/unflag', options: options);
+    return response.statusCode == 200;
+  }
+
+  // DELETE REVIEW
+  Future<bool> deleteReview(int id) async {
+    final options = await _getAuthOptions();
+    final response = await dio.delete('admin/reviews/$id', options: options);
+    return response.statusCode == 200 || response.statusCode == 204;
+  }
+  // BULK IMPORT
+  Future<Map<String, dynamic>> uploadBulkImport(String filePath) async {
+    final token = await SecureStorageService.getToken();
+    final formData = FormData.fromMap({
+      'file': await MultipartFile.fromFile(filePath, filename: 'bulk_import.csv'),
+    });
+    final response = await dio.post(
+      'admin/bulk-import',
+      data: formData,
+      options: Options(headers: {
+        if (token != null) 'Authorization': 'Bearer $token',
+        'Content-Type': 'multipart/form-data',
+      }),
+    );
+    return response.data as Map<String, dynamic>? ?? {};
+  }
 }
 
 final adminRepositoryProvider = Provider<AdminRepository>((ref) {

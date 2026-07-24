@@ -45,6 +45,70 @@ namespace localink_be.Migrations
                     b.ToTable("Feedbacks");
                 });
 
+            modelBuilder.Entity("localink_be.Data.Models.Catalog", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(250)
+                        .HasColumnType("nvarchar(250)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BusinessId");
+
+                    b.ToTable("Catalogs");
+                });
+
+            modelBuilder.Entity("localink_be.Data.Models.CatalogItem", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("CatalogId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("ImageUrl")
+                        .HasMaxLength(250)
+                        .HasColumnType("nvarchar(250)");
+
+                    b.Property<bool>("IsAvailable")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<decimal>("Price")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CatalogId");
+
+                    b.ToTable("CatalogItems");
+                });
+
             modelBuilder.Entity("localink_be.Models.Entities.Address", b =>
                 {
                     b.Property<long>("AddressId")
@@ -443,6 +507,12 @@ namespace localink_be.Migrations
                         .HasColumnType("nvarchar(max)")
                         .HasColumnName("image_url");
 
+                    b.Property<bool>("IsFlagged")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("ModerationReason")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<int>("Rating")
                         .HasColumnType("int")
                         .HasColumnName("rating");
@@ -488,6 +558,35 @@ namespace localink_be.Migrations
                     b.ToTable("category", (string)null);
                 });
 
+            modelBuilder.Entity("localink_be.Models.Entities.Conversation", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("LastMessageAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long>("UserId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BusinessId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("conversations", (string)null);
+                });
+
             modelBuilder.Entity("localink_be.Models.Entities.Favorite", b =>
                 {
                     b.Property<long>("Id")
@@ -517,6 +616,41 @@ namespace localink_be.Migrations
                         .IsUnique();
 
                     b.ToTable("Favorites", (string)null);
+                });
+
+            modelBuilder.Entity("localink_be.Models.Entities.Message", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("AudioUrl")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<long>("ConversationId")
+                        .HasColumnType("bigint");
+
+                    b.Property<bool>("IsRead")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("SenderRole")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("Text")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("Timestamp")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ConversationId");
+
+                    b.ToTable("messages", (string)null);
                 });
 
             modelBuilder.Entity("localink_be.Models.Entities.SearchQueryLog", b =>
@@ -680,6 +814,28 @@ namespace localink_be.Migrations
                     b.ToTable("users", (string)null);
                 });
 
+            modelBuilder.Entity("localink_be.Data.Models.Catalog", b =>
+                {
+                    b.HasOne("localink_be.Models.Entities.Business", "Business")
+                        .WithMany()
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Business");
+                });
+
+            modelBuilder.Entity("localink_be.Data.Models.CatalogItem", b =>
+                {
+                    b.HasOne("localink_be.Data.Models.Catalog", "Catalog")
+                        .WithMany("Items")
+                        .HasForeignKey("CatalogId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Catalog");
+                });
+
             modelBuilder.Entity("localink_be.Models.Entities.AdminDashboard", b =>
                 {
                     b.HasOne("localink_be.Models.Entities.Business", "Business")
@@ -771,6 +927,25 @@ namespace localink_be.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("localink_be.Models.Entities.Conversation", b =>
+                {
+                    b.HasOne("localink_be.Models.Entities.Business", "Business")
+                        .WithMany()
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("localink_be.Models.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.Navigation("Business");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("localink_be.Models.Entities.Favorite", b =>
                 {
                     b.HasOne("localink_be.Models.Entities.Business", "Business")
@@ -790,6 +965,17 @@ namespace localink_be.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("localink_be.Models.Entities.Message", b =>
+                {
+                    b.HasOne("localink_be.Models.Entities.Conversation", "Conversation")
+                        .WithMany("Messages")
+                        .HasForeignKey("ConversationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Conversation");
+                });
+
             modelBuilder.Entity("localink_be.Models.Entities.Subcategory", b =>
                 {
                     b.HasOne("localink_be.Models.Entities.Category", "Category")
@@ -801,6 +987,11 @@ namespace localink_be.Migrations
                     b.Navigation("Category");
                 });
 
+            modelBuilder.Entity("localink_be.Data.Models.Catalog", b =>
+                {
+                    b.Navigation("Items");
+                });
+
             modelBuilder.Entity("localink_be.Models.Entities.Business", b =>
                 {
                     b.Navigation("AdminDashboard");
@@ -809,6 +1000,11 @@ namespace localink_be.Migrations
             modelBuilder.Entity("localink_be.Models.Entities.BusinessHour", b =>
                 {
                     b.Navigation("Slots");
+                });
+
+            modelBuilder.Entity("localink_be.Models.Entities.Conversation", b =>
+                {
+                    b.Navigation("Messages");
                 });
 
             modelBuilder.Entity("localink_be.Models.Entities.User", b =>
