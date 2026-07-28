@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:dio/dio.dart';
 import '../../../../core/network/dio_client.dart';
+import '../../../../core/storage/secure_storage_service.dart';
 import '../models/catalog_models.dart';
 
 class CatalogRepository {
@@ -8,9 +9,22 @@ class CatalogRepository {
 
   CatalogRepository(this._dioClient);
 
+  Future<Options> _getAuthOptions({String contentType = 'application/json'}) async {
+    final token = await SecureStorageService.getToken();
+    return Options(
+      headers: {
+        'Content-Type': contentType,
+        if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
+      },
+    );
+  }
+
   Future<List<Catalog>> getCatalogs(int businessId) async {
     try {
-      final response = await _dioClient.dio.get('/catalog/$businessId');
+      final response = await _dioClient.dio.get(
+        '/catalog/$businessId',
+        options: await _getAuthOptions(),
+      );
       if (response.data['success'] == true) {
         final List data = response.data['data'] ?? [];
         return data.map((e) => Catalog.fromJson(e)).toList();
@@ -23,10 +37,14 @@ class CatalogRepository {
 
   Future<Catalog> createCatalog(int businessId, String title, String? description) async {
     try {
-      final response = await _dioClient.dio.post('/catalog/$businessId', data: {
-        'title': title,
-        'description': description,
-      });
+      final response = await _dioClient.dio.post(
+        '/catalog/$businessId',
+        data: {
+          'title': title,
+          'description': description,
+        },
+        options: await _getAuthOptions(),
+      );
       if (response.data['success'] == true) {
         return Catalog.fromJson(response.data['data']);
       }
@@ -38,10 +56,14 @@ class CatalogRepository {
 
   Future<Catalog> updateCatalog(int catalogId, String title, String? description) async {
     try {
-      final response = await _dioClient.dio.put('/catalog/$catalogId', data: {
-        'title': title,
-        'description': description,
-      });
+      final response = await _dioClient.dio.put(
+        '/catalog/$catalogId',
+        data: {
+          'title': title,
+          'description': description,
+        },
+        options: await _getAuthOptions(),
+      );
       if (response.data['success'] == true) {
         return Catalog.fromJson(response.data['data']);
       }
@@ -53,7 +75,10 @@ class CatalogRepository {
 
   Future<void> deleteCatalog(int catalogId) async {
     try {
-      await _dioClient.dio.delete('/catalog/$catalogId');
+      await _dioClient.dio.delete(
+        '/catalog/$catalogId',
+        options: await _getAuthOptions(),
+      );
     } catch (e) {
       rethrow;
     }
@@ -66,6 +91,7 @@ class CatalogRepository {
     double price,
     bool isAvailable,
     File? image,
+    String currency,
   ) async {
     try {
       final formData = FormData.fromMap({
@@ -73,6 +99,7 @@ class CatalogRepository {
         'description': description,
         'price': price,
         'isAvailable': isAvailable,
+        'currency': currency,
       });
 
       if (image != null) {
@@ -82,7 +109,11 @@ class CatalogRepository {
         ));
       }
 
-      final response = await _dioClient.dio.post('/catalog/$catalogId/items', data: formData);
+      final response = await _dioClient.dio.post(
+        '/catalog/$catalogId/items',
+        data: formData,
+        options: await _getAuthOptions(contentType: 'multipart/form-data'),
+      );
       if (response.data['success'] == true) {
         return CatalogItem.fromJson(response.data['data']);
       }
@@ -99,6 +130,7 @@ class CatalogRepository {
     double price,
     bool isAvailable,
     File? image,
+    String currency,
   ) async {
     try {
       final formData = FormData.fromMap({
@@ -106,6 +138,7 @@ class CatalogRepository {
         'description': description,
         'price': price,
         'isAvailable': isAvailable,
+        'currency': currency,
       });
 
       if (image != null) {
@@ -115,7 +148,11 @@ class CatalogRepository {
         ));
       }
 
-      final response = await _dioClient.dio.put('/catalog/items/$itemId', data: formData);
+      final response = await _dioClient.dio.put(
+        '/catalog/items/$itemId',
+        data: formData,
+        options: await _getAuthOptions(contentType: 'multipart/form-data'),
+      );
       if (response.data['success'] == true) {
         return CatalogItem.fromJson(response.data['data']);
       }
@@ -127,7 +164,10 @@ class CatalogRepository {
 
   Future<void> deleteCatalogItem(int itemId) async {
     try {
-      await _dioClient.dio.delete('/catalog/items/$itemId');
+      await _dioClient.dio.delete(
+        '/catalog/items/$itemId',
+        options: await _getAuthOptions(),
+      );
     } catch (e) {
       rethrow;
     }

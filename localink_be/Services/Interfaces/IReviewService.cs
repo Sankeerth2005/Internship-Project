@@ -1,3 +1,5 @@
+using localink_be.Models.DTOs;
+
 public interface IReviewService
 {
     Task AddOrUpdateReview(long userId, ReviewRequestDto dto);

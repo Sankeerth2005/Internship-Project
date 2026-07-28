@@ -1,6 +1,11 @@
+import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:permission_handler/permission_handler.dart';
 
+import '../../../../core/network/dio_client.dart';
 import '../../providers/user_provider.dart';
 import '../../data/models/user_profile.dart';
 import '../../providers/auth_provider.dart';
@@ -8,6 +13,30 @@ import '../../providers/location_provider.dart';
 import '../../../profile/widgets/profile_info_tile.dart';
 import '../../../shared/presentation/widgets/app_feedback.dart';
 import '../../../../core/network/app_error_formatter.dart';
+
+/// Resolves a profile picture to an ImageProvider.
+/// Supports: base64 data URIs, relative paths, and full URLs.
+ImageProvider? _resolveProfilePicture(String? picture) {
+  if (picture == null || picture.isEmpty) return null;
+  
+  // Handle base64 data URIs
+  if (picture.startsWith('data:image')) {
+    final base64Data = picture.split(',').last;
+    try {
+      return MemoryImage(base64Decode(base64Data));
+    } catch (_) {
+      return null;
+    }
+  }
+  
+  // Handle relative paths - resolve using DioClient
+  final resolved = DioClient.resolveUrl(picture);
+  if (resolved != null) {
+    return NetworkImage(resolved);
+  }
+  
+  return NetworkImage(picture);
+}
 
 // ─── DESIGN TOKENS ────────────────────────────────────────────────────────────
 class _ProfileTok {
@@ -30,6 +59,7 @@ class ProfileScreen extends ConsumerStatefulWidget {
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   bool _isEditMode = false;
   bool _isSaving = false;
+  String? _profilePicBase64;
 
   final _nameCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
@@ -39,6 +69,98 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   final _stateCtrl = TextEditingController();
   final _pincodeCtrl = TextEditingController();
   final _countryCtrl = TextEditingController();
+
+  Future<bool> _ensureGalleryPermission() async {
+    // For Android 13+, use READ_MEDIA_IMAGES
+    // For older Android versions, use READ_EXTERNAL_STORAGE
+    if (Platform.isAndroid) {
+      // Try photos permission first (Android 13+)
+      var photosStatus = await Permission.photos.status;
+      if (photosStatus.isGranted || photosStatus.isLimited) {
+        return true;
+      }
+      
+      // Request photos permission
+      photosStatus = await Permission.photos.request();
+      if (photosStatus.isGranted || photosStatus.isLimited) {
+        return true;
+      }
+      
+      // Fallback to storage permission for older Android versions
+      if (photosStatus.isPermanentlyDenied) {
+        var storageStatus = await Permission.storage.status;
+        if (!storageStatus.isGranted) {
+          storageStatus = await Permission.storage.request();
+          if (storageStatus.isGranted) {
+            return true;
+          }
+        }
+      }
+      
+      if (!mounted) {
+        return false;
+      }
+      
+      AppFeedback.showError(
+        context,
+        photosStatus.isPermanentlyDenied
+            ? 'Gallery access is blocked. Please allow photo access in app settings.'
+            : 'Gallery access is required to choose a profile picture.',
+      );
+      return false;
+    } else {
+      // iOS permission handling
+      var status = await Permission.photos.status;
+      if (status.isGranted || status.isLimited) {
+        return true;
+      }
+      
+      status = await Permission.photos.request();
+      if (status.isGranted || status.isLimited) {
+        return true;
+      }
+      
+      if (!mounted) {
+        return false;
+      }
+      
+      AppFeedback.showError(
+        context,
+        status.isPermanentlyDenied
+            ? 'Gallery access is blocked. Please allow photo access in app settings.'
+            : 'Gallery access is required to choose a profile picture.',
+      );
+      return false;
+    }
+  }
+
+  Future<void> _pickImage() async {
+    try {
+      final hasPermission = await _ensureGalleryPermission();
+      if (!hasPermission) {
+        return;
+      }
+
+      final picker = ImagePicker();
+      final XFile? image = await picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 800,
+        maxHeight: 800,
+        imageQuality: 85,
+      );
+      if (image != null) {
+        final bytes = await image.readAsBytes();
+        setState(() {
+          _profilePicBase64 = 'data:image/jpeg;base64,${base64Encode(bytes)}';
+        });
+      }
+    } catch (e) {
+      debugPrint('Error picking profile image: $e');
+      if (mounted) {
+        AppFeedback.showError(context, 'Unable to open gallery. Please try again.');
+      }
+    }
+  }
 
   @override
   void initState() {
@@ -97,11 +219,21 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     _stateCtrl.text = profile.address.state ?? '';
     _pincodeCtrl.text = profile.address.pincode ?? '';
     _countryCtrl.text = profile.address.country ?? '';
+    _profilePicBase64 = profile.profilePicture;
   }
 
   Future<void> _saveProfile() async {
-    if (_nameCtrl.text.trim().isEmpty) {
+    final name = _nameCtrl.text.trim();
+    if (name.isEmpty) {
       AppFeedback.showError(context, 'Full name is required');
+      return;
+    }
+    if (name.length < 2 || name.length > 100) {
+      AppFeedback.showError(context, 'Full name must be between 2 and 100 characters');
+      return;
+    }
+    if (!RegExp(r"^[a-zA-Z\s\-\.']+$").hasMatch(name)) {
+      AppFeedback.showError(context, 'Name can only contain letters, spaces, hyphens, dots, and apostrophes');
       return;
     }
 
@@ -113,24 +245,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     // Validate phone format
     final phone = _phoneCtrl.text.trim();
     if (phone.isNotEmpty) {
-      // Remove any non-digit chars
       final digitsOnly = phone.replaceAll(RegExp(r'\D'), '');
-      if (country.toLowerCase() == 'india') {
-        if (digitsOnly.length != 10 || !RegExp(r'^[3-9][0-9]{9}$').hasMatch(digitsOnly)) {
-          AppFeedback.showError(
-            context,
-            'Indian phone numbers must be exactly 10 digits and start with 3-9',
-          );
-          return;
-        }
-      } else {
-        if (digitsOnly.length < 6 || digitsOnly.length > 15) {
-          AppFeedback.showError(
-            context,
-            'Phone number must be between 6 and 15 digits',
-          );
-          return;
-        }
+      if (digitsOnly.length < 7 || digitsOnly.length > 15) {
+        AppFeedback.showError(
+          context,
+          'Phone number must be between 7 and 15 digits',
+        );
+        return;
       }
     }
 
@@ -140,7 +261,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       AppFeedback.showError(context, 'Email is required');
       return;
     }
-    if (!RegExp(r'^[a-zA-Z][a-zA-Z0-9._%+-]*@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$').hasMatch(email)) {
+    if (email.length > 256) {
+      AppFeedback.showError(context, 'Email cannot exceed 256 characters');
+      return;
+    }
+    if (!RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$').hasMatch(email)) {
       AppFeedback.showError(
         context,
         'Invalid email address format (e.g. name@domain.com)',
@@ -157,41 +282,38 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     }
 
     // Validate country - should be at least 2 characters
-    if (country.length < 2) {
-      AppFeedback.showError(context, 'Country name is too short');
+    if (country.length < 2 || country.length > 100) {
+      AppFeedback.showError(context, 'Country must be between 2 and 100 characters');
       return;
     }
 
     // Validate state - should be at least 2 characters
-    if (state.length < 2) {
-      AppFeedback.showError(context, 'State name is too short');
+    if (state.length < 2 || state.length > 100) {
+      AppFeedback.showError(context, 'State must be between 2 and 100 characters');
       return;
     }
 
     // Validate city - should be at least 2 characters
-    if (city.length < 2) {
-      AppFeedback.showError(context, 'City name is too short');
+    if (city.length < 2 || city.length > 100) {
+      AppFeedback.showError(context, 'City must be between 2 and 100 characters');
       return;
     }
 
-    // Validate pincode format based on country
-    if (country.toLowerCase() == 'india') {
-      if (pincode.length != 6 || int.tryParse(pincode) == null) {
-        AppFeedback.showError(context, 'Indian pincodes must be exactly 6 digits');
-        return;
-      }
-    } else {
-      // For other countries, pincode should be at least 3 characters and alphanumeric
-      if (pincode.length < 3) {
-        AppFeedback.showError(context, 'Pincode must be at least 3 characters');
-        return;
-      }
-      // Allow alphanumeric but no special characters except hyphen and space
-      final validPincode = RegExp(r'^[a-zA-Z0-9\s\-]+$');
-      if (!validPincode.hasMatch(pincode)) {
-        AppFeedback.showError(context, 'Pincode contains invalid characters');
-        return;
-      }
+    // Validate pincode format
+    if (pincode.length < 3 || pincode.length > 15) {
+      AppFeedback.showError(context, 'Pincode must be between 3 and 15 characters');
+      return;
+    }
+    if (!RegExp(r'^[A-Za-z0-9\-\s]+$').hasMatch(pincode)) {
+      AppFeedback.showError(context, 'Pincode contains invalid characters');
+      return;
+    }
+
+    // Validate street address length
+    final street = _streetCtrl.text.trim();
+    if (street.length > 500) {
+      AppFeedback.showError(context, 'Street address cannot exceed 500 characters');
+      return;
     }
 
     setState(() => _isSaving = true);
@@ -201,6 +323,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         fullName: _nameCtrl.text.trim(),
         email: _emailCtrl.text.trim().isNotEmpty ? _emailCtrl.text.trim() : null,
         phone: _phoneCtrl.text.trim().isNotEmpty ? _phoneCtrl.text.trim() : null,
+        profilePicture: _profilePicBase64,
         address: AddressDto(
           street: _streetCtrl.text.trim().isNotEmpty ? _streetCtrl.text.trim() : null,
           city: _cityCtrl.text.trim().isNotEmpty ? _cityCtrl.text.trim() : null,
@@ -210,6 +333,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         ),
       ));
 
+      // Invalidate the profile provider to refresh data everywhere (home screen, etc.)
       ref.invalidate(userProfileProvider);
       setState(() => _isEditMode = false);
 
@@ -284,31 +408,61 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   const SizedBox(height: 24),
 
                   // Avatar presentation
-                  Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFFFF9E4F), Color(0xFFFF6600)],
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: _ProfileTok.primary.withValues(alpha: 0.15),
-                          blurRadius: 15,
-                          offset: const Offset(0, 6),
+                  Stack(
+                    alignment: Alignment.bottomRight,
+                    children: [
+                      GestureDetector(
+                        onTap: _isEditMode ? _pickImage : null,
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFFFF9E4F), Color(0xFFFF6600)],
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: _ProfileTok.primary.withValues(alpha: 0.15),
+                                blurRadius: 15,
+                                offset: const Offset(0, 6),
+                              ),
+                            ],
+                          ),
+                          child: CircleAvatar(
+                            radius: 44,
+                            backgroundColor: Colors.white,
+                            backgroundImage: _resolveProfilePicture(_profilePicBase64 ?? profile.profilePicture),
+                            child: (_profilePicBase64 == null && (profile.profilePicture == null || profile.profilePicture!.isEmpty))
+                                ? Text(
+                                    profile.fullName.isNotEmpty ? profile.fullName[0].toUpperCase() : 'U',
+                                    style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w900, color: _ProfileTok.primary),
+                                  )
+                                : null,
+                          ),
                         ),
-                      ],
-                    ),
-                    child: CircleAvatar(
-                      radius: 40,
-                      backgroundColor: Colors.white,
-                      child: Text(
-                        profile.fullName.isNotEmpty ? profile.fullName[0].toUpperCase() : 'U',
-                        style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w900, color: _ProfileTok.primary),
                       ),
-                    ),
+                      if (_isEditMode)
+                        GestureDetector(
+                          onTap: _pickImage,
+                          child: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: const BoxDecoration(
+                              color: _ProfileTok.primary,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.camera_alt_rounded, color: Colors.white, size: 18),
+                          ),
+                        ),
+                    ],
                   ),
                   const SizedBox(height: 16),
+                  if (_isEditMode)
+                    const Text(
+                      'Tap the photo to add or change your profile picture',
+                      style: TextStyle(color: _ProfileTok.textMedium, fontSize: 12),
+                      textAlign: TextAlign.center,
+                    ),
+                  if (_isEditMode) const SizedBox(height: 8),
                   Text(
                     profile.fullName,
                     style: const TextStyle(color: _ProfileTok.textHigh, fontSize: 18, fontWeight: FontWeight.bold),
@@ -332,7 +486,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       children: [
                         ProfileInfoTile(label: 'Full Name', controller: _nameCtrl, icon: Icons.person_outline_rounded, isEditMode: _isEditMode),
                         ProfileInfoTile(label: 'Email', controller: _emailCtrl, icon: Icons.email_outlined, isEditMode: _isEditMode),
-                        ProfileInfoTile(label: 'Phone', controller: _phoneCtrl, icon: Icons.phone_outlined, isEditMode: _isEditMode),
+                        ProfileInfoTile(label: 'Phone', controller: _phoneCtrl, icon: Icons.phone_outlined, isEditMode: _isEditMode, isPhone: true),
                         const SizedBox(height: 12),
                         const Align(
                           alignment: Alignment.centerLeft,

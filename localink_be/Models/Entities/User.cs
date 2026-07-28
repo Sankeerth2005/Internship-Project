@@ -19,6 +19,7 @@ namespace localink_be.Models.Entities
         public int? OtpAttempts { get; set; }
         public string? PasswordResetOtp { get; set; }
         public DateTime? OtpExpiry { get; set; }
+        public string? ProfilePicture { get; set; }
         public ICollection<Business> Businesses { get; set; } = new List<Business>();
     }
 }

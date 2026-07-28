@@ -6,8 +6,8 @@ using localink_be.Models.Entities;
 using localink_be.Models.DTOs;
 
 [ApiController]
-[Route("api/[controller]")]
-[Authorize]
+[Route("api/v1/[controller]")]
+[AllowAnonymous]
 public class FeedbackController : ControllerBase
 {
     private readonly AppDbContext _context;

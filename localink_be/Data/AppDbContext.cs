@@ -49,6 +49,8 @@ namespace localink_be.Data
             ConfigureFavorite(modelBuilder);
             ConfigureTranslationCache(modelBuilder);
             ConfigureMessaging(modelBuilder);
+
+            ConfigureCatalog(modelBuilder);
         }
 
         private void ConfigureCategory(ModelBuilder modelBuilder)
@@ -240,6 +242,52 @@ namespace localink_be.Data
                 entity.HasIndex(t => t.CacheKey).IsUnique();
             });
         }
+        private void ConfigureCatalog(ModelBuilder modelBuilder)
+    {
+            modelBuilder.Entity<localink_be.Data.Models.Catalog>(entity =>
+            {
+                entity.ToTable("Catalogs");
+
+                entity.HasKey(c => c.Id);
+
+                entity.Property(c => c.Title)
+                    .HasMaxLength(100);
+
+                entity.Property(c => c.Description)
+                    .HasMaxLength(250);
+
+                entity.HasOne(c => c.Business)
+                    .WithMany()
+                    .HasForeignKey(c => c.BusinessId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<localink_be.Data.Models.CatalogItem>(entity =>
+            {
+                entity.ToTable("CatalogItems");
+
+                entity.HasKey(i => i.Id);
+
+                entity.Property(i => i.Name)
+                    .HasMaxLength(100);
+
+                entity.Property(i => i.Description)
+                    .HasMaxLength(500);
+
+                entity.Property(i => i.ImageUrl)
+                    .HasMaxLength(250);
+
+                entity.Property(i => i.Price)
+                    .HasPrecision(18, 2);
+
+                entity.Property(i => i.IsAvailable);
+
+                entity.HasOne(i => i.Catalog)
+                    .WithMany(c => c.Items)
+                    .HasForeignKey(i => i.CatalogId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+        }
 
         private void ConfigureMessaging(ModelBuilder modelBuilder)
         {
@@ -268,5 +316,7 @@ namespace localink_be.Data
                     .OnDelete(DeleteBehavior.Cascade);
             });
         }
+        
     }
+    
 }

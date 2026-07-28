@@ -124,7 +124,7 @@ export class FavoritesComponent implements OnInit {
             subcategoryName: business.subcategoryName || '',
             description: business.description || 'No description available',
             primaryImage: business.primaryImage 
-              ? 'http://localhost:5138' + business.primaryImage 
+              ? business.primaryImage 
               : null,
             rating: summary?.averageRating || business.averageRating || business.rating || 0,
             averageRating: summary?.averageRating || business.averageRating || business.rating || 0

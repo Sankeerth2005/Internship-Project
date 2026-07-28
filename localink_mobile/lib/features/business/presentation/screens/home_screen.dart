@@ -341,13 +341,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
       });
     }
 
-    // Determine real user name
-    String userName = 'User';
-    userProfileAsync.whenData((profile) {
-      if (profile.fullName.isNotEmpty) {
-        userName = profile.fullName;
-      }
-    });
+    // Determine real user name and profile picture (reactive)
+    final profileData = userProfileAsync.asData?.value;
+    final userName = (profileData?.fullName.isNotEmpty == true) ? profileData!.fullName : 'User';
+    final profilePicture = (profileData?.profilePicture != null && profileData!.profilePicture!.isNotEmpty) 
+        ? profileData.profilePicture 
+        : null;
 
     return PopScope(
       canPop: false,
@@ -371,6 +370,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
               SliverToBoxAdapter(
                 child: HomeHeader(
                   userName: userName,
+                  profilePicture: profilePicture,
                   onProfileTap: () => context.push('/profile'),
                   onAIFeedTap: () => context.push('/for-you'),
                   onLogoutTap: () => ref.read(authProvider.notifier).logout(),

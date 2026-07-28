@@ -161,18 +161,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
 
   String? _validateEmail(String? value) {
     if (value == null || value.trim().isEmpty) return 'Email is required';
+    final trimmed = value.trim();
+    if (trimmed.length > 256) return 'Email cannot exceed 256 characters';
     final emailRegex = RegExp(
       r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
     );
-    if (!emailRegex.hasMatch(value.trim())) {
+    if (!emailRegex.hasMatch(trimmed)) {
       return 'Enter a valid email address';
     }
-    if (value.length > 100) return 'Too long';
     return null;
   }
 
   String? _validatePassword(String? value) {
     if (value == null || value.isEmpty) return 'Password is required';
+    if (value.length > 128) return 'Password cannot exceed 128 characters';
     return null;
   }
   // ─────────────────────────────────────────────────────────────────────────
@@ -206,7 +208,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
         final role = next.userType.toLowerCase().trim();
         if (role == 'admin') {
           context.go('/admin-dashboard');
-        } else if (role == 'client' || role == 'businessowner') {
+        } else if (role == 'businessowner') {
           context.go('/business-dashboard');
         } else {
           context.go('/home');

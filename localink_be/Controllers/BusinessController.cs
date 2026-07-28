@@ -134,13 +134,6 @@ namespace localink_be.Controllers
             return Ok(result);
         }
 
-        [HttpGet("v1/businesses/{id}")]
-        public async Task<IActionResult> GetById(long id)
-        {
-            var result = await _service.GetByIdAsync(id);
-            return Ok(result);
-        }
-
         [HttpGet("search")]
         public async Task<IActionResult> SearchBusinesses(
             [FromQuery] string? query = "", 

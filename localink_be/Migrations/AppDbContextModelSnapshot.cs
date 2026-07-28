@@ -69,7 +69,7 @@ namespace localink_be.Migrations
 
                     b.HasIndex("BusinessId");
 
-                    b.ToTable("Catalogs");
+                    b.ToTable("Catalogs", (string)null);
                 });
 
             modelBuilder.Entity("localink_be.Data.Models.CatalogItem", b =>
@@ -82,6 +82,10 @@ namespace localink_be.Migrations
 
                     b.Property<int>("CatalogId")
                         .HasColumnType("int");
+
+                    b.Property<string>("Currency")
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
 
                     b.Property<string>("Description")
                         .HasMaxLength(500)
@@ -100,13 +104,14 @@ namespace localink_be.Migrations
                         .HasColumnType("nvarchar(100)");
 
                     b.Property<decimal>("Price")
+                        .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
                     b.HasKey("Id");
 
                     b.HasIndex("CatalogId");
 
-                    b.ToTable("CatalogItems");
+                    b.ToTable("CatalogItems", (string)null);
                 });
 
             modelBuilder.Entity("localink_be.Models.Entities.Address", b =>
@@ -804,6 +809,9 @@ namespace localink_be.Migrations
                     b.Property<string>("PhoneNumber")
                         .HasColumnType("nvarchar(450)")
                         .HasColumnName("phone_number");
+
+                    b.Property<string>("ProfilePicture")
+                        .HasColumnType("nvarchar(max)");
 
                     b.HasKey("UserId");
 

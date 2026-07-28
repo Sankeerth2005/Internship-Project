@@ -95,14 +95,21 @@ public class AdminService : IAdminService
             .Select(c => c.CategoryName)
             .FirstOrDefaultAsync();
 
-        await _emailService.SendBusinessStatusUpdateToUserAsync(
-            user.Email,
-            user.FullName,
-            business.BusinessName,
-            categoryName ?? "",
-            record.Status.ToString(),
-            record.RejectionReason
-        );
+        try
+        {
+            await _emailService.SendBusinessStatusUpdateToUserAsync(
+                user.Email,
+                user.FullName,
+                business.BusinessName,
+                categoryName ?? "",
+                record.Status.ToString(),
+                record.RejectionReason
+            );
+        }
+        catch
+        {
+            // Keep admin moderation actions working even if SMTP is unavailable.
+        }
 
         // Real-time status update notification to the business owner
         await _hubContext.Clients.Group($"client_{business.UserId}").SendAsync("ReceiveNotification", $"Your business '{business.BusinessName}' status has been updated to {record.Status}.");
@@ -181,6 +188,7 @@ public class AdminService : IAdminService
             })
             .ToListAsync();
 
+        ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
         using var package = new OfficeOpenXml.ExcelPackage();
         var sheet = package.Workbook.Worksheets.Add("Businesses");
 
@@ -279,4 +287,4 @@ public class AdminService : IAdminService
         };
     }
 }
-}
+}

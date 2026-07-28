@@ -83,7 +83,7 @@ class _SupportScreenState extends State<SupportScreen> {
       final token = await SecureStorageService.getToken();
       
       // Post to the backend FeedbackController
-      await dio.post('../feedback', 
+      await dio.post('feedback', 
         data: {
           'category': _selectedCategory,
           'feedback': _feedbackController.text.trim(),
@@ -429,6 +429,9 @@ class _SupportScreenState extends State<SupportScreen> {
                   if (value == null || value.trim().isEmpty) {
                     return 'Please enter details first';
                   }
+                  if (value.trim().length < 10) {
+                    return 'Feedback must be at least 10 characters';
+                  }
                   return null;
                 },
               ),
@@ -510,8 +513,19 @@ class _SupportScreenState extends State<SupportScreen> {
                   label: 'Email Us',
                   onTap: () {
                     HapticFeedback.lightImpact();
-                    FocusScope.of(context).unfocus(); // Unfocus keyboard cleanly
-                    AppFeedback.showInfo(context, 'Launching Email Composer...');
+                    FocusScope.of(context).unfocus();
+                    final Uri emailUri = Uri(
+                      scheme: 'mailto',
+                      path: 'support@localink.com',
+                      queryParameters: {'subject': 'Localink Support Request'},
+                    );
+                    try {
+                      await launchUrl(emailUri);
+                    } catch (_) {
+                      if (mounted) {
+                        AppFeedback.showInfo(context, 'Send email to: support@localink.com');
+                      }
+                    }
                   },
                 ),
               ),

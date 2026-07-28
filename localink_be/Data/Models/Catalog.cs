@@ -50,5 +50,8 @@ namespace localink_be.Data.Models
         public string? ImageUrl { get; set; }
 
         public bool IsAvailable { get; set; } = true;
+
+        [MaxLength(10)]
+        public string? Currency { get; set; } = "USD";
     }
 }

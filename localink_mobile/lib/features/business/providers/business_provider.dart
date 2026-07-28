@@ -282,6 +282,22 @@ final searchResultsProvider = FutureProvider<List<BusinessDto>>((ref) async {
     }
   }
 
+  // Enforce consistent sorting
+  final sort = queryState.sortBy.toLowerCase();
+  if (sort == 'alphabetical' || sort == 'name' || sort == 'a-z') {
+    filtered.sort((a, b) => a.businessName.toLowerCase().compareTo(b.businessName.toLowerCase()));
+  } else if (sort == 'alphabetical_desc' || sort == 'z-a') {
+    filtered.sort((a, b) => b.businessName.toLowerCase().compareTo(a.businessName.toLowerCase()));
+  } else if (sort == 'reviews' || sort == 'rating') {
+    filtered.sort((a, b) => b.averageRating.compareTo(a.averageRating));
+  } else if (sort == 'popularity') {
+    filtered.sort((a, b) => b.reviewCount.compareTo(a.reviewCount));
+  } else if (sort == 'recent' || sort == 'recently_added') {
+    filtered.sort((a, b) => b.businessId.compareTo(a.businessId));
+  } else if (sort == 'distance') {
+    filtered.sort((a, b) => (a.distance ?? 9999.0).compareTo(b.distance ?? 9999.0));
+  }
+
   return filtered;
 });
 

@@ -34,47 +34,61 @@ public class EmailService : IEmailService
     // COMMON EMAIL METHOD
     private async Task SendEmailAsync(string toEmail, string subject, string htmlBody)
     {
+        var host = _config["Email:Host"] ?? _config["EMAIL_HOST"];
+        var portStr = _config["Email:Port"] ?? _config["EMAIL_PORT"];
+        var username = _config["Email:Username"] ?? _config["EMAIL_USERNAME"];
+        var password = _config["Email:Password"] ?? _config["EMAIL_PASSWORD"];
+        var fromAddress = _config["Email:From"] ?? _config["EMAIL_FROM"] ?? username;
+        var appName = _config["Email:AppName"] ?? _config["EMAIL_APP_NAME"] ?? "Vocal For Sanatan";
+
+        if (string.IsNullOrWhiteSpace(host))
+            throw new InvalidOperationException("Email host is not configured.");
+
+        if (!int.TryParse(portStr, out var port))
+            throw new InvalidOperationException("Email port is invalid or missing.");
+
+        if (string.IsNullOrWhiteSpace(username) ||
+            string.IsNullOrWhiteSpace(password) ||
+            string.IsNullOrWhiteSpace(fromAddress))
+        {
+            throw new InvalidOperationException("Email credentials are not configured.");
+        }
+
         try
         {
             var email = new MimeMessage();
-
-            email.From.Add(new MailboxAddress(
-                _config["Email:AppName"] ?? "Vocal For Sanatan",
-                _config["Email:From"] ?? "noreply@vocalforsanatan.com"
-            ));
-
+            email.From.Add(new MailboxAddress(appName, fromAddress));
             email.To.Add(MailboxAddress.Parse(toEmail));
             email.Subject = subject;
-
             email.Body = new BodyBuilder
             {
                 HtmlBody = htmlBody
             }.ToMessageBody();
 
             using var smtp = new SmtpClient();
+            smtp.Timeout = 10000;
 
-            var portStr = _config["Email:Port"];
-            var port = int.TryParse(portStr, out var p) ? p : 587;
-            await smtp.ConnectAsync(
-                _config["Email:Host"] ?? "smtp.gmail.com",
-                port,
-                SecureSocketOptions.StartTls
-            );
-
-            await smtp.AuthenticateAsync(
-                _config["Email:Username"],
-                _config["Email:Password"]
-            );
-
+            await smtp.ConnectAsync(host, port, SecureSocketOptions.StartTls);
+            await smtp.AuthenticateAsync(username, password);
             await smtp.SendAsync(email);
             await smtp.DisconnectAsync(true);
 
-            _logger.LogInformation("Email sent to {Email}", toEmail);
+            _logger.LogInformation(
+                "Email successfully sent to {Email} with subject '{Subject}'",
+                toEmail,
+                subject
+            );
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Email failed for {Email}", toEmail);
-            throw new Exception("Email service failed");
+            _logger.LogError(
+                ex,
+                "Email delivery failed for {Email} (Subject: '{Subject}'). Error: {Message}",
+                toEmail,
+                subject,
+                ex.Message
+            );
+            throw;
         }
     }
 

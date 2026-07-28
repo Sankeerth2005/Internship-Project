@@ -4,6 +4,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using localink_be.Data;
 using localink_be.Models.Entities;
 using localink_be.Models.DTOs;
@@ -17,17 +18,20 @@ namespace localink_be.Services.Implementations
         private readonly IConfiguration _config;
         private readonly IEmailService _emailService;
         private readonly ICaptchaService _captchaService;
+        private readonly ILogger<AuthService> _logger;
 
         public AuthService(
             AppDbContext context,
             IConfiguration config,
             IEmailService emailService,
-            ICaptchaService captchaService)
+            ICaptchaService captchaService,
+            ILogger<AuthService> logger)
         {
             _context = context;
             _config = config;
             _emailService = emailService;
             _captchaService = captchaService;
+            _logger = logger;
         }
 
         public async Task<string> RegisterAsync(RegisterRequest request)
@@ -97,7 +101,7 @@ namespace localink_be.Services.Implementations
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Email failed: {ex.Message}");
+                _logger.LogError(ex, "Email sending failed during registration for {Email}", email);
             }
 
             return "User registered successfully";
@@ -192,7 +196,7 @@ namespace localink_be.Services.Implementations
             await _context.SaveChangesAsync();
 
             // DEVELOPMENT ONLY: Log the OTP to the console so it can be retrieved without email configuration
-            Console.WriteLine($"[DEVELOPMENT OTP] OTP for {email} is: {otp}");
+            _logger.LogWarning("[DEVELOPMENT OTP] OTP for {Email} is: {Otp}", email, otp);
 
             try
             {
@@ -200,7 +204,7 @@ namespace localink_be.Services.Implementations
             }
             catch (Exception ex)
             {
-                Console.WriteLine("Email failed: " + ex.Message);
+                _logger.LogError(ex, "Email sending failed during OTP generation for {Email}", email);
             }
 
             return "If the email exists, an OTP has been sent";
@@ -263,11 +267,15 @@ namespace localink_be.Services.Implementations
                 new Claim(ClaimTypes.Name, user.FullName ?? "")
             };
 
+            // Use 30-day expiry for persistent sessions
+            var expiryDaysStr = _config["Jwt:ExpiryDays"];
+            var expiryDays = string.IsNullOrWhiteSpace(expiryDaysStr) ? 30 : int.Parse(expiryDaysStr);
+
             var token = new JwtSecurityToken(
                 issuer: _config["Jwt:Issuer"],
                 audience: _config["Jwt:Audience"],
                 claims: claims,
-                expires: DateTime.UtcNow.AddMinutes(Convert.ToDouble(_config["Jwt:ExpiryMinutes"])),
+                expires: DateTime.UtcNow.AddDays(expiryDays),
                 signingCredentials: creds
             );
 

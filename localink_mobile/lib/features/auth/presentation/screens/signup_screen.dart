@@ -236,28 +236,34 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     setState(() => _pincodeError = null);
     try {
       final res = await _locationRepo.validatePincode(pincode);
-      if (res.country == null || res.state == null || res.city == null) {
-        setState(() => _pincodeError = 'Invalid pincode');
+      if (res.country == null && res.state == null && res.city == null) {
+        setState(() => _pincodeError = 'Invalid or unverified pincode');
         return false;
       }
-      String norm(String? s) =>
-          (s ?? '').toLowerCase().replaceAll(' ', '').trim();
-      if (norm(res.country) != norm(_selectedCountry?.name)) {
-        setState(() => _pincodeError = 'Pincode country mismatch');
+      String norm(String? s) => (s ?? '').toLowerCase().replaceAll(' ', '').trim();
+      final resCountry = norm(res.country);
+      final selCountry = norm(_selectedCountry?.name);
+      final resState = norm(res.state);
+      final selState = norm(_selectedState?.name);
+      final resCity = norm(res.city);
+      final selCity = norm(_selectedCity?.name);
+
+      if (resCountry.isNotEmpty && selCountry.isNotEmpty && !resCountry.contains(selCountry) && !selCountry.contains(resCountry)) {
+        setState(() => _pincodeError = 'Pincode country mismatch (${res.country})');
         return false;
       }
-      if (norm(res.state) != norm(_selectedState?.name)) {
-        setState(() => _pincodeError = 'Pincode state mismatch');
+      if (resState.isNotEmpty && selState.isNotEmpty && !resState.contains(selState) && !selState.contains(resState)) {
+        setState(() => _pincodeError = 'Pincode state mismatch (${res.state})');
         return false;
       }
-      if (norm(res.city) != norm(_selectedCity?.name)) {
-        setState(() => _pincodeError = 'Pincode city mismatch');
-        return false;
+      if (resCity.isNotEmpty && selCity.isNotEmpty && !resCity.contains(selCity) && !selCity.contains(resCity)) {
+        // Warning log only for minor city alias differences (e.g., district vs city name)
+        debugPrint('City variation detected: $resCity vs $selCity');
       }
       return true;
     } catch (_) {
-      setState(() => _pincodeError = 'Pincode verification failed');
-      return false;
+      // If external pincode API service is unreachable, allow registration to proceed with standard format check
+      return RegExp(r'^[A-Za-z0-9\-\s]{3,10}$').hasMatch(pincode);
     }
   }
 
@@ -309,7 +315,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
 
     try {
       final request = RegisterRequest(
-        userType: _selectedType == 'client' ? 'BusinessOwner' : 'User',
+        userType: _selectedType == 'client' ? 'businessowner' : 'client',
         name: _nameController.text.trim(),
         email: _emailController.text.trim(),
         phone: _phoneController.text.trim(),
@@ -352,64 +358,68 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   // ===================== FORM VALIDATORS =====================
 
   String? _validateName(String? v) {
-    if (v == null || v.trim().isEmpty) return 'Required';
-    if (!RegExp(r'^[A-Za-z][A-Za-z\s]*$').hasMatch(v.trim())) {
-      return 'Letters and spaces only (start with letter)';
+    if (v == null || v.trim().isEmpty) return 'Name is required';
+    final trimmed = v.trim();
+    if (trimmed.length < 2 || trimmed.length > 100) {
+      return 'Name must be between 2 and 100 characters';
+    }
+    if (!RegExp(r"^[a-zA-Z\s\-\.']+$").hasMatch(trimmed)) {
+      return 'Name can only contain letters, spaces, hyphens, dots, and apostrophes';
     }
     return null;
   }
 
   String? _validateEmail(String? v) {
-    if (v == null || v.trim().isEmpty) return 'Required';
+    if (v == null || v.trim().isEmpty) return 'Email is required';
+    final trimmed = v.trim();
+    if (trimmed.length > 256) return 'Email cannot exceed 256 characters';
     if (!RegExp(
-      r'^[a-zA-Z][a-zA-Z0-9._%+-]*@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
-    ).hasMatch(v.trim())) {
-      return 'Invalid email';
+      r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
+    ).hasMatch(trimmed)) {
+      return 'Invalid email format';
     }
     return null;
   }
 
   String? _validatePhone(String? v) {
-    if (v == null || v.trim().isEmpty) return 'Required';
-    if (_selectedPhoneCode == '91') {
-      if (!RegExp(r'^[3-9][0-9]{9}$').hasMatch(v.trim())) {
-        return 'Enter 10-digit number (starts 3-9)';
-      }
-    } else {
-      if (!RegExp(r'^(?!0+$)[0-9]{6,15}$').hasMatch(v.trim())) {
-        return 'Invalid phone (6-15 digits)';
-      }
+    if (v == null || v.trim().isEmpty) return 'Phone number is required';
+    final trimmed = v.trim();
+    if (!RegExp(r'^[0-9]{7,15}$').hasMatch(trimmed)) {
+      return 'Phone number must be between 7 and 15 digits';
     }
     return null;
   }
 
   String? _validatePincode(String? v) {
-    if (v == null || v.trim().isEmpty) return 'Required';
-    if (!RegExp(r'^[A-Za-z0-9\-\s]{3,10}$').hasMatch(v.trim())) {
-      return 'Invalid format';
+    if (v == null || v.trim().isEmpty) return null; // Optional field
+    final trimmed = v.trim();
+    if (!RegExp(r'^[A-Za-z0-9\-\s]{3,10}$').hasMatch(trimmed)) {
+      return 'Invalid pincode format (3-10 characters)';
     }
     if (_pincodeError != null) return _pincodeError;
     return null;
   }
 
   String? _validateStreet(String? v) {
-    if (v == null || v.trim().isEmpty) return 'Required';
+    if (v == null || v.trim().isEmpty) return null; // Optional field
+    final trimmed = v.trim();
+    if (trimmed.length > 500) return 'Street address cannot exceed 500 characters';
     return null;
   }
 
   String? _validatePassword(String? v) {
-    if (v == null || v.isEmpty) return 'Required';
-    if (v.length < 8) return 'Min 8 characters';
+    if (v == null || v.isEmpty) return 'Password is required';
+    if (v.length < 8 || v.length > 128) return 'Password must be between 8 and 128 characters';
     if (!RegExp(
-      r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$',
+      r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$',
     ).hasMatch(v)) {
-      return 'Needs upper, lower, number & special char';
+      return 'Must contain uppercase, lowercase, number & special char (@\$!%*?&)';
     }
     return null;
   }
 
   String? _validateConfirmPassword(String? v) {
-    if (v == null || v.isEmpty) return 'Required';
+    if (v == null || v.isEmpty) return 'Please confirm your password';
     if (v != _passwordController.text) return 'Passwords do not match';
     return null;
   }
@@ -427,7 +437,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
         final role = next.userType.toLowerCase().trim();
         if (role == 'admin') {
           context.go('/admin-dashboard');
-        } else if (role == 'client' || role == 'businessowner') {
+        } else if (role == 'businessowner') {
           context.go('/business-dashboard');
         } else {
           context.go('/home');
@@ -439,105 +449,106 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     final isWide = screenWidth > 800;
 
     return PopScope(
-      canPop: _currentStep == 0,
+      canPop: false,
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) return;
-        _prevStep();
+        if (_currentStep > 0) {
+          _prevStep();
+        } else {
+          context.go('/login');
+        }
       },
       child: Scaffold(
         backgroundColor: _Tok.white,
         body: AppBackground(
           child: Stack(
             children: [
-              // Ambient Radial Background Glows
-              // (glow background handled by AppBackground)
-
-            SafeArea(
-              child: Row(
-                children: [
-                  // Desktop left branding pane
-                  if (isWide)
-                    Expanded(
-                      child: Stack(
-                        children: [
-                          Positioned(
-                            bottom: 80,
-                            left: 60,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text(
-                                  'Join Vocal\nfor Sanatan',
-                                  style: TextStyle(
-                                    fontFamily: 'Inter',
-                                    fontSize: 48,
-                                    fontWeight: FontWeight.w900,
-                                    color: _Tok.charcoal,
-                                    height: 1.15,
-                                    letterSpacing: -1.0,
+              SafeArea(
+                child: Row(
+                  children: [
+                    // Desktop left branding pane
+                    if (isWide)
+                      Expanded(
+                        child: Stack(
+                          children: [
+                            Positioned(
+                              bottom: 80,
+                              left: 60,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'Join Vocal\nfor Sanatan',
+                                    style: TextStyle(
+                                      fontFamily: 'Inter',
+                                      fontSize: 48,
+                                      fontWeight: FontWeight.w900,
+                                      color: _Tok.charcoal,
+                                      height: 1.15,
+                                      letterSpacing: -1.0,
+                                    ),
                                   ),
-                                ),
-                                const SizedBox(height: 12),
-                                Text(
-                                  'Register to discover verified local businesses,\nsupport your community, and connect directly.',
-                                  style: TextStyle(
-                                    fontFamily: 'Inter',
-                                    fontSize: 16,
-                                    color: _Tok.medText,
-                                    height: 1.5,
+                                  const SizedBox(height: 12),
+                                  Text(
+                                    'Register to discover verified local businesses,\nsupport your community, and connect directly.',
+                                    style: TextStyle(
+                                      fontFamily: 'Inter',
+                                      fontSize: 16,
+                                      color: _Tok.medText,
+                                      height: 1.5,
+                                    ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
 
-                  // Form pane
-                  Expanded(
-                    child: Center(
-                      child: SingleChildScrollView(
-                        physics: const BouncingScrollPhysics(),
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
-                        child: ShakeWidget(
-                          key: _shakeKey,
-                          child: Center(
-                            child: AppCard(
-                              maxWidth: 500,
-                              padding: const EdgeInsets.all(28),
-                              child: _buildStepContent(),
+                    // Form pane
+                    Expanded(
+                      child: Center(
+                        child: SingleChildScrollView(
+                          physics: const BouncingScrollPhysics(),
+                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+                          child: ShakeWidget(
+                            key: _shakeKey,
+                            child: Center(
+                              child: AppCard(
+                                maxWidth: 500,
+                                padding: const EdgeInsets.all(28),
+                                child: _buildStepContent(),
+                              ),
                             ),
                           ),
                         ),
                       ),
                     ),
-                  ),
-                ],
-              ),
-            ),
-
-            // Premium back navigation button
-            SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.only(left: 12, top: 12),
-                child: AppBackButton(
-                  onPressed: () {
-                    if (_currentStep > 0) {
-                      _prevStep();
-                    } else {
-                      context.pop();
-                    }
-                  },
+                  ],
                 ),
-              ),
+
+                // Premium back navigation button
+                SafeArea(
+                  child: Padding(
+                    padding: const EdgeInsets.only(left: 12, top: 12),
+                    child: AppBackButton(
+                      onPressed: () {
+                        if (_currentStep > 0) {
+                          _prevStep();
+                        } else {
+                          context.go('/login');
+                        }
+                      },
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
-    ),
-  );
-}
+    );
+  }
 
   // ─── STEP DISPATCHER ───
   Widget _buildStepContent() {

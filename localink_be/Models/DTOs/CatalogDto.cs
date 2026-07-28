@@ -20,6 +20,7 @@ namespace localink_be.Models.DTOs
         public decimal Price { get; set; }
         public string? ImageUrl { get; set; }
         public bool IsAvailable { get; set; }
+        public string? Currency { get; set; } = "USD";
     }
 
     public class CreateCatalogDto
@@ -44,5 +45,7 @@ namespace localink_be.Models.DTOs
         public decimal Price { get; set; }
 
         public bool IsAvailable { get; set; } = true;
+
+        public string? Currency { get; set; } = "USD";
     }
 }

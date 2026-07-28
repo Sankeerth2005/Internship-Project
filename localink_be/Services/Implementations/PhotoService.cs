@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Configuration;
 using localink_be.Data;
 using localink_be.Models.Entities;
 using localink_be.Services.Interfaces;
@@ -17,27 +18,41 @@ namespace localink_be.Services.Implementations
         private readonly AppDbContext _db;
         private readonly IWebHostEnvironment _env;
         private readonly Microsoft.Extensions.Logging.ILogger<PhotoService> _logger;
+        private readonly IConfiguration _configuration;
 
-        public PhotoService(AppDbContext db, IWebHostEnvironment env, Microsoft.Extensions.Logging.ILogger<PhotoService> logger)
+        public PhotoService(AppDbContext db, IWebHostEnvironment env, Microsoft.Extensions.Logging.ILogger<PhotoService> logger, IConfiguration configuration)
         {
             _db = db;
             _env = env;
             _logger = logger;
+            _configuration = configuration;
         }
 
         private string GetUploadsRootPath()
         {
+            // Use persistent path from config if available, otherwise fall back to wwwroot/uploads
+            var configPath = _configuration["UploadSettings:UploadsPath"];
+            if (!string.IsNullOrEmpty(configPath))
+            {
+                var uploadsDir = Path.Combine(configPath, "uploads");
+                if (!Directory.Exists(uploadsDir))
+                {
+                    Directory.CreateDirectory(uploadsDir);
+                }
+                return Path.GetFullPath(uploadsDir);
+            }
+
             var webRoot = _env.WebRootPath;
             if (string.IsNullOrEmpty(webRoot))
             {
                 webRoot = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
             }
-            var uploadsDir = Path.Combine(webRoot, "uploads");
-            if (!Directory.Exists(uploadsDir))
+            var uploadsDir2 = Path.Combine(webRoot, "uploads");
+            if (!Directory.Exists(uploadsDir2))
             {
-                Directory.CreateDirectory(uploadsDir);
+                Directory.CreateDirectory(uploadsDir2);
             }
-            return Path.GetFullPath(uploadsDir);
+            return Path.GetFullPath(uploadsDir2);
         }
 
         private readonly List<string> _allowedExtensions = new() { ".jpg", ".jpeg", ".png", ".gif", ".webp" };
@@ -249,9 +264,7 @@ namespace localink_be.Services.Implementations
                 }
             }
 
-            var webRoot = _env.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
-            var uploadsPath = Path.Combine(webRoot, "uploads", folderName);
-            
+            var uploadsPath = Path.Combine(GetUploadsRootPath(), folderName);
             if (!Directory.Exists(uploadsPath)) Directory.CreateDirectory(uploadsPath);
             var fileName = $"{Guid.NewGuid()}{ext}";
             var filePath = Path.Combine(uploadsPath, fileName);

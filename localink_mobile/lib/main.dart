@@ -61,7 +61,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         if (authState is AuthAuthenticated) {
           final role = authState.userType.toLowerCase().trim();
           if (role == 'admin') return '/admin-dashboard';
-          if (role == 'businessowner' || role == 'client') return '/business-dashboard';
+          if (role == 'businessowner') return '/business-dashboard';
           return '/home';
         }
         return '/welcome';
@@ -97,7 +97,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           if (role == 'admin') {
             return '/admin-dashboard';
           }
-          if (role == 'businessowner' || role == 'client') {
+          if (role == 'businessowner') {
             return '/business-dashboard';
           }
           return '/home';
@@ -253,10 +253,6 @@ final routerProvider = Provider<GoRouter>((ref) {
             businessName: business?.businessName ?? 'Business Performance',
           );
         },
-      ),
-      GoRoute(
-        path: '/ai-assistant',
-        builder: (context, state) => const AiAssistantScreen(),
       ),
       GoRoute(
         path: '/for-you',

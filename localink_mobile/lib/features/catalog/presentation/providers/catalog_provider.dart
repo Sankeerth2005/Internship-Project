@@ -64,10 +64,11 @@ class CatalogNotifier extends Notifier<AsyncValue<void>> {
     double price,
     bool isAvailable,
     File? image,
+    String currency,
   ) async {
     state = const AsyncValue.loading();
     try {
-      await _repository.addCatalogItem(catalogId, name, description, price, isAvailable, image);
+      await _repository.addCatalogItem(catalogId, name, description, price, isAvailable, image, currency);
       ref.invalidate(catalogsProvider(businessId));
       state = const AsyncValue.data(null);
     } catch (e, st) {
@@ -83,10 +84,11 @@ class CatalogNotifier extends Notifier<AsyncValue<void>> {
     double price,
     bool isAvailable,
     File? image,
+    String currency,
   ) async {
     state = const AsyncValue.loading();
     try {
-      await _repository.updateCatalogItem(itemId, name, description, price, isAvailable, image);
+      await _repository.updateCatalogItem(itemId, name, description, price, isAvailable, image, currency);
       ref.invalidate(catalogsProvider(businessId));
       state = const AsyncValue.data(null);
     } catch (e, st) {

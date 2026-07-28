@@ -56,7 +56,7 @@ export class BusinessListComponent implements OnInit {
           this.businesses = data.map((b: any) => ({
             ...b,
             primaryImage: b.primaryImage
-              ? 'http://localhost:5138' + b.primaryImage
+              ? b.primaryImage
               : null
           }));
 

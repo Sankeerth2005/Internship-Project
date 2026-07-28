@@ -45,6 +45,7 @@ class CatalogItem {
   final double price;
   final String? imageUrl;
   final bool isAvailable;
+  final String? currency;
 
   CatalogItem({
     required this.id,
@@ -54,6 +55,7 @@ class CatalogItem {
     required this.price,
     this.imageUrl,
     required this.isAvailable,
+    this.currency,
   });
 
   factory CatalogItem.fromJson(Map<String, dynamic> json) {
@@ -65,6 +67,7 @@ class CatalogItem {
       price: (json['price'] as num).toDouble(),
       imageUrl: json['imageUrl'],
       isAvailable: json['isAvailable'] ?? true,
+      currency: json['currency'] ?? 'USD',
     );
   }
 
@@ -77,6 +80,7 @@ class CatalogItem {
       'price': price,
       'imageUrl': imageUrl,
       'isAvailable': isAvailable,
+      'currency': currency,
     };
   }
 }

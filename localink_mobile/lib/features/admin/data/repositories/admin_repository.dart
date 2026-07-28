@@ -91,7 +91,22 @@ class AdminRepository {
   Future<List<dynamic>> getFlaggedReviews() async {
     final options = await _getAuthOptions();
     final response = await dio.get('admin/flagged-reviews', options: options);
-    return response.data as List? ?? [];
+    final payload = response.data;
+    final list = payload is Map<String, dynamic>
+        ? payload['data'] as List? ?? []
+        : payload as List? ?? [];
+
+    return list.map((entry) {
+      final review = Map<String, dynamic>.from(entry as Map);
+      return <String, dynamic>{
+        'id': review['id'] ?? review['reviewId'],
+        'businessId': review['businessId'],
+        'comment': review['comment']?.toString() ?? '',
+        'authorName': review['authorName']?.toString() ?? review['userName']?.toString() ?? 'Unknown',
+        'aiFlagReason': review['aiFlagReason']?.toString() ?? review['moderationReason']?.toString() ?? 'No reason provided',
+        'isFlagged': review['isFlagged'] ?? true,
+      };
+    }).toList();
   }
 
   // UNFLAG REVIEW

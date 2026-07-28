@@ -61,10 +61,26 @@ namespace localink_be.Controllers
                 .Include(b => b.AdminDashboard)
                 .Where(b => b.AdminDashboard != null && b.AdminDashboard.Status == BusinessStatus.Approved);
 
-            // Calculate distance manually if coordinates exist
+            // Fetch approved businesses
             var list = await query.ToListAsync();
 
-            var mappedList = list.Select(b => {
+            // Filter by preferred category match first
+            var matchingCategoryList = list.Where(b => 
+                b.Category != null && (
+                    b.Category.CategoryName.ToLower().Contains(preferredCategory.ToLower()) ||
+                    preferredCategory.ToLower().Contains(b.Category.CategoryName.ToLower())
+                )
+            ).ToList();
+
+            var selectedList = matchingCategoryList.Any() ? matchingCategoryList : list;
+
+            if (!matchingCategoryList.Any() && selectedList.Any())
+            {
+                // Fallback category to match what is actually displayed
+                preferredCategory = selectedList.First().Category?.CategoryName ?? preferredCategory;
+            }
+
+            var mappedList = selectedList.Select(b => {
                 var address = _db.Addresses.FirstOrDefault(a => a.UserId == b.UserId);
                 var contact = _db.BusinessContacts.FirstOrDefault(c => c.BusinessId == b.BusinessId);
                 var photo = _db.BusinessPhotos.Where(p => p.BusinessId == b.BusinessId).OrderByDescending(p => p.IsPrimary).FirstOrDefault();
@@ -72,18 +88,15 @@ namespace localink_be.Controllers
                 double distance = 0;
                 if (lat.HasValue && lng.HasValue)
                 {
-                    // Basic distance calculation
-                    var dbAddress = _db.Addresses.FirstOrDefault(a => a.UserId == b.UserId);
-                    // Mock coordinates check if geocoding coordinates are stored or fallback
-                    distance = 1.2; // Fallback mock distance
+                    distance = 1.2;
                 }
 
                 return new {
                     businessId = b.BusinessId,
                     businessName = b.BusinessName,
                     description = b.Description,
-                    categoryName = b.Category.CategoryName,
-                    subcategoryName = b.Subcategory.SubcategoryName,
+                    categoryName = b.Category?.CategoryName ?? "",
+                    subcategoryName = b.Subcategory?.SubcategoryName ?? "",
                     address = address?.StreetAddress ?? "",
                     city = address?.City ?? "",
                     phone = contact?.PhoneNumber ?? "",
@@ -91,7 +104,7 @@ namespace localink_be.Controllers
                     photos = photo != null ? new[] { photo.ImageUrl } : Array.Empty<string>(),
                     distance = distance
                 };
-            }).Take(3).ToList();
+            }).Take(5).ToList();
 
             return Ok(new
             {

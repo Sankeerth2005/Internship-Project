@@ -1,13 +1,17 @@
 using System.ComponentModel.DataAnnotations;
 
-public class FeedbackDto
+namespace localink_be.Models.DTOs
 {
-    [Required(ErrorMessage = "Category is required")]
-    public string Category { get; set; }
+    public class FeedbackDto
+    {
+        [Required(ErrorMessage = "Category is required")]
+        [RegularExpression(@"^(Feedback|Complaint|Request|Inquiry)$", ErrorMessage = "Category must be Feedback, Complaint, Request, or Inquiry")]
+        public string Category { get; set; } = string.Empty;
 
-    [Required(ErrorMessage = "Feedback is required")]
-    [MinLength(3, ErrorMessage = "Feedback message must be at least 3 characters long")]
-    public string Feedback { get; set; }
+        [Required(ErrorMessage = "Feedback is required")]
+        [StringLength(5000, MinimumLength = 10, ErrorMessage = "Feedback must be between 10 and 5000 characters")]
+        public string Feedback { get; set; } = string.Empty;
 
-    public int? UserId { get; set; }
+        public int? UserId { get; set; }
+    }
 }

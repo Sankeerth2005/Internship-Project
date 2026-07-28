@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 class ProfileInfoTile extends StatelessWidget {
   final String label;
   final TextEditingController controller;
   final IconData icon;
   final bool isEditMode;
+  final bool isPhone;
 
   const ProfileInfoTile({
     super.key,
@@ -12,6 +14,7 @@ class ProfileInfoTile extends StatelessWidget {
     required this.controller,
     required this.icon,
     required this.isEditMode,
+    this.isPhone = false,
   });
 
   @override
@@ -22,6 +25,10 @@ class ProfileInfoTile extends StatelessWidget {
           ? TextField(
               controller: controller,
               style: const TextStyle(color: Color(0xFF1A1918), fontSize: 14),
+              keyboardType: isPhone ? TextInputType.phone : TextInputType.text,
+              inputFormatters: isPhone ? [
+                FilteringTextInputFormatter.allow(RegExp(r'[0-9+\-\s]')),
+              ] : [],
               decoration: InputDecoration(
                 labelText: label,
                 labelStyle: const TextStyle(color: Color(0xFF5F5C58), fontSize: 13),

@@ -97,7 +97,7 @@ export class BusinessDetailComponent implements OnInit {
         this.business = {
           ...data,
           primaryImage: primaryPhoto
-            ? 'http://localhost:5138' + primaryPhoto.imageUrl
+            ? primaryPhoto.imageUrl
             : null
         };
         this.checkFavoriteStatus();

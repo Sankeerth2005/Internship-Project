@@ -68,7 +68,7 @@ class BusinessReviewCard extends StatelessWidget {
               child: Image.network(
                 review.imageUrl!.startsWith('http')
                     ? review.imageUrl!
-                    : '${DioClient().dio.options.baseUrl.replaceAll('/api/v1/', '')}${review.imageUrl}',
+                    : '${DioClient.backendOrigin}${review.imageUrl}',
                 width: double.infinity,
                 height: 180,
                 fit: BoxFit.cover,

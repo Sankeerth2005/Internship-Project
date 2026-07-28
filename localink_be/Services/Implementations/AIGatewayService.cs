@@ -42,10 +42,17 @@ namespace localink_be.Services.Implementations
             _memoryCache = memoryCache;
             _db = db;
             _httpClient = httpClientFactory.CreateClient("GroqAI");
+            var apiKey = _config["Groq:ApiKey"];
+            if (string.IsNullOrWhiteSpace(apiKey))
+            {
+                _logger.LogError("Groq API key is missing from configuration");
+                throw new InvalidOperationException("Groq API key is not configured. Please set Groq:ApiKey in appsettings.json or GROQ_API_KEY environment variable.");
+            }
             _httpClient.DefaultRequestHeaders.Authorization = 
-                new AuthenticationHeaderValue("Bearer", _config["Groq:ApiKey"] ?? "");
+                new AuthenticationHeaderValue("Bearer", apiKey);
             _httpClient.BaseAddress = new Uri(GROQ_BASE_URL);
             _httpClient.Timeout = TimeSpan.FromSeconds(60);
+            _logger.LogInformation("AIGatewayService initialized with Groq API key");
         }
 
         #region Speech-to-Text

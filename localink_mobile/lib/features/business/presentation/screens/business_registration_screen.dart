@@ -1552,7 +1552,7 @@ class _BusinessRegistrationScreenState extends ConsumerState<BusinessRegistratio
                     const Divider(color: _RegTok.border, height: 1),
                     const SizedBox(height: 10),
 
-                    // Actions Mock
+                    // Preview Actions
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [

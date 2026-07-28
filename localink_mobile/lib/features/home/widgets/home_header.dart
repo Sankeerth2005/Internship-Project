@@ -1,8 +1,11 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../../core/network/dio_client.dart';
 
 class HomeHeader extends StatelessWidget {
   final String userName;
+  final String? profilePicture;
   final VoidCallback onProfileTap;
   final VoidCallback onAIFeedTap;
   final VoidCallback onLogoutTap;
@@ -10,13 +13,40 @@ class HomeHeader extends StatelessWidget {
   const HomeHeader({
     super.key,
     required this.userName,
+    this.profilePicture,
     required this.onProfileTap,
     required this.onAIFeedTap,
     required this.onLogoutTap,
   });
 
+  /// Returns the appropriate image provider for the profile picture
+  /// Supports: base64 data URIs, relative paths, and full URLs
+  ImageProvider? _resolveImage(String? picture) {
+    if (picture == null || picture.isEmpty) return null;
+    
+    // Handle base64 data URIs
+    if (picture.startsWith('data:image')) {
+      final base64Data = picture.split(',').last;
+      try {
+        return MemoryImage(base64Decode(base64Data));
+      } catch (_) {
+        return null;
+      }
+    }
+    
+    // Handle relative paths - resolve using DioClient
+    final resolved = DioClient.resolveUrl(picture);
+    if (resolved != null) {
+      return NetworkImage(resolved);
+    }
+    
+    return NetworkImage(picture);
+  }
+
   @override
   Widget build(BuildContext context) {
+    final imageProvider = _resolveImage(profilePicture);
+    
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
       child: Row(
@@ -56,12 +86,28 @@ class HomeHeader extends StatelessWidget {
                         color: Colors.white,
                         shape: BoxShape.circle,
                       ),
-                      child: const Center(
-                        child: Icon(
-                          Icons.person_rounded,
-                          color: Color(0xFFFF6600),
-                          size: 26,
-                        ),
+                      child: ClipOval(
+                        child: imageProvider != null
+                            ? Image(
+                                image: imageProvider,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return const Center(
+                                    child: Icon(
+                                      Icons.person_rounded,
+                                      color: Color(0xFFFF6600),
+                                      size: 26,
+                                    ),
+                                  );
+                                },
+                              )
+                            : const Center(
+                                child: Icon(
+                                  Icons.person_rounded,
+                                  color: Color(0xFFFF6600),
+                                  size: 26,
+                                ),
+                              ),
                       ),
                     ),
                   ),

@@ -205,11 +205,7 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
     final showSuggestions = _messages.length == 1 && !_isLoading;
 
     return PopScope(
-      canPop: false,
-      onPopInvokedWithResult: (didPop, result) {
-        if (didPop) return;
-        context.go('/home');
-      },
+      canPop: true,
       child: Scaffold(
         backgroundColor: _AiTok.bg,
         appBar: AppBar(
@@ -218,7 +214,7 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
           leadingWidth: 70,
           leading: Padding(
             padding: const EdgeInsets.only(left: 16, top: 8, bottom: 8),
-            child: AppBackButton(onPressed: () => context.go('/home')),
+            child: AppBackButton(onPressed: () => context.pop()),
           ),
         title: const Column(
           crossAxisAlignment: CrossAxisAlignment.start,

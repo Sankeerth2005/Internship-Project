@@ -39,6 +39,7 @@ public class UserService : IUserService
                 FullName = u.FullName,
                 Email = u.Email,
                 Phone = u.PhoneNumber,
+                ProfilePicture = u.ProfilePicture,
 
                 Address = _db.Addresses
                     .Where(a => a.UserId == u.UserId)
@@ -141,6 +142,10 @@ public class UserService : IUserService
         if (!string.IsNullOrEmpty(dto.Email))
         {
             user.Email = dto.Email;
+        }
+        if (dto.ProfilePicture != null)
+        {
+            user.ProfilePicture = dto.ProfilePicture;
         }
 
         var address = await _db.Addresses.FirstOrDefaultAsync(a => a.UserId == userId);

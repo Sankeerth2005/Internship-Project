@@ -9,6 +9,7 @@ using localink_be.Models.DTOs;
 using localink_be.Services.Interfaces;
 using Microsoft.AspNetCore.SignalR;
 using localink_be.Hubs;
+using Microsoft.Extensions.Configuration;
 
 namespace localink_be.Services.Implementations
 {
@@ -21,13 +22,15 @@ namespace localink_be.Services.Implementations
         private readonly IEmailService _emailService;
         private readonly IHubContext<NotificationHub> _hubContext;
         private readonly IServiceProvider _serviceProvider;
+        private readonly IConfiguration _config;
     public BusinessService(AppDbContext db,
                            IContactService contactService,
                            IHoursService hoursService,
                            IPhotoService photoService,
                            IEmailService emailService,
                            IHubContext<NotificationHub> hubContext,
-                           IServiceProvider serviceProvider)
+                           IServiceProvider serviceProvider,
+                           IConfiguration config)
     {
         _db = db ?? throw new ArgumentNullException(nameof(db));
         _contactService = contactService;
@@ -36,6 +39,7 @@ namespace localink_be.Services.Implementations
         _emailService = emailService;
         _hubContext = hubContext;
         _serviceProvider = serviceProvider;
+        _config = config;
     }
 
  
@@ -349,7 +353,7 @@ namespace localink_be.Services.Implementations
                             .Select(c => c.CategoryName)
                             .FirstOrDefaultAsync();
 
-                        var adminEmail = "sankeerth559@gmail.com";
+                        var adminEmail = _config["AdminEmail"] ?? "support@localink.com";
 
                         await scopedEmail.SendNewBusinessNotificationToAdminAsync(
                             adminEmail,
@@ -797,16 +801,25 @@ namespace localink_be.Services.Implementations
             var normalizedSort = sortBy?.ToLower().Trim() ?? "distance";
             IEnumerable<BusinessDto> sortedResults;
 
-            if (normalizedSort == "alphabetical")
+            if (normalizedSort == "alphabetical" || normalizedSort == "name")
             {
                 sortedResults = allMatches.OrderBy(b => b.Name);
             }
-            else if (normalizedSort == "reviews")
+            else if (normalizedSort == "rating" || normalizedSort == "reviews")
             {
-                // Descending order of review ratings
                 sortedResults = allMatches.OrderByDescending(b => b.AverageRating)
                                           .ThenByDescending(b => b.TotalReviews)
                                           .ThenBy(b => b.Name);
+            }
+            else if (normalizedSort == "popularity")
+            {
+                sortedResults = allMatches.OrderByDescending(b => b.TotalReviews)
+                                          .ThenByDescending(b => b.AverageRating)
+                                          .ThenBy(b => b.Name);
+            }
+            else if (normalizedSort == "recent" || normalizedSort == "recentlyadded" || normalizedSort == "newest")
+            {
+                sortedResults = allMatches.OrderByDescending(b => b.Id);
             }
             else // Default: Sort by distance
             {
@@ -815,7 +828,6 @@ namespace localink_be.Services.Implementations
 
                 if (userLat.HasValue && userLng.HasValue)
                 {
-                    // Sort purely by distance (closest first). If distance is null, fall back to pincode/city match, then name
                     sortedResults = allMatches.OrderBy(b => b.Distance ?? double.MaxValue)
                                               .ThenBy(b => (!string.IsNullOrEmpty(cleanPincode) && b.Pincode != null && b.Pincode.Trim() == cleanPincode) ? 0 : 1)
                                               .ThenBy(b => (!string.IsNullOrEmpty(cleanCity) && b.City != null && b.City.Trim().ToLower() == cleanCity) ? 0 : 1)
@@ -823,7 +835,6 @@ namespace localink_be.Services.Implementations
                 }
                 else
                 {
-                    // Fallback to pincode match first, then city match, then name
                     if (!string.IsNullOrEmpty(cleanPincode) || !string.IsNullOrEmpty(cleanCity))
                     {
                         sortedResults = allMatches.OrderBy(b => (!string.IsNullOrEmpty(cleanPincode) && b.Pincode != null && b.Pincode.Trim() == cleanPincode) ? 0 : 1)

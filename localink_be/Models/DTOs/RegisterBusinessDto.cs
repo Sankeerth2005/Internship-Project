@@ -23,6 +23,7 @@ namespace localink_be.Models.DTOs
 
         // CONTACT
         [Required(ErrorMessage = "Phone code is required")]
+        [RegularExpression(@"^\+?[1-9]\d{0,3}$", ErrorMessage = "Phone code must be in format +XX or XX (e.g., +91, 1, 44)")]
         public string PhoneCode { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "Phone number is required")]

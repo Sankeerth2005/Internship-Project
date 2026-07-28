@@ -1,4 +1,4 @@
-import 'dart:convert';
+ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -21,6 +21,8 @@ import '../../widgets/business_review_card.dart';
 import '../../../shared/presentation/widgets/app_back_button.dart';
 import '../../../shared/presentation/widgets/app_feedback.dart';
 import '../../../../core/network/app_error_formatter.dart';
+import '../../../catalog/presentation/providers/currency_provider.dart';
+import '../../../catalog/data/models/currency_models.dart';
 
 // ─── DESIGN TOKENS ────────────────────────────────────────────────────────────
 class _DetailTok {
@@ -47,6 +49,8 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
   bool _isSubmittingReview = false;
   File? _pickedImage;
   String? _base64Image;
+  String _userCurrency = 'INR';
+  final Map<String, double> _convertedPrices = {};
 
   Future<void> _pickImage() async {
     try {
@@ -88,6 +92,41 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
     super.initState();
     _incrementViewCount();
     SignalRService().addNotificationListener(_onNotificationReceived);
+    _loadUserCurrency();
+  }
+
+  Future<void> _loadUserCurrency() async {
+    // Load user's preferred currency from storage or default to INR
+    // For now, default to INR - you can integrate with user profile later
+    setState(() => _userCurrency = 'INR');
+  }
+
+  Future<double> _convertPrice(double price, String fromCurrency) async {
+    if (fromCurrency == _userCurrency) return price;
+    
+    final cacheKey = '${fromCurrency}_$_userCurrency';
+    if (_convertedPrices.containsKey(cacheKey)) {
+      return price * _convertedPrices[cacheKey]!;
+    }
+
+    try {
+      await ref.read(currencyConverterProvider.notifier).convertCurrency(
+        1.0,
+        fromCurrency,
+        _userCurrency,
+      );
+      
+      final conversionState = ref.read(currencyConverterProvider);
+      if (conversionState.convertedAmount != null) {
+        final rate = conversionState.convertedAmount!;
+        setState(() => _convertedPrices[cacheKey] = rate);
+        return price * rate;
+      }
+    } catch (e) {
+      debugPrint('Currency conversion error: $e');
+    }
+    
+    return price; // Return original price if conversion fails
   }
 
   @override
@@ -326,7 +365,7 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
                     children: [
                       business.photos.isNotEmpty
                           ? Image.network(
-                              '${Uri.parse(DioClient().dio.options.baseUrl).origin}${business.photos.first}',
+                              '${DioClient.backendOrigin}${business.photos.first}',
                               fit: BoxFit.cover,
                               errorBuilder: (context, err, st) => Container(
                                 color: const Color(0xFFF5F4F0),
@@ -640,21 +679,6 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
                             const SizedBox(width: 12),
                             Expanded(
                               child: BusinessActionButton(
-                                icon: Icons.chat_bubble_outline_rounded,
-                                label: 'Message',
-                                onTap: () {
-                                  _incrementClickCount();
-                                  if (isClient) {
-                                    context.push('/chat/${business.businessId}?role=User&title=${business.businessName}');
-                                  } else {
-                                    AppFeedback.showWarning(context, 'Please login as a user to message businesses.');
-                                  }
-                                },
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: BusinessActionButton(
                                 icon: Icons.language_rounded,
                                 label: 'Website',
                                 onTap: () async {
@@ -870,16 +894,23 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
                                         title: Text(catalog.title, style: const TextStyle(fontWeight: FontWeight.bold)),
                                         subtitle: catalog.description != null ? Text(catalog.description!) : null,
                                         children: catalog.items.where((i) => i.isAvailable).map((item) {
-                                          return ListTile(
-                                            leading: item.imageUrl != null
-                                                ? ClipRRect(
-                                                    borderRadius: BorderRadius.circular(8),
-                                                    child: Image.network('${DioClient().dio.options.baseUrl.replaceAll('/api/v1', '')}${item.imageUrl!}', width: 50, height: 50, fit: BoxFit.cover),
-                                                  )
-                                                : const Icon(Icons.fastfood, size: 40, color: _DetailTok.primary),
-                                            title: Text(item.name, style: const TextStyle(fontWeight: FontWeight.w600)),
-                                            subtitle: item.description != null ? Text(item.description!) : null,
-                                            trailing: Text('\$${item.price.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                                          final itemCurrency = item.currency ?? 'INR';
+                                          return FutureBuilder<double>(
+                                            future: _convertPrice(item.price, itemCurrency),
+                                            builder: (context, snapshot) {
+                                              final convertedPrice = snapshot.data ?? item.price;
+                                              return ListTile(
+                                                leading: item.imageUrl != null
+                                                    ? ClipRRect(
+                                                        borderRadius: BorderRadius.circular(8),
+                                                      child: Image.network('${DioClient.backendOrigin}${item.imageUrl!}', width: 50, height: 50, fit: BoxFit.cover),
+                                                      )
+                                                    : const Icon(Icons.inventory_2_rounded, size: 40, color: _DetailTok.primary),
+                                                title: Text(item.name, style: const TextStyle(fontWeight: FontWeight.w600)),
+                                                subtitle: item.description != null ? Text(item.description!) : null,
+                                                trailing: Text('$_userCurrency ${convertedPrice.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                                              );
+                                            },
                                           );
                                         }).toList(),
                                       ),

@@ -79,7 +79,8 @@ namespace localink_be.Services.Implementations
                 Description = dto.Description,
                 Price = dto.Price,
                 IsAvailable = dto.IsAvailable,
-                ImageUrl = imageUrl
+                ImageUrl = imageUrl,
+                Currency = dto.Currency ?? "USD"
             };
 
             _context.CatalogItems.Add(item);
@@ -103,6 +104,7 @@ namespace localink_be.Services.Implementations
             item.Description = dto.Description;
             item.Price = dto.Price;
             item.IsAvailable = dto.IsAvailable;
+            item.Currency = dto.Currency ?? "USD";
 
             await _context.SaveChangesAsync();
             return MapItemToDto(item);
@@ -139,7 +141,8 @@ namespace localink_be.Services.Implementations
                 Description = item.Description,
                 Price = item.Price,
                 ImageUrl = item.ImageUrl,
-                IsAvailable = item.IsAvailable
+                IsAvailable = item.IsAvailable,
+                Currency = item.Currency ?? "USD"
             };
         }
     }

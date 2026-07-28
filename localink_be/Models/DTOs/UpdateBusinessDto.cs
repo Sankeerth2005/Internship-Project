@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 
 namespace localink_be.Models.DTOs
 {
@@ -9,6 +10,7 @@ namespace localink_be.Models.DTOs
         public int CategoryId { get; set; }
         public int SubcategoryId { get; set; }
 
+        [RegularExpression(@"^\+?[1-9]\d{0,3}$", ErrorMessage = "Phone code must be in format +XX or XX (e.g., +91, 1, 44)")]
         public string PhoneCode { get; set; } = string.Empty;
         public string PhoneNumber { get; set; } = string.Empty;
         public string Email { get; set; } = string.Empty;

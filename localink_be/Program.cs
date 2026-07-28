@@ -10,6 +10,7 @@ using localink_be.Services.Implementations;
 using localink_be.Middleware;
 using Microsoft.AspNetCore.RateLimiting;
 using System.Threading.RateLimiting;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 
 Env.Load();
 
@@ -23,16 +24,20 @@ var envMappings = new Dictionary<string, string>
     { "JWT_ISSUER", "Jwt:Issuer" },
     { "JWT_AUDIENCE", "Jwt:Audience" },
     { "JWT_EXPIRY_MINUTES", "Jwt:ExpiryMinutes" },
+    { "JWT_EXPIRY_DAYS", "Jwt:ExpiryDays" },
     { "CAPTCHA_SECRET_KEY", "Captcha:SecretKey" },
     { "COUNTRY_CSC_API_KEY", "CountryApi:ApiKey" },
     { "GEOAPIFY_API_KEY", "Geoapify:ApiKey" },
     { "GROQ_API_KEY", "Groq:ApiKey" },
+    { "CURRENCY_CONVERTER_API_KEY", "CurrencyConverter:ApiKey" },
+    { "ADMIN_EMAIL", "AdminEmail" },
     { "EMAIL_HOST", "Email:Host" },
     { "EMAIL_PORT", "Email:Port" },
     { "EMAIL_USERNAME", "Email:Username" },
     { "EMAIL_PASSWORD", "Email:Password" },
     { "EMAIL_FROM", "Email:From" },
-    { "EMAIL_APP_NAME", "Email:AppName" }
+    { "EMAIL_APP_NAME", "Email:AppName" },
+    { "UPLOADS_PATH", "UploadSettings:UploadsPath" }
 };
 
 foreach (var mapping in envMappings)
@@ -65,6 +70,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
         builder.Configuration.GetConnectionString("DefaultConnection"),
         sql => sql.EnableRetryOnFailure()
     )
+    .ConfigureWarnings(warnings => warnings.Ignore(RelationalEventId.MultipleCollectionIncludeWarning))
 );
 
 builder.Logging.ClearProviders();
@@ -98,6 +104,8 @@ builder.Services.AddScoped<IFavoritesService, FavoritesService>();
 builder.Services.AddScoped<IAIService, AIService>();
 builder.Services.AddScoped<IChatService, ChatService>();
 builder.Services.AddScoped<ICatalogService, CatalogService>();
+builder.Services.AddScoped<ICurrencyService, CurrencyService>();
+builder.Services.AddHttpClient<ICurrencyService, CurrencyService>();
 
 // AI GATEWAY SERVICE - Unified AI operations
 builder.Services.AddHttpClient("GroqAI");
@@ -234,6 +242,23 @@ var uploadsPath = Path.Combine(webRootPath, "uploads");
 if (!Directory.Exists(uploadsPath)) Directory.CreateDirectory(uploadsPath);
 
 app.UseStaticFiles();
+
+// Serve static files from persistent uploads path if configured
+var persistentUploadsPath = builder.Configuration["UploadSettings:UploadsPath"];
+if (!string.IsNullOrEmpty(persistentUploadsPath))
+{
+    var persistentUploadsDir = Path.Combine(persistentUploadsPath, "uploads");
+    if (!Directory.Exists(persistentUploadsDir))
+    {
+        Directory.CreateDirectory(persistentUploadsDir);
+    }
+    
+    app.UseStaticFiles(new StaticFileOptions
+    {
+        FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(persistentUploadsDir),
+        RequestPath = "/uploads"
+    });
+}
 
 // CORS FIRST
 app.UseCors("AllowFrontend");

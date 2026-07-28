@@ -39,6 +39,25 @@ class AuthRepository {
     if (data is Map) {
       final msg = data['message']?.toString();
       final err = data['error']?.toString();
+      final errors = data['errors'];
+      
+      // Extract validation errors from structured response
+      if (errors != null && errors is List && errors.isNotEmpty) {
+        final errorMessages = errors.map((e) {
+          if (e is Map) {
+            final field = e['field']?.toString() ?? '';
+            final fieldErrors = e['errors'];
+            if (fieldErrors is List && fieldErrors.isNotEmpty) {
+              return fieldErrors.join(', ');
+            }
+          }
+          return '';
+        }).where((s) => s.isNotEmpty).join('; ');
+        if (errorMessages.isNotEmpty) {
+          return errorMessages;
+        }
+      }
+      
       if (msg != null && msg.isNotEmpty && msg != "Something went wrong") return msg;
       if (err != null && err.isNotEmpty) return err;
       if (msg != null && msg.isNotEmpty) return msg;

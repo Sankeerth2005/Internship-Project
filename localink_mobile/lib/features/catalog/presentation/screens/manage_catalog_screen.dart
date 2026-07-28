@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
+import '../../../../core/network/dio_client.dart';
 import '../../data/models/catalog_models.dart';
 import '../providers/catalog_provider.dart';
 import '../../../shared/presentation/widgets/app_button.dart';
@@ -26,6 +27,78 @@ class ManageCatalogScreen extends ConsumerStatefulWidget {
 }
 
 class _ManageCatalogScreenState extends ConsumerState<ManageCatalogScreen> {
+  String selectedCurrency = 'INR';
+  final List<Map<String, String>> currencies = [
+    {'code': 'INR', 'name': 'Indian Rupee', 'flag': '🇮🇳'},
+    {'code': 'USD', 'name': 'US Dollar', 'flag': '🇺🇸'},
+    {'code': 'EUR', 'name': 'Euro', 'flag': '🇪🇺'},
+    {'code': 'GBP', 'name': 'British Pound', 'flag': '🇬🇧'},
+    {'code': 'JPY', 'name': 'Japanese Yen', 'flag': '🇯🇵'},
+    {'code': 'AUD', 'name': 'Australian Dollar', 'flag': '🇦🇺'},
+    {'code': 'CAD', 'name': 'Canadian Dollar', 'flag': '🇨🇦'},
+    {'code': 'SGD', 'name': 'Singapore Dollar', 'flag': '🇸🇬'},
+    {'code': 'AED', 'name': 'UAE Dirham', 'flag': '🇦🇪'},
+    {'code': 'CNY', 'name': 'Chinese Yuan', 'flag': '🇨🇳'},
+    {'code': 'CHF', 'name': 'Swiss Franc', 'flag': '🇨🇭'},
+    {'code': 'HKD', 'name': 'Hong Kong Dollar', 'flag': '🇭🇰'},
+    {'code': 'NZD', 'name': 'New Zealand Dollar', 'flag': '🇳🇿'},
+    {'code': 'SEK', 'name': 'Swedish Krona', 'flag': '🇸🇪'},
+    {'code': 'NOK', 'name': 'Norwegian Krone', 'flag': '🇳🇴'},
+    {'code': 'DKK', 'name': 'Danish Krone', 'flag': '🇩🇰'},
+    {'code': 'MXN', 'name': 'Mexican Peso', 'flag': '🇲🇽'},
+    {'code': 'BRL', 'name': 'Brazilian Real', 'flag': '🇧🇷'},
+    {'code': 'KRW', 'name': 'South Korean Won', 'flag': '🇰🇷'},
+    {'code': 'TRY', 'name': 'Turkish Lira', 'flag': '🇹🇷'},
+    {'code': 'RUB', 'name': 'Russian Ruble', 'flag': '🇷🇺'},
+    {'code': 'ZAR', 'name': 'South African Rand', 'flag': '🇿🇦'},
+    {'code': 'THB', 'name': 'Thai Baht', 'flag': '🇹🇭'},
+    {'code': 'IDR', 'name': 'Indonesian Rupiah', 'flag': '🇮🇩'},
+    {'code': 'MYR', 'name': 'Malaysian Ringgit', 'flag': '🇲🇾'},
+    {'code': 'PHP', 'name': 'Philippine Peso', 'flag': '🇵🇭'},
+    {'code': 'VND', 'name': 'Vietnamese Dong', 'flag': '🇻🇳'},
+    {'code': 'PKR', 'name': 'Pakistani Rupee', 'flag': '🇵🇰'},
+    {'code': 'BDT', 'name': 'Bangladeshi Taka', 'flag': '🇧🇩'},
+    {'code': 'LKR', 'name': 'Sri Lankan Rupee', 'flag': '🇱🇰'},
+    {'code': 'NPR', 'name': 'Nepalese Rupee', 'flag': '🇳🇵'},
+    {'code': 'EGP', 'name': 'Egyptian Pound', 'flag': '🇪🇬'},
+    {'code': 'SAR', 'name': 'Saudi Riyal', 'flag': '🇸🇦'},
+    {'code': 'QAR', 'name': 'Qatari Riyal', 'flag': '🇶🇦'},
+    {'code': 'KWD', 'name': 'Kuwaiti Dinar', 'flag': '🇰🇼'},
+    {'code': 'BHD', 'name': 'Bahraini Dinar', 'flag': '🇧🇭'},
+    {'code': 'OMR', 'name': 'Omani Rial', 'flag': '🇴🇲'},
+    {'code': 'ILS', 'name': 'Israeli Shekel', 'flag': '🇮🇱'},
+    {'code': 'PLN', 'name': 'Polish Zloty', 'flag': '🇵🇱'},
+    {'code': 'CZK', 'name': 'Czech Koruna', 'flag': '🇨🇿'},
+    {'code': 'HUF', 'name': 'Hungarian Forint', 'flag': '🇭🇺'},
+    {'code': 'RON', 'name': 'Romanian Leu', 'flag': '🇷🇴'},
+    {'code': 'BGN', 'name': 'Bulgarian Lev', 'flag': '🇧🇬'},
+    {'code': 'HRK', 'name': 'Croatian Kuna', 'flag': '🇭🇷'},
+    {'code': 'NGN', 'name': 'Nigerian Naira', 'flag': '🇳🇬'},
+    {'code': 'KES', 'name': 'Kenyan Shilling', 'flag': '🇰🇪'},
+    {'code': 'GHS', 'name': 'Ghanaian Cedi', 'flag': '🇬🇭'},
+    {'code': 'UGX', 'name': 'Ugandan Shilling', 'flag': '🇺🇬'},
+    {'code': 'TZS', 'name': 'Tanzanian Shilling', 'flag': '🇹🇿'},
+    {'code': 'ZMW', 'name': 'Zambian Kwacha', 'flag': '🇿🇲'},
+    {'code': 'BWP', 'name': 'Botswanan Pula', 'flag': '🇧🇼'},
+    {'code': 'NAD', 'name': 'Namibian Dollar', 'flag': '🇳🇦'},
+    {'code': 'AOA', 'name': 'Angolan Kwanza', 'flag': '🇦🇴'},
+    {'code': 'MZN', 'name': 'Mozambican Metical', 'flag': '🇲🇿'},
+    {'code': 'COP', 'name': 'Colombian Peso', 'flag': '🇨🇴'},
+    {'code': 'PEN', 'name': 'Peruvian Sol', 'flag': '🇵🇪'},
+    {'code': 'CLP', 'name': 'Chilean Peso', 'flag': '🇨🇱'},
+    {'code': 'ARS', 'name': 'Argentine Peso', 'flag': '🇦🇷'},
+    {'code': 'UYU', 'name': 'Uruguayan Peso', 'flag': '🇺🇾'},
+    {'code': 'PYG', 'name': 'Paraguayan Guarani', 'flag': '🇵🇾'},
+    {'code': 'BOB', 'name': 'Bolivian Boliviano', 'flag': '🇧🇴'},
+    {'code': 'CRC', 'name': 'Costa Rican Colón', 'flag': '🇨🇷'},
+    {'code': 'PAB', 'name': 'Panamanian Balboa', 'flag': '🇵🇦'},
+    {'code': 'DOP', 'name': 'Dominican Peso', 'flag': '🇩🇴'},
+    {'code': 'JMD', 'name': 'Jamaican Dollar', 'flag': '🇯🇲'},
+    {'code': 'TTD', 'name': 'Trinidad & Tobago Dollar', 'flag': '🇹🇹'},
+    {'code': 'BBD', 'name': 'Barbadian Dollar', 'flag': '🇧🇧'},
+    {'code': 'XCD', 'name': 'East Caribbean Dollar', 'flag': '🇪🇨'},
+  ];
+  
   void _showAddCatalogDialog(BuildContext context, WidgetRef ref) {
     final titleController = TextEditingController();
     final descController = TextEditingController();
@@ -95,10 +168,45 @@ class _ManageCatalogScreenState extends ConsumerState<ManageCatalogScreen> {
                   const SizedBox(height: 10),
                   TextField(controller: nameController, decoration: const InputDecoration(labelText: 'Item Name')),
                   TextField(controller: descController, decoration: const InputDecoration(labelText: 'Description')),
-                  TextField(
-                    controller: priceController,
-                    decoration: const InputDecoration(labelText: 'Price'),
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: priceController,
+                          decoration: const InputDecoration(labelText: 'Price'),
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: DropdownButtonFormField<String>(
+                          value: selectedCurrency,
+                          decoration: const InputDecoration(labelText: 'Currency'),
+                          items: currencies.map((currency) {
+                            return DropdownMenuItem<String>(
+                              value: currency['code'],
+                              child: Row(
+                                children: [
+                                  Text(currency['flag']!, style: const TextStyle(fontSize: 16)),
+                                  const SizedBox(width: 8),
+                                  Text(currency['code']!),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    '- ${currency['name']}',
+                                    style: const TextStyle(fontSize: 11, color: Colors.grey),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }).toList(),
+                          onChanged: (value) {
+                            setState(() {
+                              selectedCurrency = value ?? 'INR';
+                            });
+                          },
+                        ),
+                      ),
+                    ],
                   ),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -128,9 +236,12 @@ class _ManageCatalogScreenState extends ConsumerState<ManageCatalogScreen> {
                       color: _CatTok.surface,
                       child: selectedImage != null
                           ? Image.file(selectedImage!, fit: BoxFit.cover)
-                          : item?.imageUrl != null
-                              ? Image.network('https://bulldog-kinsman-tutor.ngrok-free.dev/' + item!.imageUrl!, fit: BoxFit.cover)
-                              : const Icon(Icons.add_a_photo, color: _CatTok.textMedium),
+                          : (item?.imageUrl?.isNotEmpty ?? false)
+                              ? Image.network(
+                                  DioClient.resolveUrl(item!.imageUrl)!,
+                                  fit: BoxFit.cover,
+                                )
+                              : const Center(child: Text('Tap to add image', style: TextStyle(color: _CatTok.textMedium))),
                     ),
                   ),
                   const SizedBox(height: 20),
@@ -148,6 +259,7 @@ class _ManageCatalogScreenState extends ConsumerState<ManageCatalogScreen> {
                                 price,
                                 isAvailable,
                                 selectedImage,
+                                selectedCurrency,
                               );
                         } else {
                           ref.read(catalogNotifierProvider.notifier).updateCatalogItem(
@@ -158,6 +270,7 @@ class _ManageCatalogScreenState extends ConsumerState<ManageCatalogScreen> {
                                 price,
                                 isAvailable,
                                 selectedImage,
+                                selectedCurrency,
                               );
                         }
                         Navigator.pop(ctx);
@@ -238,11 +351,22 @@ class _ManageCatalogScreenState extends ConsumerState<ManageCatalogScreen> {
                   ),
                   children: catalog.items.map((item) {
                     return ListTile(
+<<<<<<< Updated upstream
                       leading: item.imageUrl != null
                           ? Image.network('https://bulldog-kinsman-tutor.ngrok-free.dev/' + item.imageUrl!, width: 50, height: 50, fit: BoxFit.cover)
                           : const Icon(Icons.fastfood, size: 40),
+=======
+                      leading: (item.imageUrl?.isNotEmpty ?? false)
+                          ? Image.network(
+                              DioClient.resolveUrl(item.imageUrl)!,
+                              width: 50,
+                              height: 50,
+                              fit: BoxFit.cover,
+                            )
+                          : const Icon(Icons.inventory_2_rounded, size: 40),
+>>>>>>> Stashed changes
                       title: Text(item.name),
-                      subtitle: Text('\$${item.price.toStringAsFixed(2)}'),
+                      subtitle: Text('${item.price.toStringAsFixed(2)}'),
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [

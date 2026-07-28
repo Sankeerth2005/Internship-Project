@@ -21,7 +21,7 @@ class _AiFeedCardState extends State<AiFeedCard> {
   Widget build(BuildContext context) {
     final List<dynamic> photos = widget.item['photos'] ?? [];
     final photoUrl = photos.isNotEmpty
-        ? '${Uri.parse(DioClient().dio.options.baseUrl).origin}${photos.first}'
+        ? '${DioClient.backendOrigin}${photos.first}'
         : null;
 
     return GestureDetector(

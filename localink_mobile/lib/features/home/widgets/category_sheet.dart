@@ -23,13 +23,21 @@ class CategorySheet extends StatefulWidget {
 class _CategorySheetState extends State<CategorySheet> {
   final _searchCtrl = TextEditingController();
   List<CategoryDto> _filteredCategories = [];
-  final List<String> _recentSearches = ['Temples', 'Pooja Items', 'Vegetarian'];
+  List<String> _recentSearches = [];
 
   @override
   void initState() {
     super.initState();
     _filteredCategories = widget.categories;
     _searchCtrl.addListener(_onSearchChanged);
+    _loadRecentSearches();
+  }
+
+  Future<void> _loadRecentSearches() async {
+    // TODO: Load recent searches from local storage or backend
+    setState(() {
+      _recentSearches = [];
+    });
   }
 
   @override

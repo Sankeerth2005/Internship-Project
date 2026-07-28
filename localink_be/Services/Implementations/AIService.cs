@@ -20,8 +20,15 @@ namespace localink_be.Services.Implementations
             _logger = logger;
             _db = db;
             _httpClient = new HttpClient();
+            var apiKey = _config["Groq:ApiKey"];
+            if (string.IsNullOrWhiteSpace(apiKey))
+            {
+                _logger.LogError("Groq API key is missing from configuration");
+                throw new InvalidOperationException("Groq API key is not configured. Please set Groq:ApiKey in appsettings.json or GROQ_API_KEY environment variable.");
+            }
             _httpClient.DefaultRequestHeaders.Authorization = 
-                new AuthenticationHeaderValue("Bearer", _config["Groq:ApiKey"]);
+                new AuthenticationHeaderValue("Bearer", apiKey);
+            _logger.LogInformation("AIService initialized with Groq API key");
         }
 
         public async Task<string[]> GetReviewSuggestionsAsync(string draftText, int rating, string businessName)

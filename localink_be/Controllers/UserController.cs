@@ -80,5 +80,35 @@ public class UserController : ControllerBase
 
         return Ok(new { success = true, message = "Profile updated successfully" });
     }
+
+    [Authorize]
+    [HttpPost("avatar")]
+    public async Task<IActionResult> UploadAvatar(IFormFile file, [FromServices] IPhotoService photoService)
+    {
+        var userIdStr = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userIdStr)) return Unauthorized();
+
+        if (file == null || file.Length == 0)
+            return BadRequest(new { success = false, message = "No image file uploaded" });
+
+        var imageUrl = await photoService.UploadImageAsync(file, "avatars");
+        if (imageUrl == null)
+            return BadRequest(new { success = false, message = "Failed to upload image" });
+
+        var userId = long.Parse(userIdStr);
+        var user = await _service.GetUserProfileAsync(userId);
+        if (user == null) return NotFound(new { success = false, message = "User not found" });
+
+        await _service.UpdateUserProfileAsync(userId, new UpdateUserProfileDto
+        {
+            FullName = user.FullName,
+            Email = user.Email,
+            Phone = user.Phone,
+            ProfilePicture = imageUrl,
+            Address = user.Address
+        });
+
+        return Ok(new { success = true, imageUrl });
+    }
 }
 }

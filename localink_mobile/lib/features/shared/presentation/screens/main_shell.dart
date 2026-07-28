@@ -12,14 +12,31 @@ class MainShell extends StatefulWidget {
 }
 
 class _MainShellState extends State<MainShell> {
+  // Stack to track tab navigation history for proper back button behavior
+  final List<int> _tabHistory = [0];
+
   @override
   Widget build(BuildContext context) {
     final currentIndex = widget.navigationShell.currentIndex;
+    // Track tab changes by adding to history stack
+    if (_tabHistory.isEmpty || _tabHistory.last != currentIndex) {
+      _tabHistory.add(currentIndex);
+      // Keep history manageable
+      if (_tabHistory.length > 10) {
+        _tabHistory.removeAt(0);
+      }
+    }
     return PopScope(
-      canPop: currentIndex == 0,
+      canPop: currentIndex == 0 && _tabHistory.length <= 1,
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) return;
-        widget.navigationShell.goBranch(0);
+        // Pop the current tab from history
+        if (_tabHistory.isNotEmpty) {
+          _tabHistory.removeLast();
+        }
+        // Navigate back to the previous tab, or to home if no history
+        final targetIndex = _tabHistory.isNotEmpty ? _tabHistory.last : 0;
+        widget.navigationShell.goBranch(targetIndex);
       },
       child: Scaffold(
         backgroundColor: const Color(0xFFFFFFFF),
