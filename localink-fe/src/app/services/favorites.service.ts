@@ -7,7 +7,7 @@ import { Observable } from 'rxjs';
 })
 export class FavoritesService {
 
-  private apiUrl = 'http://localhost:5138/api/favorites';
+  private apiUrl = 'http://localhost:5138/api/v1/favorites';
 
   constructor(private http: HttpClient) {}
 

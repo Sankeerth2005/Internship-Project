@@ -71,7 +71,7 @@ export class ContactUsComponent {
   };
 
   this.http.post(
-    'http://localhost:5138/api/feedback',
+    'http://localhost:5138/api/v1/feedback',
     payload,
     {
       headers: {

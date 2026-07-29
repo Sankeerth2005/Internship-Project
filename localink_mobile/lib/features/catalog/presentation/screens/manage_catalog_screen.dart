@@ -7,7 +7,6 @@ import '../../../../core/network/dio_client.dart';
 import '../../data/models/catalog_models.dart';
 import '../providers/catalog_provider.dart';
 import '../../../shared/presentation/widgets/app_button.dart';
-import '../../../../core/network/dio_client.dart';
 
 class _CatTok {
   static const Color primary = Color(0xFFFF6600);
@@ -105,38 +104,89 @@ class _ManageCatalogScreenState extends ConsumerState<ManageCatalogScreen> {
 
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Add Catalog Category'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: titleController,
-              decoration: const InputDecoration(labelText: 'Category Name (e.g. Lunch)'),
-            ),
-            TextField(
-              controller: descController,
-              decoration: const InputDecoration(labelText: 'Description (optional)'),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          ElevatedButton(
-            onPressed: () {
-              if (titleController.text.trim().isNotEmpty) {
-                ref.read(catalogNotifierProvider.notifier).createCatalog(
-                      widget.businessId,
-                      titleController.text.trim(),
-                      descController.text.trim().isEmpty ? null : descController.text.trim(),
-                    );
-                Navigator.pop(ctx);
-              }
-            },
-            child: const Text('Add'),
-          ),
-        ],
-      ),
+      builder: (ctx) {
+        bool isSaving = false;
+        String? errorMessage;
+
+        return StatefulBuilder(
+          builder: (dialogCtx, setDialogState) {
+            return AlertDialog(
+              title: const Text('Add Catalog Category'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (errorMessage != null)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Text(
+                        errorMessage!,
+                        style: const TextStyle(color: Colors.red, fontSize: 13),
+                      ),
+                    ),
+                  TextField(
+                    controller: titleController,
+                    decoration: const InputDecoration(labelText: 'Category Name (e.g. Lunch)'),
+                    enabled: !isSaving,
+                  ),
+                  TextField(
+                    controller: descController,
+                    decoration: const InputDecoration(labelText: 'Description (optional)'),
+                    enabled: !isSaving,
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isSaving ? null : () => Navigator.pop(dialogCtx),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: isSaving
+                      ? null
+                      : () async {
+                          if (titleController.text.trim().isEmpty) {
+                            setDialogState(() {
+                              errorMessage = 'Category name is required';
+                            });
+                            return;
+                          }
+                          setDialogState(() {
+                            isSaving = true;
+                            errorMessage = null;
+                          });
+                          try {
+                            await ref.read(catalogNotifierProvider.notifier).createCatalog(
+                                  widget.businessId,
+                                  titleController.text.trim(),
+                                  descController.text.trim().isEmpty ? null : descController.text.trim(),
+                                );
+                            if (dialogCtx.mounted) {
+                              Navigator.pop(dialogCtx);
+                            }
+                          } catch (e) {
+                            if (dialogCtx.mounted) {
+                              setDialogState(() {
+                                isSaving = false;
+                                final cleanMsg = e.toString().replaceFirst('Exception: ', '').trim();
+                                errorMessage = cleanMsg.isNotEmpty ? cleanMsg : 'Failed to create category';
+                              });
+                            }
+                          }
+                        },
+                  child: isSaving
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: _CatTok.primary),
+                        )
+                      : const Text('Add'),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 
@@ -151,10 +201,13 @@ class _ManageCatalogScreenState extends ConsumerState<ManageCatalogScreen> {
       context: context,
       isScrollControlled: true,
       builder: (ctx) {
-        return StatefulBuilder(builder: (ctx, setState) {
+        bool isSaving = false;
+        String? errorMessage;
+
+        return StatefulBuilder(builder: (sheetCtx, setState) {
           return Padding(
             padding: EdgeInsets.only(
-              bottom: MediaQuery.of(ctx).viewInsets.bottom,
+              bottom: MediaQuery.of(sheetCtx).viewInsets.bottom,
               left: 20,
               right: 20,
               top: 20,
@@ -166,8 +219,24 @@ class _ManageCatalogScreenState extends ConsumerState<ManageCatalogScreen> {
                 children: [
                   Text(item == null ? 'Add Item' : 'Edit Item', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 10),
-                  TextField(controller: nameController, decoration: const InputDecoration(labelText: 'Item Name')),
-                  TextField(controller: descController, decoration: const InputDecoration(labelText: 'Description')),
+                  if (errorMessage != null)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Text(
+                        errorMessage!,
+                        style: const TextStyle(color: Colors.red, fontSize: 13),
+                      ),
+                    ),
+                  TextField(
+                    controller: nameController,
+                    decoration: const InputDecoration(labelText: 'Item Name'),
+                    enabled: !isSaving,
+                  ),
+                  TextField(
+                    controller: descController,
+                    decoration: const InputDecoration(labelText: 'Description'),
+                    enabled: !isSaving,
+                  ),
                   Row(
                     children: [
                       Expanded(
@@ -175,6 +244,7 @@ class _ManageCatalogScreenState extends ConsumerState<ManageCatalogScreen> {
                           controller: priceController,
                           decoration: const InputDecoration(labelText: 'Price'),
                           keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          enabled: !isSaving,
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -199,7 +269,7 @@ class _ManageCatalogScreenState extends ConsumerState<ManageCatalogScreen> {
                               ),
                             );
                           }).toList(),
-                          onChanged: (value) {
+                          onChanged: isSaving ? null : (value) {
                             setState(() {
                               selectedCurrency = value ?? 'INR';
                             });
@@ -214,14 +284,14 @@ class _ManageCatalogScreenState extends ConsumerState<ManageCatalogScreen> {
                       const Text('Available?'),
                       Switch(
                         value: isAvailable,
-                        onChanged: (val) => setState(() => isAvailable = val),
+                        onChanged: isSaving ? null : (val) => setState(() => isAvailable = val),
                         activeColor: _CatTok.primary,
                       ),
                     ],
                   ),
                   const SizedBox(height: 10),
                   GestureDetector(
-                    onTap: () async {
+                    onTap: isSaving ? null : () async {
                       final picker = ImagePicker();
                       final xfile = await picker.pickImage(source: ImageSource.gallery);
                       if (xfile != null) {
@@ -247,11 +317,31 @@ class _ManageCatalogScreenState extends ConsumerState<ManageCatalogScreen> {
                   const SizedBox(height: 20),
                   AppButton(
                     label: 'Save',
-                    onPressed: () {
-                      final price = double.tryParse(priceController.text.trim()) ?? 0.0;
-                      if (nameController.text.trim().isNotEmpty && price > 0) {
+                    isLoading: isSaving,
+                    onPressed: isSaving ? null : () async {
+                      final priceText = priceController.text.trim();
+                      if (nameController.text.trim().isEmpty) {
+                        setState(() {
+                          errorMessage = 'Item name is required';
+                        });
+                        return;
+                      }
+                      final price = double.tryParse(priceText) ?? 0.0;
+                      if (price <= 0) {
+                        setState(() {
+                          errorMessage = 'Price must be a valid number greater than 0';
+                        });
+                        return;
+                      }
+
+                      setState(() {
+                        isSaving = true;
+                        errorMessage = null;
+                      });
+
+                      try {
                         if (item == null) {
-                          ref.read(catalogNotifierProvider.notifier).addCatalogItem(
+                          await ref.read(catalogNotifierProvider.notifier).addCatalogItem(
                                 widget.businessId,
                                 catalogId,
                                 nameController.text.trim(),
@@ -262,7 +352,7 @@ class _ManageCatalogScreenState extends ConsumerState<ManageCatalogScreen> {
                                 selectedCurrency,
                               );
                         } else {
-                          ref.read(catalogNotifierProvider.notifier).updateCatalogItem(
+                          await ref.read(catalogNotifierProvider.notifier).updateCatalogItem(
                                 widget.businessId,
                                 item.id,
                                 nameController.text.trim(),
@@ -273,7 +363,17 @@ class _ManageCatalogScreenState extends ConsumerState<ManageCatalogScreen> {
                                 selectedCurrency,
                               );
                         }
-                        Navigator.pop(ctx);
+                        if (sheetCtx.mounted) {
+                          Navigator.pop(sheetCtx);
+                        }
+                      } catch (e) {
+                        if (sheetCtx.mounted) {
+                          setState(() {
+                            isSaving = false;
+                            final cleanMsg = e.toString().replaceFirst('Exception: ', '').trim();
+                            errorMessage = cleanMsg.isNotEmpty ? cleanMsg : 'Failed to save catalog item';
+                          });
+                        }
                       }
                     },
                   ),
@@ -351,11 +451,6 @@ class _ManageCatalogScreenState extends ConsumerState<ManageCatalogScreen> {
                   ),
                   children: catalog.items.map((item) {
                     return ListTile(
-<<<<<<< Updated upstream
-                      leading: item.imageUrl != null
-                          ? Image.network('https://bulldog-kinsman-tutor.ngrok-free.dev/' + item.imageUrl!, width: 50, height: 50, fit: BoxFit.cover)
-                          : const Icon(Icons.fastfood, size: 40),
-=======
                       leading: (item.imageUrl?.isNotEmpty ?? false)
                           ? Image.network(
                               DioClient.resolveUrl(item.imageUrl)!,
@@ -364,7 +459,6 @@ class _ManageCatalogScreenState extends ConsumerState<ManageCatalogScreen> {
                               fit: BoxFit.cover,
                             )
                           : const Icon(Icons.inventory_2_rounded, size: 40),
->>>>>>> Stashed changes
                       title: Text(item.name),
                       subtitle: Text('${item.price.toStringAsFixed(2)}'),
                       trailing: Row(

@@ -6,7 +6,7 @@ import { Observable } from 'rxjs';
 })
 export class BusinessPincodeService {
 
-  private baseUrl = 'http://localhost:5138/api/BusinessPincode';
+  private baseUrl = 'http://localhost:5138/api/v1/BusinessPincode';
 
   constructor(private http: HttpClient) {}
 

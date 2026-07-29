@@ -64,7 +64,7 @@ export class ContactDetailsComponent implements OnInit, OnChanges, AfterViewInit
   showDropdown = false;
 
   // API base URL
-  baseUrl = 'http://localhost:5138/api/location';
+  baseUrl = 'http://localhost:5138/api/v1/location';
 
   constructor(
     private fb: FormBuilder,

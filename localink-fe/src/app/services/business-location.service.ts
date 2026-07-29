@@ -8,7 +8,7 @@ import { tap, shareReplay } from 'rxjs/operators';
 })
 export class BusinessLocationService {
 
-  private baseUrl = 'http://localhost:5138/api/location'; // your backend
+  private baseUrl = 'http://localhost:5138/api/v1/location'; // your backend
 
   // CACHE OBSERVABLES
   private countriesCache$: Observable<any> | null = null;

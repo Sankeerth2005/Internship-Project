@@ -22,6 +22,8 @@ namespace localink_be.Models.DTOs
         [StringLength(15, ErrorMessage = "Phone number cannot exceed 15 characters")]
         public string Phone { get; set; } = "";
 
+        public string CountryCode { get; set; } = string.Empty;
+
         [StringLength(500000, ErrorMessage = "Profile picture data too large")]
         public string? ProfilePicture { get; set; }
 

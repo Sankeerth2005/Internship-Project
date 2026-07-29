@@ -31,6 +31,7 @@ class UserProfileDto {
   final String fullName;
   final String email;
   final String? phone;
+  final String countryCode;
   final String? profilePicture;
   final AddressDto address;
 
@@ -39,6 +40,7 @@ class UserProfileDto {
     required this.fullName,
     required this.email,
     this.phone,
+    required this.countryCode,
     this.profilePicture,
     required this.address,
   });
@@ -49,6 +51,7 @@ class UserProfileDto {
       fullName: json['fullName'] ?? '',
       email: json['email'] ?? '',
       phone: json['phone'] as String?,
+      countryCode: json['countryCode'] ?? '',
       profilePicture: json['profilePicture'] as String?,
       address: json['address'] != null
           ? AddressDto.fromJson(json['address'])
@@ -61,6 +64,7 @@ class UpdateUserProfileDto {
   final String fullName;
   final String? email;
   final String? phone;
+  final String? countryCode;
   final String? profilePicture;
   final AddressDto address;
 
@@ -68,6 +72,7 @@ class UpdateUserProfileDto {
     required this.fullName,
     this.email,
     this.phone,
+    this.countryCode,
     this.profilePicture,
     required this.address,
   });
@@ -76,6 +81,7 @@ class UpdateUserProfileDto {
     'fullName': fullName,
     'email': email,
     'phone': phone,
+    'countryCode': countryCode,
     'profilePicture': profilePicture,
     'address': address.toJson(),
   };

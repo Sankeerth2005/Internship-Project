@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:dio/dio.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:go_router/go_router.dart';
 import '../../../../core/storage/secure_storage_service.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/network/app_error_formatter.dart';
@@ -39,29 +41,7 @@ class _SupportScreenState extends State<SupportScreen> {
     }
   ];
 
-  final List<Map<String, dynamic>> _forumThreads = [
-    {
-      'title': 'Upcoming Ganesh Chaturthi Puja Preparations',
-      'category': 'Festival Planning',
-      'author': 'Pandit Rajesh Sharma',
-      'replies': 24,
-      'time': '2h ago'
-    },
-    {
-      'title': 'Recommendation for local organic incense stores',
-      'category': 'General Inquiry',
-      'author': 'Smt. Lakshmi R.',
-      'replies': 11,
-      'time': '5h ago'
-    },
-    {
-      'title': 'New Sanskrit learning centers in East Bangalore',
-      'category': 'Education',
-      'author': 'Acharya Dev',
-      'replies': 37,
-      'time': '1d ago'
-    }
-  ];
+
 
   @override
   void dispose() {
@@ -132,7 +112,6 @@ class _SupportScreenState extends State<SupportScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _buildHeader(),
-                _buildForumThreads(),
                 _buildFaqs(),
                 _buildFeedbackForm(),
                 _buildContactSection(),
@@ -174,104 +153,7 @@ class _SupportScreenState extends State<SupportScreen> {
     );
   }
 
-  Widget _buildForumThreads() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Active Discussions',
-                style: TextStyle(
-                  fontFamily: 'Inter',
-                  color: Color(0xFF1A1918),
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              TextButton(
-                onPressed: () {},
-                child: const Text(
-                  'View All',
-                  style: TextStyle(color: Color(0xFFFF6600), fontWeight: FontWeight.bold),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          ..._forumThreads.map((thread) => Container(
-                margin: const EdgeInsets.only(bottom: 12),
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF9F8F6),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFFEAE8E3)),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFFF6600).withValues(alpha: 0.08),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            thread['category'],
-                            style: const TextStyle(
-                              color: Color(0xFFFF6600),
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                        const Spacer(),
-                        Text(
-                          thread['time'],
-                          style: const TextStyle(color: Color(0xFF9F9B96), fontSize: 11),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      thread['title'],
-                      style: const TextStyle(
-                        fontFamily: 'Inter',
-                        color: Color(0xFF1A1918),
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        const Icon(Icons.person_outline_rounded, size: 14, color: Color(0xFF5F5C58)),
-                        const SizedBox(width: 4),
-                        Text(
-                          thread['author'],
-                          style: const TextStyle(color: Color(0xFF5F5C58), fontSize: 12),
-                        ),
-                        const Spacer(),
-                        const Icon(Icons.chat_bubble_outline_rounded, size: 14, color: Color(0xFF5F5C58)),
-                        const SizedBox(width: 4),
-                        Text(
-                          '${thread['replies']} replies',
-                          style: const TextStyle(color: Color(0xFF5F5C58), fontSize: 12, fontWeight: FontWeight.w600),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              )),
-        ],
-      ),
-    );
-  }
+
 
   Widget _buildFaqs() {
     return Padding(
@@ -501,8 +383,8 @@ class _SupportScreenState extends State<SupportScreen> {
                   label: 'Live Chat',
                   onTap: () {
                     HapticFeedback.lightImpact();
-                    FocusScope.of(context).unfocus(); // Unfocus keyboard cleanly
-                    AppFeedback.showInfo(context, 'Starting Live Support session...');
+                    FocusScope.of(context).unfocus();
+                    context.go('/ai-assistant');
                   },
                 ),
               ),
@@ -516,14 +398,14 @@ class _SupportScreenState extends State<SupportScreen> {
                     FocusScope.of(context).unfocus();
                     final Uri emailUri = Uri(
                       scheme: 'mailto',
-                      path: 'support@localink.com',
-                      queryParameters: {'subject': 'Localink Support Request'},
+                      path: 'support@vocalforsanatan.com',
+                      queryParameters: {'subject': 'Vocal for Sanatan Support Request'},
                     );
                     try {
-                      await launchUrl(emailUri);
+                      launchUrl(emailUri);
                     } catch (_) {
                       if (mounted) {
-                        AppFeedback.showInfo(context, 'Send email to: support@localink.com');
+                        AppFeedback.showInfo(context, 'Send email to: support@vocalforsanatan.com');
                       }
                     }
                   },

@@ -1,0 +1,98 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --font-inter: 'Inter', system-ui, sans-serif;
+    --font-plus-jakarta-sans: 'Plus Jakarta Sans', system-ui, sans-serif;
+  }
+  
+  * {
+    @apply border-border;
+  }
+  
+  body {
+    @apply bg-background text-text;
+    background-color: #080707;
+  }
+}
+
+@layer utilities {
+  .glass {
+    background: rgba(17, 15, 15, 0.7);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+  }
+  
+  .glass-dark {
+    background: rgba(8, 7, 7, 0.85);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.03);
+  }
+  
+  .glass-glow {
+    box-shadow: 0 0 25px -5px rgba(255, 102, 0, 0.15);
+    border: 1px solid rgba(255, 102, 0, 0.15);
+  }
+
+  .gradient-text {
+    @apply bg-gradient-to-r from-primary via-primary-glow to-amber-400 bg-clip-text text-transparent;
+  }
+  
+  .gradient-bg {
+    @apply bg-gradient-to-br from-primary via-primary-glow to-primary;
+  }
+  
+  .mesh-gradient {
+    background: 
+      radial-gradient(at 20% 15%, rgba(255, 102, 0, 0.12) 0px, transparent 40%),
+      radial-gradient(at 80% 10%, rgba(255, 160, 71, 0.08) 0px, transparent 40%),
+      radial-gradient(at 50% 50%, rgba(255, 102, 0, 0.06) 0px, transparent 50%),
+      radial-gradient(at 10% 85%, rgba(255, 102, 0, 0.08) 0px, transparent 40%),
+      radial-gradient(at 90% 90%, rgba(255, 160, 71, 0.1) 0px, transparent 40%);
+    background-color: #080707;
+  }
+
+  .spotlight {
+    pointer-events: none;
+    position: absolute;
+    width: 600px;
+    height: 600px;
+    background: radial-gradient(circle, rgba(255, 102, 0, 0.07) 0%, rgba(255, 102, 0, 0) 70%);
+    border-radius: 50%;
+    filter: blur(40px);
+  }
+}
+
+@layer components {
+  .container-custom {
+    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+  }
+  
+  .section-padding {
+    @apply py-24 lg:py-36;
+  }
+  
+  .heading-xl {
+    @apply font-display text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight;
+  }
+  
+  .heading-lg {
+    @apply font-display text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight;
+  }
+  
+  .heading-md {
+    @apply font-display text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight;
+  }
+  
+  .heading-sm {
+    @apply font-display text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight;
+  }
+  
+  .text-body {
+    @apply text-base sm:text-lg text-text-muted leading-relaxed;
+  }
+}

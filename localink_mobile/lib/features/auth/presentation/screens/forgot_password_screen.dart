@@ -118,8 +118,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
 
   String? _validateEmail(String? val) {
     if (val == null || val.trim().isEmpty) return 'Email is required';
-    final emailRegExp = RegExp(r'^[a-zA-Z][a-zA-Z0-9._%+-]*@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
-    if (!emailRegExp.hasMatch(val.trim())) return 'Invalid email format';
+    final trimmed = val.trim();
+    if (trimmed.length > 256) return 'Email cannot exceed 256 characters';
+    final emailRegExp = RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
+    if (!emailRegExp.hasMatch(trimmed)) return 'Invalid email format';
     return null;
   }
 

@@ -93,14 +93,6 @@ class _BusinessDashboardScreenState extends ConsumerState<BusinessDashboardScree
           ),
           actions: [
             IconButton(
-              icon: const Icon(Icons.chat_bubble_outline_rounded, color: _DashTok.primary),
-              tooltip: 'Inbox',
-              onPressed: () {
-                HapticFeedback.lightImpact();
-                context.push('/conversations?isOwner=true');
-              },
-            ),
-            IconButton(
               icon: const Icon(Icons.add_business_rounded, color: _DashTok.primary),
               tooltip: 'Add Store',
               onPressed: () {

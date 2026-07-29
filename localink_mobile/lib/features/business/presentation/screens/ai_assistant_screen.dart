@@ -214,7 +214,15 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
           leadingWidth: 70,
           leading: Padding(
             padding: const EdgeInsets.only(left: 16, top: 8, bottom: 8),
-            child: AppBackButton(onPressed: () => context.pop()),
+            child: AppBackButton(
+              onPressed: () {
+                if (GoRouter.of(context).canPop()) {
+                  context.pop();
+                } else {
+                  context.go('/home');
+                }
+              },
+            ),
           ),
         title: const Column(
           crossAxisAlignment: CrossAxisAlignment.start,

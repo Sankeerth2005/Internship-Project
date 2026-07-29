@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -63,6 +64,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   final _nameCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
+  final _phoneCodeCtrl = TextEditingController();
   final _phoneCtrl = TextEditingController();
   final _streetCtrl = TextEditingController();
   final _cityCtrl = TextEditingController();
@@ -173,6 +175,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     _pincodeCtrl.removeListener(_onPincodeChanged);
     _nameCtrl.dispose();
     _emailCtrl.dispose();
+    _phoneCodeCtrl.dispose();
     _phoneCtrl.dispose();
     _streetCtrl.dispose();
     _cityCtrl.dispose();
@@ -188,6 +191,19 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     if (pincode.length == 6 && int.tryParse(pincode) != null) {
       _lookupPincode(pincode);
     }
+  }
+
+  String? _validateEmail(String? value) {
+    if (value == null || value.trim().isEmpty) return 'Email is required';
+    final trimmed = value.trim();
+    if (trimmed.length > 256) return 'Email cannot exceed 256 characters';
+    final emailRegex = RegExp(
+      r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
+    );
+    if (!emailRegex.hasMatch(trimmed)) {
+      return 'Enter a valid email address';
+    }
+    return null;
   }
 
   Future<void> _lookupPincode(String pincode) async {
@@ -213,6 +229,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   void _populateFields(UserProfileDto profile) {
     _nameCtrl.text = profile.fullName;
     _emailCtrl.text = profile.email;
+    _phoneCodeCtrl.text = profile.countryCode.replaceAll('+', '').trim();
     _phoneCtrl.text = profile.phone ?? '';
     _streetCtrl.text = profile.address.street ?? '';
     _cityCtrl.text = profile.address.city ?? '';
@@ -242,15 +259,33 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final city = _cityCtrl.text.trim();
     final pincode = _pincodeCtrl.text.trim();
 
+    // Validate phone code
+    final phoneCode = _phoneCodeCtrl.text.trim();
+    if (phoneCode.isEmpty) {
+      AppFeedback.showError(context, 'Phone code is required');
+      return;
+    }
+    if (!RegExp(r'^\+?[0-9]{1,4}$').hasMatch(phoneCode)) {
+      AppFeedback.showError(context, 'Invalid phone code format (e.g. 91 or +91)');
+      return;
+    }
+
     // Validate phone format
     final phone = _phoneCtrl.text.trim();
-    if (phone.isNotEmpty) {
-      final digitsOnly = phone.replaceAll(RegExp(r'\D'), '');
+    if (phone.isEmpty) {
+      AppFeedback.showError(context, 'Phone number is required');
+      return;
+    }
+    final digitsOnly = phone.replaceAll(RegExp(r'\D'), '');
+    final isIndia = phoneCode == '91' || phoneCode == '+91' || country.toLowerCase() == 'india';
+    if (isIndia) {
+      if (digitsOnly.length != 10) {
+        AppFeedback.showError(context, 'Indian phone number must be exactly 10 digits');
+        return;
+      }
+    } else {
       if (digitsOnly.length < 7 || digitsOnly.length > 15) {
-        AppFeedback.showError(
-          context,
-          'Phone number must be between 7 and 15 digits',
-        );
+        AppFeedback.showError(context, 'Phone number must be between 7 and 15 digits');
         return;
       }
     }
@@ -265,7 +300,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       AppFeedback.showError(context, 'Email cannot exceed 256 characters');
       return;
     }
-    if (!RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$').hasMatch(email)) {
+    final emailRegex = RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
+    if (!emailRegex.hasMatch(email)) {
       AppFeedback.showError(
         context,
         'Invalid email address format (e.g. name@domain.com)',
@@ -286,10 +322,19 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       AppFeedback.showError(context, 'Country must be between 2 and 100 characters');
       return;
     }
+    final nameRegex = RegExp(r"^[a-zA-Z\s\-\.']+$");
+    if (!nameRegex.hasMatch(country)) {
+      AppFeedback.showError(context, 'Country can only contain letters, spaces, hyphens, dots, and apostrophes');
+      return;
+    }
 
     // Validate state - should be at least 2 characters
     if (state.length < 2 || state.length > 100) {
       AppFeedback.showError(context, 'State must be between 2 and 100 characters');
+      return;
+    }
+    if (!nameRegex.hasMatch(state)) {
+      AppFeedback.showError(context, 'State can only contain letters, spaces, hyphens, dots, and apostrophes');
       return;
     }
 
@@ -298,15 +343,26 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       AppFeedback.showError(context, 'City must be between 2 and 100 characters');
       return;
     }
-
-    // Validate pincode format
-    if (pincode.length < 3 || pincode.length > 15) {
-      AppFeedback.showError(context, 'Pincode must be between 3 and 15 characters');
+    if (!nameRegex.hasMatch(city)) {
+      AppFeedback.showError(context, 'City can only contain letters, spaces, hyphens, dots, and apostrophes');
       return;
     }
-    if (!RegExp(r'^[A-Za-z0-9\-\s]+$').hasMatch(pincode)) {
-      AppFeedback.showError(context, 'Pincode contains invalid characters');
-      return;
+
+    // Validate pincode format
+    if (country.toLowerCase().contains('india')) {
+      if (pincode.length != 6 || int.tryParse(pincode) == null) {
+        AppFeedback.showError(context, 'Indian pincode must be exactly 6 digits');
+        return;
+      }
+    } else {
+      if (pincode.length < 3 || pincode.length > 15) {
+        AppFeedback.showError(context, 'Pincode must be between 3 and 15 characters');
+        return;
+      }
+      if (!RegExp(r'^[A-Za-z0-9\-\s]+$').hasMatch(pincode)) {
+        AppFeedback.showError(context, 'Pincode contains invalid characters');
+        return;
+      }
     }
 
     // Validate street address length
@@ -323,6 +379,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         fullName: _nameCtrl.text.trim(),
         email: _emailCtrl.text.trim().isNotEmpty ? _emailCtrl.text.trim() : null,
         phone: _phoneCtrl.text.trim().isNotEmpty ? _phoneCtrl.text.trim() : null,
+        countryCode: phoneCode.startsWith('+') ? phoneCode : '+$phoneCode',
         profilePicture: _profilePicBase64,
         address: AddressDto(
           street: _streetCtrl.text.trim().isNotEmpty ? _streetCtrl.text.trim() : null,
@@ -485,8 +542,67 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     child: Column(
                       children: [
                         ProfileInfoTile(label: 'Full Name', controller: _nameCtrl, icon: Icons.person_outline_rounded, isEditMode: _isEditMode),
-                        ProfileInfoTile(label: 'Email', controller: _emailCtrl, icon: Icons.email_outlined, isEditMode: _isEditMode),
-                        ProfileInfoTile(label: 'Phone', controller: _phoneCtrl, icon: Icons.phone_outlined, isEditMode: _isEditMode, isPhone: true),
+                        ProfileInfoTile(label: 'Email', controller: _emailCtrl, icon: Icons.email_outlined, isEditMode: _isEditMode, validator: _validateEmail),
+                        if (_isEditMode)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 16),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Expanded(
+                                  flex: 3,
+                                  child: TextField(
+                                    controller: _phoneCodeCtrl,
+                                    style: const TextStyle(color: Color(0xFF1A1918), fontSize: 14),
+                                    keyboardType: TextInputType.phone,
+                                    inputFormatters: [
+                                      FilteringTextInputFormatter.allow(RegExp(r'[0-9+]')),
+                                    ],
+                                    decoration: InputDecoration(
+                                      labelText: 'Code',
+                                      labelStyle: const TextStyle(color: Color(0xFF5F5C58), fontSize: 13),
+                                      prefixIcon: const Icon(Icons.add_rounded, color: Color(0xFFFF6600), size: 16),
+                                      filled: true,
+                                      fillColor: Colors.white,
+                                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                        borderSide: const BorderSide(color: Color(0xFFEAE8E3)),
+                                      ),
+                                      enabledBorder: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                        borderSide: const BorderSide(color: Color(0xFFEAE8E3)),
+                                      ),
+                                      focusedBorder: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                        borderSide: const BorderSide(color: Color(0xFFFF6600), width: 1.5),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  flex: 7,
+                                  child: ProfileInfoTile(
+                                    label: 'Phone Number',
+                                    controller: _phoneCtrl,
+                                    icon: Icons.phone_outlined,
+                                    isEditMode: true,
+                                    isPhone: true,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                        else
+                          ProfileInfoTile(
+                            label: 'Phone',
+                            controller: TextEditingController(
+                              text: '${_phoneCodeCtrl.text.isNotEmpty ? "${_phoneCodeCtrl.text.startsWith('+') ? '' : '+'}${_phoneCodeCtrl.text} " : ""}${_phoneCtrl.text}',
+                            ),
+                            icon: Icons.phone_outlined,
+                            isEditMode: false,
+                          ),
                         const SizedBox(height: 12),
                         const Align(
                           alignment: Alignment.centerLeft,

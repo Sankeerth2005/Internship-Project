@@ -104,6 +104,7 @@ public class UserController : ControllerBase
             FullName = user.FullName,
             Email = user.Email,
             Phone = user.Phone,
+            CountryCode = user.CountryCode,
             ProfilePicture = imageUrl,
             Address = user.Address
         });

@@ -1,6 +1,6 @@
 {
   "APP": {
-    "TITLE": "Localink",
+    "TITLE": "Vocal For Sanatan",
     "TAGLINE": "Discover Local Businesses"
   },
   "AUTH": {
@@ -464,11 +464,11 @@
     "HELP_TEXT": "Available commands: Say 'go to home' to navigate, 'search for restaurants' to find businesses, 'clear' to reset, 'back' to go back, or 'help' to hear this message again."
   },
   "ABOUT": {
-    "TITLE": "About LocaLink",
+    "TITLE": "About Vocal For Sanatan",
     "SUBTITLE": "Your trusted business directory platform",
-    "WELCOME_TITLE": "Welcome to LocaLink — your trusted business directory platform.",
+    "WELCOME_TITLE": "Welcome to Vocal For Sanatan — your trusted business directory platform.",
     "WELCOME_DESC1": "We help users discover and connect with global businesses easily and efficiently through a seamless and intuitive search experience.",
-    "WELCOME_DESC2": "LocaLink also empowers business owners to register and showcase their businesses by providing detailed information, managing their presence, and reaching a wider audience. Businesses can engage with customers through reviews and ratings, helping build credibility and trust.",
+    "WELCOME_DESC2": "Vocal For Sanatan also empowers business owners to register and showcase their businesses by providing detailed information, managing their presence, and reaching a wider audience. Businesses can engage with customers through reviews and ratings, helping build credibility and trust.",
     "WELCOME_DESC3": "Our goal is to simplify global search while creating a reliable ecosystem where users find accurate, real-time information and businesses grow through visibility and customer interaction.",
     "OFFER_TITLE": "What We Offer",
     "GLOBAL_SEARCH": "Global Search",

@@ -46,7 +46,23 @@ class UserRepository {
       final data = e.response?.data;
       String? msg;
       if (data is Map) {
-        msg = data['message']?.toString();
+        if (data['errors'] != null) {
+          final errs = data['errors'];
+          if (errs is Map) {
+            final allMsgs = <String>[];
+            errs.forEach((key, val) {
+              if (val is List) {
+                allMsgs.addAll(val.map((e) => e.toString()));
+              } else {
+                allMsgs.add(val.toString());
+              }
+            });
+            if (allMsgs.isNotEmpty) {
+              msg = allMsgs.join('\n');
+            }
+          }
+        }
+        msg ??= data['message']?.toString();
       } else if (data is String && data.isNotEmpty) {
         msg = data;
       }

@@ -20,6 +20,10 @@ namespace localink_be.Models.DTOs
         [StringLength(15, ErrorMessage = "Phone number cannot exceed 15 characters")]
         public string Phone { get; set; } = "";
 
+        [Required(ErrorMessage = "Country code is required")]
+        [RegularExpression(@"^[+]?[0-9]{1,4}$", ErrorMessage = "Phone code must be between 1 and 4 digits, optionally starting with +")]
+        public string CountryCode { get; set; } = "";
+
         [StringLength(500000, ErrorMessage = "Profile picture data too large")]
         public string? ProfilePicture { get; set; }
 

@@ -526,28 +526,28 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                     ),
                   ],
                 ),
+              ),
 
-                // Premium back navigation button
-                SafeArea(
-                  child: Padding(
-                    padding: const EdgeInsets.only(left: 12, top: 12),
-                    child: AppBackButton(
-                      onPressed: () {
-                        if (_currentStep > 0) {
-                          _prevStep();
-                        } else {
-                          context.go('/login');
-                        }
-                      },
-                    ),
+              // Premium back navigation button
+              SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.only(left: 12, top: 12),
+                  child: AppBackButton(
+                    onPressed: () {
+                      if (_currentStep > 0) {
+                        _prevStep();
+                      } else {
+                        context.go('/login');
+                      }
+                    },
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
-    );
+      );
   }
 
   // ─── STEP DISPATCHER ───

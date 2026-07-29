@@ -39,6 +39,7 @@ public class UserService : IUserService
                 FullName = u.FullName,
                 Email = u.Email,
                 Phone = u.PhoneNumber,
+                CountryCode = u.CountryCode,
                 ProfilePicture = u.ProfilePicture,
 
                 Address = _db.Addresses
@@ -72,7 +73,21 @@ public class UserService : IUserService
             {
                 throw new InvalidOperationException("Phone number is already associated with another account.");
             }
+
+            // Indian phone number validation (exactly 10 digits when country code is +91/91 or country contains "india")
+            var isIndianPhone = dto.CountryCode == "91" || dto.CountryCode == "+91" || (dto.Address?.Country != null && dto.Address.Country.ToLower().Contains("india"));
+            var cleanPhone = dto.Phone.Replace(" ", "").Replace("-", "").Replace("+", "");
+            if (isIndianPhone && cleanPhone.Length != 10)
+            {
+                throw new ArgumentException("Invalid Phone Number. Indian phone numbers must be exactly 10 digits.");
+            }
+
             user.PhoneNumber = dto.Phone;
+        }
+
+        if (!string.IsNullOrWhiteSpace(dto.CountryCode))
+        {
+            user.CountryCode = dto.CountryCode;
         }
 
         // 2. Validate Country, State, City, and Pincode are not empty

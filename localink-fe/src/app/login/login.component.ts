@@ -131,9 +131,9 @@ export class LoginComponent implements AfterViewInit {
             const response = res.data;
 
             this.tokenService.setToken(response.token);
-            this.tokenService.setUser(response.name);
+            this.tokenService.setUser(response.user?.name || response.name);
             
-            const role = (response?.userType || '').toLowerCase().trim();
+            const role = (response?.user?.userType || response?.userType || '').toLowerCase().trim();
             localStorage.setItem('userType', role);
 
             if (role === 'client') {

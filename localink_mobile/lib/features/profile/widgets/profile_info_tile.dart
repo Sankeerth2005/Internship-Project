@@ -7,6 +7,7 @@ class ProfileInfoTile extends StatelessWidget {
   final IconData icon;
   final bool isEditMode;
   final bool isPhone;
+  final String? Function(String?)? validator;
 
   const ProfileInfoTile({
     super.key,
@@ -15,6 +16,7 @@ class ProfileInfoTile extends StatelessWidget {
     required this.icon,
     required this.isEditMode,
     this.isPhone = false,
+    this.validator,
   });
 
   @override
@@ -22,13 +24,14 @@ class ProfileInfoTile extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: isEditMode
-          ? TextField(
+          ? TextFormField(
               controller: controller,
               style: const TextStyle(color: Color(0xFF1A1918), fontSize: 14),
               keyboardType: isPhone ? TextInputType.phone : TextInputType.text,
               inputFormatters: isPhone ? [
                 FilteringTextInputFormatter.allow(RegExp(r'[0-9+\-\s]')),
               ] : [],
+              validator: validator,
               decoration: InputDecoration(
                 labelText: label,
                 labelStyle: const TextStyle(color: Color(0xFF5F5C58), fontSize: 13),
