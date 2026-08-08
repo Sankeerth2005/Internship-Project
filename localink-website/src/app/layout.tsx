@@ -32,9 +32,13 @@ export const metadata: Metadata = {
   ],
   authors: [{ name: 'Vocal for Sanatan' }],
   icons: {
-    icon: [{ url: '/app-icon-192.png', type: 'image/png' }],
-    apple: [{ url: '/app-icon.png' }],
-    shortcut: '/favicon.png',
+    icon: [
+      { url: '/favicon.ico', sizes: 'any' },
+      { url: '/favicon.png', type: 'image/png', sizes: '32x32' },
+      { url: '/app-icon-192.png', type: 'image/png', sizes: '192x192' },
+    ],
+    apple: [{ url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' }],
+    shortcut: '/favicon.ico',
   },
   openGraph: {
     title: 'Vocal for Sanatan — Discover Local Businesses',
