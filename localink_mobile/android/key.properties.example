@@ -1,0 +1,7 @@
+# Copy to android/key.properties and fill in values for Play Store / production signing.
+# This file is gitignored — never commit real secrets.
+#
+# KEYSTORE_FILE=C:\\path\\to\\vocal-release.keystore
+# KEYSTORE_PASSWORD=your-store-password
+# KEY_ALIAS=your-key-alias
+# KEY_PASSWORD=your-key-password

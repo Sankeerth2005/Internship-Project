@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
-
+import '../../../../../core/network/dio_client.dart';
 
 class AudioBubble extends StatefulWidget {
   final String audioUrl;
@@ -30,7 +30,7 @@ class _AudioBubbleState extends State<AudioBubble> {
   }
 
   Future<void> _initAudio() async {
-    final fullUrl = 'http://10.0.2.2:5138${widget.audioUrl}';
+    final fullUrl = DioClient.resolveUrl(widget.audioUrl) ?? widget.audioUrl;
     
     _audioPlayer.onPlayerStateChanged.listen((state) {
       if (mounted) {

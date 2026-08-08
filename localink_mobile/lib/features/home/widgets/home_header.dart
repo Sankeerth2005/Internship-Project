@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../core/network/dio_client.dart';
+import '../../../core/widgets/brand_icons.dart';
 
 class HomeHeader extends StatelessWidget {
   final String userName;
@@ -19,12 +20,9 @@ class HomeHeader extends StatelessWidget {
     required this.onLogoutTap,
   });
 
-  /// Returns the appropriate image provider for the profile picture
-  /// Supports: base64 data URIs, relative paths, and full URLs
   ImageProvider? _resolveImage(String? picture) {
     if (picture == null || picture.isEmpty) return null;
-    
-    // Handle base64 data URIs
+
     if (picture.startsWith('data:image')) {
       final base64Data = picture.split(',').last;
       try {
@@ -33,129 +31,141 @@ class HomeHeader extends StatelessWidget {
         return null;
       }
     }
-    
-    // Handle relative paths - resolve using DioClient
+
     final resolved = DioClient.resolveUrl(picture);
     if (resolved != null) {
       return NetworkImage(resolved);
     }
-    
+
     return NetworkImage(picture);
   }
 
   @override
   Widget build(BuildContext context) {
     final imageProvider = _resolveImage(profilePicture);
-    
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          // Greeting & Profile Avatar Group
-          Row(
-            children: [
-              GestureDetector(
-                onTap: () {
-                  HapticFeedback.lightImpact();
-                  onProfileTap();
-                },
-                child: Hero(
-                  tag: 'user_profile_avatar',
-                  child: Container(
-                    width: 46,
-                    height: 46,
-                    padding: const EdgeInsets.all(2.5),
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFFFF9E4F), Color(0xFFFF6600)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFFFF6600).withValues(alpha: 0.18),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
+          Expanded(
+            child: Row(
+              children: [
+                GestureDetector(
+                  onTap: () {
+                    HapticFeedback.lightImpact();
+                    onProfileTap();
+                  },
+                  child: Hero(
+                    tag: 'user_profile_avatar',
                     child: Container(
-                      decoration: const BoxDecoration(
-                        color: Colors.white,
+                      width: 48,
+                      height: 48,
+                      padding: const EdgeInsets.all(2.5),
+                      decoration: BoxDecoration(
                         shape: BoxShape.circle,
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFFFF9E4F), Color(0xFFFF6600)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFFFF6600).withValues(alpha: 0.2),
+                            blurRadius: 12,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
                       ),
-                      child: ClipOval(
-                        child: imageProvider != null
-                            ? Image(
-                                image: imageProvider,
-                                fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) {
-                                  return const Center(
-                                    child: Icon(
-                                      Icons.person_rounded,
-                                      color: Color(0xFFFF6600),
-                                      size: 26,
-                                    ),
-                                  );
-                                },
-                              )
-                            : const Center(
-                                child: Icon(
-                                  Icons.person_rounded,
-                                  color: Color(0xFFFF6600),
-                                  size: 26,
+                      child: Container(
+                        decoration: const BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                        ),
+                        child: ClipOval(
+                          child: imageProvider != null
+                              ? Image(
+                                  image: imageProvider,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stackTrace) {
+                                    return const Center(
+                                      child: Icon(
+                                        Icons.person_rounded,
+                                        color: Color(0xFFFF6600),
+                                        size: 26,
+                                      ),
+                                    );
+                                  },
+                                )
+                              : const Center(
+                                  child: Icon(
+                                    Icons.person_rounded,
+                                    color: Color(0xFFFF6600),
+                                    size: 26,
+                                  ),
                                 ),
-                              ),
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Hello 👋',
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      color: Color(0xFF5F5C58),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                    ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          BrandIcons.om(size: 14),
+                          const SizedBox(width: 6),
+                          const Text(
+                            'Vocal for Sanatan',
+                            style: TextStyle(
+                              fontFamily: 'Inter',
+                              color: Color(0xFFFF6600),
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.2,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        userName.isEmpty ? 'Hello' : 'Hello, $userName',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontFamily: 'Inter',
+                          color: Color(0xFF1A1918),
+                          fontSize: 17,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.3,
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    userName,
-                    style: const TextStyle(
-                      fontFamily: 'Inter',
-                      color: Color(0xFF1A1918),
-                      fontSize: 17,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.3,
-                    ),
-                  ),
-                ],
-              ),
-            ],
+                ),
+              ],
+            ),
           ),
-
-          // Actions Group (AI Feed + Logout)
           Row(
             children: [
-              // Premium AI Feed Button
               _TactileFeedback(
                 onTap: onAIFeedTap,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8.5),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFF6600).withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(20),
+                    gradient: LinearGradient(
+                      colors: [
+                        const Color(0xFFFF6600).withValues(alpha: 0.12),
+                        const Color(0xFFFF9E4F).withValues(alpha: 0.08),
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(16),
                     border: Border.all(
-                      color: const Color(0xFFFF6600).withValues(alpha: 0.25),
-                      width: 1.2,
+                      color: const Color(0xFFFF6600).withValues(alpha: 0.22),
                     ),
                   ),
                   child: const Row(
@@ -165,9 +175,9 @@ class HomeHeader extends StatelessWidget {
                         color: Color(0xFFFF6600),
                         size: 15,
                       ),
-                      SizedBox(width: 6),
+                      SizedBox(width: 5),
                       Text(
-                        'AI Feed',
+                        'AI',
                         style: TextStyle(
                           fontFamily: 'Inter',
                           color: Color(0xFFFF6600),
@@ -180,8 +190,6 @@ class HomeHeader extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 8),
-
-              // Signout Button
               IconButton(
                 icon: Container(
                   padding: const EdgeInsets.all(8),
@@ -195,7 +203,7 @@ class HomeHeader extends StatelessWidget {
                   child: const Icon(
                     Icons.logout_rounded,
                     color: Color(0xFFE1251B),
-                    size: 16,
+                    size: 18,
                   ),
                 ),
                 onPressed: () {
@@ -211,51 +219,20 @@ class HomeHeader extends StatelessWidget {
   }
 }
 
-// Private widget to handle elastic press micro-interaction
-class _TactileFeedback extends StatefulWidget {
+class _TactileFeedback extends StatelessWidget {
   final Widget child;
   final VoidCallback onTap;
 
   const _TactileFeedback({required this.child, required this.onTap});
 
   @override
-  State<_TactileFeedback> createState() => _TactileFeedbackState();
-}
-
-class _TactileFeedbackState extends State<_TactileFeedback>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _ctrl;
-  late final Animation<double> _scale;
-
-  @override
-  void initState() {
-    super.initState();
-    _ctrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 100),
-    );
-    _scale = Tween<double>(begin: 1.0, end: 0.92).animate(
-      CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut),
-    );
-  }
-
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTapDown: (_) => _ctrl.forward(),
-      onTapUp: (_) {
-        _ctrl.reverse();
-        HapticFeedback.lightImpact();
-        widget.onTap();
+      onTap: () {
+        HapticFeedback.selectionClick();
+        onTap();
       },
-      onTapCancel: () => _ctrl.reverse(),
-      child: ScaleTransition(scale: _scale, child: widget.child),
+      child: child,
     );
   }
 }

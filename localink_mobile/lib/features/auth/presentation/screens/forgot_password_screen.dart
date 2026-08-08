@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/network/dio_client.dart';
+import '../../../../core/validation/app_validators.dart';
 import '../../../shared/presentation/widgets/app_text_field.dart';
 import '../../../shared/presentation/widgets/app_button.dart';
 import '../../../shared/presentation/widgets/shake_widget.dart';
@@ -116,16 +117,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
     super.dispose();
   }
 
-  String? _validateEmail(String? val) {
-    if (val == null || val.trim().isEmpty) return 'Email is required';
-    final trimmed = val.trim();
-    if (trimmed.length > 256) return 'Email cannot exceed 256 characters';
-    final emailRegExp = RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
-    if (!emailRegExp.hasMatch(trimmed)) return 'Invalid email format';
-    return null;
-  }
+  String? _validateEmail(String? val) => AppValidators.email(val);
 
-  // ── PRESERVED LOGIC (DO NOT MODIFY) ────────────────────────────────────────
   Future<void> _sendOtp() async {
     if (!_formKey.currentState!.validate()) {
       HapticFeedback.mediumImpact();
@@ -138,10 +131,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
     try {
       final email = _emailController.text.trim();
       final dio = DioClient().dio;
-      
+
       final response = await dio.post('auth/forgot-password', data: {
         'email': email,
-        'captchaToken': 'test',
       });
 
       if (mounted) {

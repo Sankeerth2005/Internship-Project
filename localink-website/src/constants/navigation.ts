@@ -1,28 +1,26 @@
 export const navigation = {
   main: [
-    { name: 'Home', href: '/' },
-    { name: 'About', href: '/about' },
     { name: 'Features', href: '/features' },
+    { name: 'For Business', href: '/business' },
     { name: 'Download', href: '/download' },
     { name: 'Support', href: '/support' },
-    { name: 'Contact', href: '/contact' },
-    { name: 'FAQ', href: '/faq' },
   ],
   footer: {
     company: [
-      { name: 'About Us', href: '/about' },
-      { name: 'How It Works', href: '/#how-it-works' },
-      { name: 'Contact Us', href: '/contact' },
+      { name: 'About', href: '/about' },
+      { name: 'Features', href: '/features' },
+      { name: 'Contact', href: '/contact' },
+      { name: 'FAQ', href: '/faq' },
     ],
     product: [
-      { name: 'Features', href: '/features' },
+      { name: 'Download App', href: '/download' },
       { name: 'For Business Owners', href: '/business' },
-      { name: 'Mobile App', href: '/download' },
+      { name: 'Support Center', href: '/support' },
     ],
     legal: [
       { name: 'Privacy Policy', href: '/privacy' },
       { name: 'Terms of Service', href: '/terms' },
+      { name: 'Delete Account', href: '/delete-account' },
     ],
   },
-  social: [],
 } as const

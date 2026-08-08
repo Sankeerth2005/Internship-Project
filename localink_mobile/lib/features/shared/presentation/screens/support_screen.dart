@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:dio/dio.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:go_router/go_router.dart';
-import '../../../../core/storage/secure_storage_service.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/network/app_error_formatter.dart';
 import '../widgets/app_feedback.dart';
@@ -60,19 +58,14 @@ class _SupportScreenState extends State<SupportScreen> {
     try {
       HapticFeedback.mediumImpact();
       final dio = DioClient().dio;
-      final token = await SecureStorageService.getToken();
-      
-      // Post to the backend FeedbackController
-      await dio.post('feedback', 
+
+      // Post to the backend FeedbackController (Bearer via DioClient interceptor)
+      await dio.post(
+        'feedback',
         data: {
           'category': _selectedCategory,
           'feedback': _feedbackController.text.trim(),
         },
-        options: Options(
-          headers: {
-            if (token != null) 'Authorization': 'Bearer $token',
-          },
-        ),
       );
 
       if (mounted) {
@@ -398,14 +391,14 @@ class _SupportScreenState extends State<SupportScreen> {
                     FocusScope.of(context).unfocus();
                     final Uri emailUri = Uri(
                       scheme: 'mailto',
-                      path: 'support@vocalforsanatan.com',
+                      path: 'support.vocalforsanatan@gmail.com',
                       queryParameters: {'subject': 'Vocal for Sanatan Support Request'},
                     );
                     try {
                       launchUrl(emailUri);
                     } catch (_) {
                       if (mounted) {
-                        AppFeedback.showInfo(context, 'Send email to: support@vocalforsanatan.com');
+                        AppFeedback.showInfo(context, 'Send email to: support.vocalforsanatan@gmail.com');
                       }
                     }
                   },

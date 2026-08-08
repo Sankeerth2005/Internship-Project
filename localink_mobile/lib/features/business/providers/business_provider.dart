@@ -57,7 +57,7 @@ class MyBusinessesNotifier extends AsyncNotifier<List<BusinessDto>> {
   Future<void> refresh() async {
     state = const AsyncValue.loading();
     state = await AsyncValue.guard(() => _fetch());
-    ref.invalidate(searchResultsProvider);
+    ref.invalidate(searchFeedProvider);
   }
 
   Future<int> register(BusinessDto business) async {
@@ -115,6 +115,9 @@ class SearchQueryState {
   final bool isVoiceSearch;
   final String sortBy;
   final String userPincode;
+  final double radiusKm;
+  final int page;
+  final int pageSize;
 
   SearchQueryState({
     this.query = '',
@@ -123,8 +126,11 @@ class SearchQueryState {
     this.latitude,
     this.longitude,
     this.isVoiceSearch = false,
-    this.sortBy = 'distance',
+    this.sortBy = 'nearest',
     this.userPincode = '',
+    this.radiusKm = 25,
+    this.page = 1,
+    this.pageSize = 20,
   });
 
   SearchQueryState copyWith({
@@ -136,6 +142,9 @@ class SearchQueryState {
     bool? isVoiceSearch,
     String? sortBy,
     String? userPincode,
+    double? radiusKm,
+    int? page,
+    int? pageSize,
     bool clearCategory = false,
     bool clearSubcategory = false,
   }) {
@@ -148,6 +157,9 @@ class SearchQueryState {
       isVoiceSearch: isVoiceSearch ?? this.isVoiceSearch,
       sortBy: sortBy ?? this.sortBy,
       userPincode: userPincode ?? this.userPincode,
+      radiusKm: radiusKm ?? this.radiusKm,
+      page: page ?? this.page,
+      pageSize: pageSize ?? this.pageSize,
     );
   }
 }
@@ -159,15 +171,17 @@ class SearchQueryNotifier extends Notifier<SearchQueryState> {
   }
 
   void setQuery(String q, {bool isVoice = false}) {
-    state = state.copyWith(query: q, isVoiceSearch: isVoice);
+    state = state.copyWith(query: q, isVoiceSearch: isVoice, page: 1);
   }
-  void setCategory(int? id) => state = state.copyWith(selectedCategoryId: id, clearSubcategory: true, isVoiceSearch: false);
-  void setSubcategory(int? subId) => state = state.copyWith(selectedSubcategoryId: subId, isVoiceSearch: false);
-  void clearCategory() => state = state.copyWith(clearCategory: true, clearSubcategory: true, isVoiceSearch: false);
-  void clearSubcategory() => state = state.copyWith(clearSubcategory: true, isVoiceSearch: false);
-  void setLocation(double lat, double lng) => state = state.copyWith(latitude: lat, longitude: lng);
-  void setSortBy(String sort) => state = state.copyWith(sortBy: sort);
-  void setPincode(String pin) => state = state.copyWith(userPincode: pin);
+  void setCategory(int? id) => state = state.copyWith(selectedCategoryId: id, clearSubcategory: true, isVoiceSearch: false, page: 1);
+  void setSubcategory(int? subId) => state = state.copyWith(selectedSubcategoryId: subId, isVoiceSearch: false, page: 1);
+  void clearCategory() => state = state.copyWith(clearCategory: true, clearSubcategory: true, isVoiceSearch: false, page: 1);
+  void clearSubcategory() => state = state.copyWith(clearSubcategory: true, isVoiceSearch: false, page: 1);
+  void setLocation(double lat, double lng) => state = state.copyWith(latitude: lat, longitude: lng, page: 1);
+  void setSortBy(String sort) => state = state.copyWith(sortBy: sort, page: 1);
+  void setPincode(String pin) => state = state.copyWith(userPincode: pin, page: 1);
+  void setRadius(double km) => state = state.copyWith(radiusKm: km, page: 1);
+  void setPage(int page) => state = state.copyWith(page: page < 1 ? 1 : page);
 }
 
 final searchQueryProvider = NotifierProvider<SearchQueryNotifier, SearchQueryState>(
@@ -175,130 +189,151 @@ final searchQueryProvider = NotifierProvider<SearchQueryNotifier, SearchQuerySta
 );
 
 extension BusinessDtoExtension on BusinessDto {
+  /// No fabricated owner names — show location context when useful.
   String get ownerName {
-    final names = [
-      'Pandit Rajesh Sharma',
-      'Acharya Vinay Shastri',
-      'Shri Ramesh Upadhyay',
-      'Pandit Anand Dwivedi',
-      'Shri Krishna Gopal',
-      'Acharya Devendra Prasad',
-      'Smt. Radha Mangal',
-      'Shri Suresh Kulkarni',
-      'Pandit Harish Vyas',
-      'Shri Ramakant Joshi',
-    ];
-    return names[businessId % names.length];
+    if (city.isNotEmpty && state.isNotEmpty) return '$city, $state';
+    if (city.isNotEmpty) return city;
+    return '';
   }
 }
 
-// Search results provider based on query state
-final searchResultsProvider = FutureProvider<List<BusinessDto>>((ref) async {
-  final queryState = ref.watch(searchQueryProvider);
-  final repo = ref.watch(businessRepositoryProvider);
+class SearchFeedState {
+  final List<BusinessDto> items;
+  final bool hasNextPage;
+  final bool isLoadingMore;
+  final int page;
+  final Object? error;
 
-  String resolvedPincode = queryState.userPincode;
-  String resolvedCity = '';
-  try {
-    final profileAsync = ref.watch(userProfileProvider);
-    final profile = profileAsync.value;
-    if (profile != null) {
-      if (resolvedPincode.isEmpty && profile.address.pincode != null) {
-        resolvedPincode = profile.address.pincode!;
-      }
-      if (profile.address.city != null) {
-        resolvedCity = profile.address.city!;
-      }
-    }
-  } catch (_) {}
+  const SearchFeedState({
+    this.items = const [],
+    this.hasNextPage = false,
+    this.isLoadingMore = false,
+    this.page = 1,
+    this.error,
+  });
 
-  List<BusinessDto> rawResults;
-  if (queryState.isVoiceSearch && queryState.query.isNotEmpty) {
-    rawResults = await repo.voiceSearchText(
-      queryState.query,
-      lat: queryState.latitude,
-      lng: queryState.longitude,
+  SearchFeedState copyWith({
+    List<BusinessDto>? items,
+    bool? hasNextPage,
+    bool? isLoadingMore,
+    int? page,
+    Object? error,
+    bool clearError = false,
+  }) {
+    return SearchFeedState(
+      items: items ?? this.items,
+      hasNextPage: hasNextPage ?? this.hasNextPage,
+      isLoadingMore: isLoadingMore ?? this.isLoadingMore,
+      page: page ?? this.page,
+      error: clearError ? null : (error ?? this.error),
     );
-  } else {
-    rawResults = await repo.searchBusinesses(
+  }
+}
+
+class SearchFeedNotifier extends AsyncNotifier<SearchFeedState> {
+  @override
+  Future<SearchFeedState> build() async {
+    // Watch filter fields only (exclude page so loadMore does not reset)
+    ref.watch(searchQueryProvider.select((s) => (
+          s.query,
+          s.selectedCategoryId,
+          s.selectedSubcategoryId,
+          s.latitude,
+          s.longitude,
+          s.sortBy,
+          s.radiusKm,
+          s.isVoiceSearch,
+          s.userPincode,
+          s.pageSize,
+        )));
+    return _fetchPage(page: 1, reset: true);
+  }
+
+  Future<SearchFeedState> _fetchPage({required int page, required bool reset}) async {
+    final queryState = ref.read(searchQueryProvider);
+    final repo = ref.read(businessRepositoryProvider);
+
+    String resolvedPincode = queryState.userPincode;
+    String resolvedCity = '';
+    try {
+      final profile = ref.read(userProfileProvider).value;
+      if (profile != null) {
+        if (resolvedPincode.isEmpty && profile.address.pincode != null) {
+          resolvedPincode = profile.address.pincode!;
+        }
+        if (profile.address.city != null) {
+          resolvedCity = profile.address.city!;
+        }
+      }
+    } catch (_) {}
+
+    if (queryState.isVoiceSearch && queryState.query.isNotEmpty) {
+      final items = await repo.voiceSearchText(
+        queryState.query,
+        lat: queryState.latitude,
+        lng: queryState.longitude,
+      );
+      return SearchFeedState(items: items, hasNextPage: false, page: 1);
+    }
+
+    final paged = await repo.searchBusinesses(
       queryState.query,
       latitude: queryState.latitude,
       longitude: queryState.longitude,
       sortBy: queryState.sortBy,
       userPincode: resolvedPincode,
       userCity: resolvedCity,
+      categoryId: queryState.selectedCategoryId,
+      subcategoryId: queryState.selectedSubcategoryId,
+      radiusKm: queryState.radiusKm,
+      page: page,
+      pageSize: queryState.pageSize,
+    );
+
+    final previous = reset ? <BusinessDto>[] : (state.asData?.value.items ?? []);
+    final merged = reset
+        ? paged.items
+        : [
+            ...previous,
+            ...paged.items.where(
+              (b) => !previous.any((p) => p.businessId == b.businessId),
+            ),
+          ];
+
+    return SearchFeedState(
+      items: merged,
+      hasNextPage: paged.hasNextPage,
+      page: page,
     );
   }
 
-  // Fallback to all local listings if search query returns empty to test client ranking
-  if (rawResults.isEmpty && queryState.query.trim().isNotEmpty) {
+  Future<void> loadMore() async {
+    final current = state.asData?.value;
+    if (current == null || !current.hasNextPage || current.isLoadingMore) return;
+
+    state = AsyncData(current.copyWith(isLoadingMore: true, clearError: true));
+    final nextPage = current.page + 1;
+
     try {
-      rawResults = await repo.getAllBusinesses();
-    } catch (_) {}
-  }
-
-  final searchWord = queryState.query.toLowerCase().trim();
-  List<BusinessDto> filtered = rawResults;
-
-  if (searchWord.isNotEmpty) {
-    try {
-      final cats = ref.read(categoriesProvider).value;
-      if (cats != null) {
-        for (final cat in cats) {
-          if (cat.categoryName.toLowerCase().contains(searchWord)) {
-            Future.microtask(() => ref.read(categoryUsageProvider.notifier).increment(cat.categoryId, 1));
-          }
-        }
-      }
-    } catch (_) {}
-
-    filtered = rawResults.where((b) {
-      final nameMatch = b.businessName.toLowerCase().contains(searchWord);
-      final ownerMatch = b.ownerName.toLowerCase().contains(searchWord);
-      final catMatch = (b.categoryName ?? '').toLowerCase().contains(searchWord);
-      final subMatch = (b.subcategoryName ?? '').toLowerCase().contains(searchWord);
-      final descMatch = b.description.toLowerCase().contains(searchWord);
-      final addressMatch = b.address.toLowerCase().contains(searchWord);
-      final cityMatch = b.city.toLowerCase().contains(searchWord);
-      final stateMatch = b.state.toLowerCase().contains(searchWord);
-      final pinMatch = b.pincode.toLowerCase().contains(searchWord);
-
-      bool zoneMatch = false;
-      final lowerAddr = '${b.address} ${b.city} ${b.state}'.toLowerCase();
-      if (searchWord.contains('east') && lowerAddr.contains('east')) zoneMatch = true;
-      if (searchWord.contains('west') && lowerAddr.contains('west')) zoneMatch = true;
-      if (searchWord.contains('north') && lowerAddr.contains('north')) zoneMatch = true;
-      if (searchWord.contains('south') && lowerAddr.contains('south')) zoneMatch = true;
-      if (searchWord.contains('central') && lowerAddr.contains('central')) zoneMatch = true;
-
-      return nameMatch || ownerMatch || catMatch || subMatch || descMatch || addressMatch || cityMatch || stateMatch || pinMatch || zoneMatch;
-    }).toList();
-  }
-
-  if (queryState.selectedCategoryId != null) {
-    filtered = filtered.where((b) => b.categoryId == queryState.selectedCategoryId).toList();
-    if (queryState.selectedSubcategoryId != null) {
-      filtered = filtered.where((b) => b.subcategoryId == queryState.selectedSubcategoryId).toList();
+      final next = await _fetchPage(page: nextPage, reset: false);
+      state = AsyncData(next.copyWith(isLoadingMore: false));
+    } catch (e) {
+      state = AsyncData(current.copyWith(isLoadingMore: false, error: e));
     }
   }
+}
 
-  // Enforce consistent sorting
-  final sort = queryState.sortBy.toLowerCase();
-  if (sort == 'alphabetical' || sort == 'name' || sort == 'a-z') {
-    filtered.sort((a, b) => a.businessName.toLowerCase().compareTo(b.businessName.toLowerCase()));
-  } else if (sort == 'alphabetical_desc' || sort == 'z-a') {
-    filtered.sort((a, b) => b.businessName.toLowerCase().compareTo(a.businessName.toLowerCase()));
-  } else if (sort == 'reviews' || sort == 'rating') {
-    filtered.sort((a, b) => b.averageRating.compareTo(a.averageRating));
-  } else if (sort == 'popularity') {
-    filtered.sort((a, b) => b.reviewCount.compareTo(a.reviewCount));
-  } else if (sort == 'recent' || sort == 'recently_added') {
-    filtered.sort((a, b) => b.businessId.compareTo(a.businessId));
-  } else if (sort == 'distance') {
-    filtered.sort((a, b) => (a.distance ?? 9999.0).compareTo(b.distance ?? 9999.0));
-  }
+final searchFeedProvider =
+    AsyncNotifierProvider<SearchFeedNotifier, SearchFeedState>(SearchFeedNotifier.new);
 
-  return filtered;
+// Backward-compatible list provider used by existing screens
+final searchResultsProvider = Provider<AsyncValue<List<BusinessDto>>>((ref) {
+  final feed = ref.watch(searchFeedProvider);
+  return feed.when(
+    data: (s) => AsyncData(s.items),
+    loading: () => const AsyncLoading(),
+    error: (e, st) => AsyncError(e, st),
+  );
 });
 
 // Reviews provider for business details
@@ -339,6 +374,7 @@ class FavoritesNotifier extends Notifier<List<int>> {
       state = state.where((id) => id != businessId).toList();
       try {
         await repo.removeFavorite(userId, businessId);
+        ref.invalidate(favoriteBusinessesProvider);
       } catch (_) {
         state = [...state, businessId]; // Rollback
       }
@@ -346,6 +382,7 @@ class FavoritesNotifier extends Notifier<List<int>> {
       state = [...state, businessId];
       try {
         await repo.addFavorite(userId, businessId);
+        ref.invalidate(favoriteBusinessesProvider);
       } catch (_) {
         state = state.where((id) => id != businessId).toList(); // Rollback
       }
@@ -358,6 +395,39 @@ class FavoritesNotifier extends Notifier<List<int>> {
 final favoritesProvider = NotifierProvider<FavoritesNotifier, List<int>>(
   FavoritesNotifier.new,
 );
+
+/// Loads full business records for saved favorite IDs in one API call.
+final favoriteBusinessesProvider = FutureProvider<List<BusinessDto>>((ref) async {
+  final ids = ref.watch(favoritesProvider);
+  if (ids.isEmpty) return [];
+
+  final auth = ref.watch(authProvider);
+  if (auth is! AuthAuthenticated) return [];
+
+  final repo = ref.watch(businessRepositoryProvider);
+  try {
+    final list = await repo.getFavoriteBusinesses(auth.userId);
+    // Preserve favorites-list order when possible
+    final byId = {for (final b in list) b.businessId: b};
+    return ids.map((id) => byId[id]).whereType<BusinessDto>().toList();
+  } catch (_) {
+    // Fallback: limited parallel fetch if batch endpoint unavailable
+    const chunk = 4;
+    final out = <BusinessDto>[];
+    for (var i = 0; i < ids.length; i += chunk) {
+      final slice = ids.skip(i).take(chunk);
+      final part = await Future.wait(slice.map((id) async {
+        try {
+          return await repo.getBusinessById(id);
+        } catch (_) {
+          return null;
+        }
+      }));
+      out.addAll(part.whereType<BusinessDto>());
+    }
+    return out;
+  }
+});
 
 final singleBusinessProvider = FutureProvider.family<BusinessDto, int>((ref, id) async {
   final repo = ref.watch(businessRepositoryProvider);

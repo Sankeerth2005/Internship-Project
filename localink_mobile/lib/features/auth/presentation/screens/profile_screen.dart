@@ -5,12 +5,15 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../core/network/dio_client.dart';
+import '../../../../core/storage/user_prefs_store.dart';
 import '../../providers/user_provider.dart';
 import '../../data/models/user_profile.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/location_provider.dart';
+import '../../../catalog/presentation/providers/currency_provider.dart';
 import '../../../profile/widgets/profile_info_tile.dart';
 import '../../../shared/presentation/widgets/app_feedback.dart';
 import '../../../../core/network/app_error_formatter.dart';
@@ -61,6 +64,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   bool _isEditMode = false;
   bool _isSaving = false;
   String? _profilePicBase64;
+  String _currency = UserPrefsStore.defaultCurrency;
+  List<String> _currencies = List<String>.from(UserPrefsStore.fallbackCurrencies);
+  bool _loadingCurrencies = true;
 
   final _nameCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
@@ -168,6 +174,33 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   void initState() {
     super.initState();
     _pincodeCtrl.addListener(_onPincodeChanged);
+    _loadCurrency();
+  }
+
+  Future<void> _loadCurrency() async {
+    final currency = await UserPrefsStore.getCurrency();
+    var currencies = List<String>.from(UserPrefsStore.fallbackCurrencies);
+
+    try {
+      final rates = await ref
+          .read(currencyRepositoryProvider)
+          .getExchangeRates(currency);
+      if (rates.success && rates.data != null && rates.data!.rates.isNotEmpty) {
+        currencies = rates.data!.rates.keys.toList()..sort();
+        if (!currencies.contains(currency)) {
+          currencies.insert(0, currency);
+        }
+      }
+    } catch (_) {
+      // Keep offline fallback list when rates API is unavailable.
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _currency = currency;
+      _currencies = currencies;
+      _loadingCurrencies = false;
+    });
   }
 
   @override
@@ -659,6 +692,101 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     const SizedBox(height: 20),
                   ],
 
+                  // Preferences
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: _ProfileTok.cardBg,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: _ProfileTok.border),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Preferences',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w800,
+                            color: _ProfileTok.textHigh,
+                            fontSize: 14,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Row(
+                          children: [
+                            const Expanded(
+                              child: Text(
+                                'Display currency',
+                                style: TextStyle(
+                                  color: _ProfileTok.textMedium,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ),
+                            if (_loadingCurrencies)
+                              const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            else
+                              DropdownButtonHideUnderline(
+                                child: DropdownButton<String>(
+                                  value: _currencies.contains(_currency)
+                                      ? _currency
+                                      : (_currencies.isNotEmpty
+                                          ? _currencies.first
+                                          : UserPrefsStore.defaultCurrency),
+                                  isExpanded: false,
+                                  menuMaxHeight: 360,
+                                  items: _currencies
+                                      .map(
+                                        (c) => DropdownMenuItem(
+                                          value: c,
+                                          child: Text(c),
+                                        ),
+                                      )
+                                      .toList(),
+                                  onChanged: (v) async {
+                                    if (v == null) return;
+                                    await UserPrefsStore.setCurrency(v);
+                                    if (!mounted) return;
+                                    setState(() => _currency = v);
+                                    if (!context.mounted) return;
+                                    AppFeedback.showSuccess(
+                                      context,
+                                      'Currency set to $v',
+                                    );
+                                  },
+                                ),
+                              ),
+                          ],
+                        ),
+                        const Divider(height: 20),
+                        ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          dense: true,
+                          leading: const Icon(
+                            Icons.lock_reset_rounded,
+                            color: _ProfileTok.primary,
+                          ),
+                          title: const Text(
+                            'Change password',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 13,
+                              color: _ProfileTok.textHigh,
+                            ),
+                          ),
+                          trailing: const Icon(Icons.chevron_right_rounded),
+                          onTap: () => context.push('/change-password'),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
                   // Logout Button
                   SizedBox(
                     width: double.infinity,
@@ -675,6 +803,27 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         ref.read(authProvider.notifier).logout();
                       },
                     ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Legal & Account Links
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextButton.icon(
+                          onPressed: () => context.push('/privacy-policy'),
+                          icon: const Icon(Icons.description_outlined, size: 16, color: _ProfileTok.textMedium),
+                          label: const Text('Privacy Policy', style: TextStyle(color: _ProfileTok.textMedium, fontSize: 12)),
+                        ),
+                      ),
+                      Expanded(
+                        child: TextButton.icon(
+                          onPressed: () => context.push('/delete-account'),
+                          icon: const Icon(Icons.delete_outline, size: 16, color: _ProfileTok.error),
+                          label: const Text('Delete Account', style: TextStyle(color: _ProfileTok.error, fontSize: 12)),
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 40),
                 ],

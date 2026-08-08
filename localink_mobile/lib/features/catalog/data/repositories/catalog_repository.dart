@@ -1,7 +1,6 @@
 import 'dart:io';
 import 'package:dio/dio.dart';
 import '../../../../core/network/dio_client.dart';
-import '../../../../core/storage/secure_storage_service.dart';
 import '../models/catalog_models.dart';
 
 class CatalogRepository {
@@ -9,21 +8,11 @@ class CatalogRepository {
 
   CatalogRepository(this._dioClient);
 
-  Future<Options> _getAuthOptions({String contentType = 'application/json'}) async {
-    final token = await SecureStorageService.getToken();
-    return Options(
-      headers: {
-        'Content-Type': contentType,
-        if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
-      },
-    );
-  }
 
   Future<List<Catalog>> getCatalogs(int businessId) async {
     try {
       final response = await _dioClient.dio.get(
         '/catalog/$businessId',
-        options: await _getAuthOptions(),
       );
       if (response.data['success'] == true) {
         final List data = response.data['data'] ?? [];
@@ -43,7 +32,6 @@ class CatalogRepository {
           'title': title,
           'description': description,
         },
-        options: await _getAuthOptions(),
       );
       if (response.data['success'] == true) {
         return Catalog.fromJson(response.data['data']);
@@ -62,7 +50,6 @@ class CatalogRepository {
           'title': title,
           'description': description,
         },
-        options: await _getAuthOptions(),
       );
       if (response.data['success'] == true) {
         return Catalog.fromJson(response.data['data']);
@@ -77,7 +64,6 @@ class CatalogRepository {
     try {
       await _dioClient.dio.delete(
         '/catalog/$catalogId',
-        options: await _getAuthOptions(),
       );
     } catch (e) {
       rethrow;
@@ -112,7 +98,7 @@ class CatalogRepository {
       final response = await _dioClient.dio.post(
         '/catalog/$catalogId/items',
         data: formData,
-        options: await _getAuthOptions(contentType: 'multipart/form-data'),
+        options: Options(contentType: 'multipart/form-data'),
       );
       if (response.data['success'] == true) {
         return CatalogItem.fromJson(response.data['data']);
@@ -151,7 +137,7 @@ class CatalogRepository {
       final response = await _dioClient.dio.put(
         '/catalog/items/$itemId',
         data: formData,
-        options: await _getAuthOptions(contentType: 'multipart/form-data'),
+        options: Options(contentType: 'multipart/form-data'),
       );
       if (response.data['success'] == true) {
         return CatalogItem.fromJson(response.data['data']);
@@ -166,7 +152,6 @@ class CatalogRepository {
     try {
       await _dioClient.dio.delete(
         '/catalog/items/$itemId',
-        options: await _getAuthOptions(),
       );
     } catch (e) {
       rethrow;

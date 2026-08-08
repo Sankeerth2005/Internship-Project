@@ -251,11 +251,14 @@ Rules:
                     try
                     {
                         var history = JsonSerializer.Deserialize<JsonElement[]>(chatHistoryJson);
-                        foreach (var msg in history)
+                        if (history != null)
                         {
-                            if (msg.TryGetProperty("role", out var r) && msg.TryGetProperty("content", out var c))
+                            foreach (var msg in history)
                             {
-                                messagesList.Add(new { role = r.GetString(), content = c.GetString() });
+                                if (msg.TryGetProperty("role", out var r) && msg.TryGetProperty("content", out var c))
+                                {
+                                    messagesList.Add(new { role = r.GetString(), content = c.GetString() });
+                                }
                             }
                         }
                     }

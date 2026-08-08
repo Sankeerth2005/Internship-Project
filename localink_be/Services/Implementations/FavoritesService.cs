@@ -67,5 +67,46 @@ namespace localink_be.Services.Implementations
                 .Select(f => f.BusinessId)
                 .ToListAsync();
         }
+
+        public async Task<List<BusinessDto>> GetUserFavoriteBusinessesAsync(long userId)
+        {
+            var ids = await GetUserFavoritesAsync(userId);
+            if (ids.Count == 0) return new List<BusinessDto>();
+
+            return await _context.Businesses
+                .AsNoTracking()
+                .Where(b => ids.Contains(b.BusinessId))
+                .Select(b => new BusinessDto
+                {
+                    Id = b.BusinessId,
+                    Name = b.BusinessName,
+                    Description = b.Description,
+                    CategoryName = b.Category != null ? b.Category.CategoryName : "",
+                    SubcategoryName = b.Subcategory != null ? b.Subcategory.SubcategoryName : "",
+                    SubcategoryId = b.SubcategoryId,
+                    CategoryId = b.CategoryId,
+                    PhoneNumber = _context.BusinessContacts.Where(c => c.BusinessId == b.BusinessId).Select(c => c.PhoneNumber).FirstOrDefault(),
+                    PhoneCode = _context.BusinessContacts.Where(c => c.BusinessId == b.BusinessId).Select(c => c.PhoneCode).FirstOrDefault(),
+                    Email = _context.BusinessContacts.Where(c => c.BusinessId == b.BusinessId).Select(c => c.Email).FirstOrDefault(),
+                    Website = _context.BusinessContacts.Where(c => c.BusinessId == b.BusinessId).Select(c => c.Website).FirstOrDefault(),
+                    City = _context.BusinessContacts.Where(c => c.BusinessId == b.BusinessId).Select(c => c.City).FirstOrDefault(),
+                    State = _context.BusinessContacts.Where(c => c.BusinessId == b.BusinessId).Select(c => c.State).FirstOrDefault(),
+                    Country = _context.BusinessContacts.Where(c => c.BusinessId == b.BusinessId).Select(c => c.Country).FirstOrDefault(),
+                    StreetAddress = _context.BusinessContacts.Where(c => c.BusinessId == b.BusinessId).Select(c => c.StreetAddress).FirstOrDefault(),
+                    Pincode = _context.BusinessContacts.Where(c => c.BusinessId == b.BusinessId).Select(c => c.Pincode).FirstOrDefault(),
+                    Latitude = _context.BusinessContacts.Where(c => c.BusinessId == b.BusinessId).Select(c => c.Latitude).FirstOrDefault(),
+                    Longitude = _context.BusinessContacts.Where(c => c.BusinessId == b.BusinessId).Select(c => c.Longitude).FirstOrDefault(),
+                    PrimaryImage = _context.BusinessPhotos.Where(p => p.BusinessId == b.BusinessId).OrderByDescending(p => p.IsPrimary).Select(p => p.ImageUrl).FirstOrDefault(),
+                    Photos = _context.BusinessPhotos.Where(p => p.BusinessId == b.BusinessId).OrderByDescending(p => p.IsPrimary).Select(p => p.ImageUrl).ToList(),
+                    AverageRating = _context.BusinessReviews.Where(r => r.BusinessId == b.BusinessId).Select(r => (double?)r.Rating).Average() ?? 0.0,
+                    TotalReviews = _context.BusinessReviews.Count(r => r.BusinessId == b.BusinessId),
+                    IsTemporarilyClosed = b.TemporaryClosureStatus == "Approved" && b.TemporaryClosureReopenDate.HasValue && b.TemporaryClosureReopenDate.Value > DateTime.UtcNow,
+                    TemporaryClosureReason = b.TemporaryClosureReason,
+                    TemporaryClosureStatus = b.TemporaryClosureStatus,
+                    TemporaryClosureDays = b.TemporaryClosureDays,
+                    TemporaryClosureReopenDate = b.TemporaryClosureReopenDate
+                })
+                .ToListAsync();
+        }
     }
 }

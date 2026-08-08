@@ -5,7 +5,7 @@ namespace localink_be.Models.DTOs
     public class RegisterRequest
     {
         [Required(ErrorMessage = "User type is required")]
-        [RegularExpression(@"^(client|businessowner|admin)$", ErrorMessage = "User type must be client, businessowner, or admin")]
+        [RegularExpression(@"^(client|businessowner|user)$", ErrorMessage = "User type must be client, businessowner, or user")]
         public string UserType { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "Name is required")]
@@ -15,6 +15,8 @@ namespace localink_be.Models.DTOs
 
         [Required(ErrorMessage = "Email is required")]
         [EmailAddress(ErrorMessage = "Invalid email format")]
+        [RegularExpression(@"^[a-zA-Z0-9](?:[a-zA-Z0-9._%+-]*[a-zA-Z0-9])?@[a-zA-Z0-9](?:[a-zA-Z0-9.-]*[a-zA-Z0-9])?\.[a-zA-Z]{2,}$",
+            ErrorMessage = "Email must be a valid address (no trailing dots before @)")]
         [StringLength(256, ErrorMessage = "Email cannot exceed 256 characters")]
         public string Email { get; set; } = string.Empty;
 

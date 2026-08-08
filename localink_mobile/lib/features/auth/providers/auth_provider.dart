@@ -5,6 +5,7 @@ import '../../../core/storage/secure_storage_service.dart';
 import '../../../core/network/app_error_formatter.dart';
 import '../data/models/login_request.dart';
 import '../data/models/register_request.dart';
+import '../data/models/auth_response.dart';
 import '../data/repositories/auth_repository.dart';
 import 'auth_state.dart';
 import 'user_provider.dart';
@@ -33,14 +34,15 @@ final authProvider = NotifierProvider<AuthNotifier, AuthState>(
 
 class AuthNotifier extends Notifier<AuthState> {
   late final AuthRepository _repository;
+  bool _loggingOut = false;
 
   @override
   AuthState build() {
     _repository = ref.watch(authRepositoryProvider);
-    
-    // Wire unauthorized response handler to cleanly logout when session/token expires
+
+    // Only fires after refresh token fails — not on every access-token expiry
     DioClient.onUnauthorized = () {
-      logout();
+      logout(revokeServerSession: false);
     };
 
     Future.microtask(() => checkAuthStatus());
@@ -49,37 +51,67 @@ class AuthNotifier extends Notifier<AuthState> {
 
   Future<void> checkAuthStatus() async {
     final token = await SecureStorageService.getToken();
+    final refreshToken = await SecureStorageService.getRefreshToken();
     final userType = await SecureStorageService.getUserType();
     final userId = await SecureStorageService.getUserId();
 
-    if (token != null && userType != null && userId != null) {
-      state = AuthAuthenticated(userType, userId);
-    } else {
+    if (userType == null || userId == null) {
       state = const AuthUnauthenticated();
+      return;
     }
+
+    // Prefer validating/refreshing the session on cold start so revoked
+    // tokens don't look authenticated until the first API 401.
+    if (refreshToken != null && refreshToken.isNotEmpty) {
+      try {
+        final refreshed = await _repository.refresh(refreshToken);
+        await _persistSession(refreshed);
+        return;
+      } catch (_) {
+        await SecureStorageService.clearAuth();
+        state = const AuthUnauthenticated();
+        return;
+      }
+    }
+
+    if (token != null && token.isNotEmpty) {
+      // Legacy session without refresh token — keep until first 401, then logout.
+      state = AuthAuthenticated(userType, userId);
+      return;
+    }
+
+    state = const AuthUnauthenticated();
   }
 
-  Future<void> login(String usernameOrEmail, String password) async {
+  Future<void> _persistSession(AuthResponse response) async {
+    final parsedUserId = int.tryParse(response.user.id) ?? 0;
+
+    await SecureStorageService.saveToken(response.token);
+    if (response.refreshToken != null && response.refreshToken!.isNotEmpty) {
+      await SecureStorageService.saveRefreshToken(response.refreshToken!);
+    }
+    await SecureStorageService.saveUserType(response.user.userType);
+    await SecureStorageService.saveUserId(parsedUserId);
+
+    ref.read(userRepositoryProvider).clearCache();
+    ref.invalidate(userProfileProvider);
+    ref.invalidate(myBusinessesProvider);
+    state = AuthAuthenticated(response.user.userType, parsedUserId);
+  }
+
+  Future<void> login(
+    String usernameOrEmail,
+    String password,
+  ) async {
     state = const AuthLoading();
     try {
       final request = LoginRequest(
         usernameOrEmail: usernameOrEmail,
         password: password,
-        captchaToken:
-            'string', // Bypass captcha check for local testing
       );
 
       final response = await _repository.login(request);
-      final parsedUserId = int.tryParse(response.user.id) ?? 0;
-
-      await SecureStorageService.saveToken(response.token);
-      await SecureStorageService.saveUserType(response.user.userType);
-      await SecureStorageService.saveUserId(parsedUserId);
-
-      ref.read(userRepositoryProvider).clearCache();
-      ref.invalidate(userProfileProvider);
-      ref.invalidate(myBusinessesProvider);
-      state = AuthAuthenticated(response.user.userType, parsedUserId);
+      await _persistSession(response);
     } catch (e) {
       state = AuthError(AppErrorFormatter.format(e));
     }
@@ -89,8 +121,7 @@ class AuthNotifier extends Notifier<AuthState> {
     state = const AuthLoading();
     try {
       final message = await _repository.register(request);
-      state =
-          const AuthUnauthenticated(); // Go back to unauthenticated to allow login
+      state = const AuthUnauthenticated();
       return message;
     } catch (e) {
       final errorMsg = AppErrorFormatter.format(e);
@@ -99,14 +130,36 @@ class AuthNotifier extends Notifier<AuthState> {
     }
   }
 
+  Future<void> googleSignIn(String idToken) async {
+    state = const AuthLoading();
+    try {
+      final response = await _repository.googleSignIn(idToken);
+      await _persistSession(response);
+    } catch (e) {
+      state = AuthError(AppErrorFormatter.format(e));
+    }
+  }
 
-  Future<void> logout() async {
-    final currentUserId = (state is AuthAuthenticated) ? (state as AuthAuthenticated).userId : null;
-    await SignalRService().disconnect(currentUserId);
-    await SecureStorageService.clearAll();
-    ref.read(userRepositoryProvider).clearCache();
-    ref.invalidate(userProfileProvider);
-    ref.invalidate(myBusinessesProvider);
-    state = const AuthUnauthenticated();
+  Future<void> logout({bool revokeServerSession = true}) async {
+    if (_loggingOut) return;
+    _loggingOut = true;
+    try {
+      final currentUserId =
+          (state is AuthAuthenticated) ? (state as AuthAuthenticated).userId : null;
+
+      if (revokeServerSession) {
+        final refreshToken = await SecureStorageService.getRefreshToken();
+        await _repository.logout(refreshToken);
+      }
+
+      await SignalRService().disconnect(currentUserId);
+      await SecureStorageService.clearAuth();
+      ref.read(userRepositoryProvider).clearCache();
+      ref.invalidate(userProfileProvider);
+      ref.invalidate(myBusinessesProvider);
+      state = const AuthUnauthenticated();
+    } finally {
+      _loggingOut = false;
+    }
   }
 }

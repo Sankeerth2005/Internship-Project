@@ -1,47 +1,71 @@
-import type { Metadata } from 'next'
-import { Inter, Plus_Jakarta_Sans } from 'next/font/google'
+import type { Metadata, Viewport } from 'next'
+import { Fraunces, Manrope } from 'next/font/google'
 import './globals.css'
 
-const inter = Inter({ 
+const display = Fraunces({
   subsets: ['latin'],
-  variable: '--font-inter',
+  variable: '--font-display',
   display: 'swap',
 })
 
-const plusJakartaSans = Plus_Jakarta_Sans({
+const body = Manrope({
   subsets: ['latin'],
-  variable: '--font-plus-jakarta-sans',
+  variable: '--font-body',
   display: 'swap',
 })
 
 export const metadata: Metadata = {
-  title: 'Vocal For Sanatan - Discover Local Businesses | AI-Powered Business Directory',
-  description: 'Find and connect with local businesses using Vocal For Sanatan\'s AI-powered platform. Search, chat, and review businesses in your area. Download the app coming soon to iOS and Android.',
-  keywords: 'local business directory, find local businesses, business search app, AI business recommendations, local services, business reviews, chat with businesses, mobile business app',
+  metadataBase: new URL('https://vocalforsanatan.com'),
+  title: {
+    default: 'Vocal for Sanatan — Discover Local Businesses',
+    template: '%s | Vocal for Sanatan',
+  },
+  description:
+    'Vocal for Sanatan connects you with nearby businesses through AI search, maps, reviews, and direct chat. Download the Android app and grow your local community.',
+  keywords: [
+    'Vocal for Sanatan',
+    'local business directory',
+    'AI business search',
+    'find shops near me',
+    'business chat app',
+    'India local commerce',
+  ],
+  authors: [{ name: 'Vocal for Sanatan' }],
+  icons: {
+    icon: [{ url: '/app-icon-192.png', type: 'image/png' }],
+    apple: [{ url: '/app-icon.png' }],
+    shortcut: '/favicon.png',
+  },
   openGraph: {
-    title: 'Vocal For Sanatan - Discover Local Businesses',
-    description: 'The all-in-one platform connecting users with local businesses through intelligent search and real-time communication.',
+    title: 'Vocal for Sanatan — Discover Local Businesses',
+    description:
+      'AI-powered local discovery, real-time chat with businesses, reviews, and maps — built for communities across India.',
+    url: 'https://vocalforsanatan.com',
+    siteName: 'Vocal for Sanatan',
     type: 'website',
+    locale: 'en_IN',
+    images: [{ url: '/app-icon.png', width: 1024, height: 1024, alt: 'Vocal for Sanatan' }],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Vocal For Sanatan - Discover Local Businesses',
-    description: 'The all-in-one platform connecting users with local businesses through intelligent search and real-time communication.',
+    title: 'Vocal for Sanatan',
+    description: 'Discover and connect with local businesses near you.',
+    images: ['/app-icon.png'],
   },
-  robots: {
-    index: true,
-    follow: true,
-  },
+  robots: { index: true, follow: true },
+  alternates: { canonical: 'https://vocalforsanatan.com' },
 }
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+export const viewport: Viewport = {
+  themeColor: '#FF6600',
+  width: 'device-width',
+  initialScale: 1,
+}
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className="dark scroll-smooth">
-      <body className={`${inter.variable} ${plusJakartaSans.variable} font-sans bg-background text-text antialiased`}>
+    <html lang="en" className="scroll-smooth">
+      <body className={`${display.variable} ${body.variable} font-sans`}>
         {children}
       </body>
     </html>

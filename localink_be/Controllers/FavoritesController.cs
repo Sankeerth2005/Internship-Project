@@ -119,5 +119,35 @@ namespace localink_be.Controllers
             var favorites = await _favoritesService.GetUserFavoritesAsync(userId);
             return Ok(favorites);
         }
+
+        /// <summary>
+        /// Returns full business cards for the user's favorites in one round-trip (avoids N+1 on mobile).
+        /// </summary>
+        [HttpGet("user/{userId}/businesses")]
+        [ProducesResponseType(typeof(List<BusinessDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(object), StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> GetFavoriteBusinesses(
+            [FromRoute][Range(1, long.MaxValue)] long userId)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(new
+                {
+                    success = false,
+                    message = "Invalid User ID"
+                });
+            }
+
+            var currentUserIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(currentUserIdStr)) return Unauthorized();
+            long currentUserId = long.Parse(currentUserIdStr);
+            if (userId != currentUserId && !User.IsInRole("admin"))
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, new { success = false, message = "Forbidden" });
+            }
+
+            var businesses = await _favoritesService.GetUserFavoriteBusinessesAsync(userId);
+            return Ok(businesses);
+        }
     }
 }

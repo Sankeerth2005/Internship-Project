@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
@@ -26,11 +27,13 @@ class ForYouFeedScreen extends ConsumerStatefulWidget {
 
 class _ForYouFeedScreenState extends ConsumerState<ForYouFeedScreen> {
   bool _loading = true;
-  String _greeting = "Namaste! Welcome back to your local guide.";
-  String _timeOfDay = "Day";
-  String _preferredCategory = "Services";
+  String _greeting = 'Namaste! Welcome back to your local guide.';
+  String _timeOfDay = 'Day';
+  String _preferredCategory = 'Services';
   List<dynamic> _recommendations = [];
-  String _errorMessage = "";
+  String _errorMessage = '';
+  bool _locationRequired = false;
+  String? _emptyMessage;
 
   @override
   void initState() {
@@ -38,59 +41,99 @@ class _ForYouFeedScreenState extends ConsumerState<ForYouFeedScreen> {
     _loadPersonalizedFeed();
   }
 
+  Future<({double? lat, double? lng, bool denied})> _resolveLocation() async {
+    try {
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        return (lat: null, lng: null, denied: true);
+      }
+
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        return (lat: null, lng: null, denied: true);
+      }
+
+      final pos = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.medium,
+          timeLimit: Duration(seconds: 6),
+        ),
+      );
+      return (lat: pos.latitude, lng: pos.longitude, denied: false);
+    } catch (_) {
+      return (lat: null, lng: null, denied: true);
+    }
+  }
+
   Future<void> _loadPersonalizedFeed() async {
     setState(() {
       _loading = true;
-      _errorMessage = "";
+      _errorMessage = '';
+      _locationRequired = false;
+      _emptyMessage = null;
     });
 
-    double? lat;
-    double? lng;
+    final location = await _resolveLocation();
+    final lat = location.lat;
+    final lng = location.lng;
 
-    try {
-      // Fetch user location
-      final permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.always || permission == LocationPermission.whileInUse) {
-        final pos = await Geolocator.getCurrentPosition(
-          locationSettings: const LocationSettings(
-            accuracy: LocationAccuracy.low,
-            timeLimit: Duration(seconds: 4),
-          ),
-        );
-        lat = pos.latitude;
-        lng = pos.longitude;
-      }
-    } catch (_) {
-      // Fail silently and use fallbacks
+    if (lat == null || lng == null) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _locationRequired = true;
+        _recommendations = [];
+        _emptyMessage =
+            'Location is required for your For You feed. Enable location to see nearby businesses.';
+      });
+      return;
     }
 
     try {
       final response = await DioClient().dio.get(
         'personalization/feed',
         queryParameters: {
-          'lat': ?lat,
-          'lng': ?lng,
+          'lat': lat,
+          'lng': lng,
         },
+        options: Options(
+          headers: {
+            'X-User-Latitude': lat.toString(),
+            'X-User-Longitude': lng.toString(),
+          },
+        ),
       );
 
       final data = response.data;
       if (data != null && data['success'] == true) {
+        final items =
+            data['data'] is List ? List<dynamic>.from(data['data']) : <dynamic>[];
+        if (!mounted) return;
         setState(() {
           _greeting = data['greeting'] ?? _greeting;
           _timeOfDay = data['timeOfDay'] ?? _timeOfDay;
           _preferredCategory = data['preferredCategory'] ?? _preferredCategory;
-          _recommendations = data['data'] ?? [];
+          _recommendations = items;
+          _locationRequired = data['locationRequired'] == true;
+          _emptyMessage = data['message'] as String?;
           _loading = false;
         });
       } else {
+        if (!mounted) return;
         setState(() {
-          _errorMessage = "Failed to load personalized content.";
+          _errorMessage = 'Failed to load personalized content.';
           _loading = false;
         });
       }
     } catch (e) {
+      if (!mounted) return;
       setState(() {
-        _errorMessage = "Unable to reach server. Please check connection.";
+        _errorMessage = 'Unable to reach server. Please check connection.';
         _loading = false;
       });
     }
@@ -136,7 +179,10 @@ class _ForYouFeedScreenState extends ConsumerState<ForYouFeedScreen> {
           ? const Center(child: CircularProgressIndicator(color: _FeedTok.primary))
           : _errorMessage.isNotEmpty
               ? Center(
-                  child: Text(_errorMessage, style: const TextStyle(color: _FeedTok.textMedium, fontSize: 14)),
+                  child: Text(
+                    _errorMessage,
+                    style: const TextStyle(color: _FeedTok.textMedium, fontSize: 14),
+                  ),
                 )
               : RefreshIndicator(
                   color: _FeedTok.primary,
@@ -147,7 +193,6 @@ class _ForYouFeedScreenState extends ConsumerState<ForYouFeedScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Futuristic Greeting Card
                         Container(
                           width: double.infinity,
                           padding: const EdgeInsets.all(20),
@@ -198,47 +243,109 @@ class _ForYouFeedScreenState extends ConsumerState<ForYouFeedScreen> {
                           ),
                         ),
                         const SizedBox(height: 24),
-
-                        // Preferred Category Section Title
-                        Row(
-                          children: [
-                            const Icon(Icons.star_rounded, color: _FeedTok.primary, size: 18),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Suggested Category: $_preferredCategory',
-                              style: const TextStyle(
-                                color: _FeedTok.textHigh,
-                                fontSize: 15,
-                                fontWeight: FontWeight.bold,
+                        if (!_locationRequired && _recommendations.isNotEmpty) ...[
+                          Row(
+                            children: [
+                              const Icon(Icons.near_me_rounded, color: _FeedTok.primary, size: 18),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Near you · $_preferredCategory',
+                                  style: const TextStyle(
+                                    color: _FeedTok.textHigh,
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
                               ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-
-                        // Recommendations List
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                        ],
                         if (_recommendations.isEmpty)
-                          Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(32),
-                            decoration: BoxDecoration(
-                              color: _FeedTok.cardBg,
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(color: _FeedTok.border),
-                            ),
-                            child: const Center(
-                              child: Text(
-                                'No local recommendations found for this category currently.',
-                                style: TextStyle(color: _FeedTok.textMedium, fontSize: 13),
-                              ),
-                            ),
+                          _EmptyNearbyState(
+                            locationRequired: _locationRequired,
+                            message: _emptyMessage,
+                            onRetry: _loadPersonalizedFeed,
+                            onOpenSettings: () => Geolocator.openAppSettings(),
                           )
                         else
-                          ..._recommendations.map((item) => AiFeedCard(item: item)),
+                          ..._recommendations.map(
+                            (item) => AiFeedCard(
+                              item: Map<String, dynamic>.from(item as Map),
+                            ),
+                          ),
                       ],
                     ),
                   ),
                 ),
+    );
+  }
+}
+
+class _EmptyNearbyState extends StatelessWidget {
+  final bool locationRequired;
+  final String? message;
+  final VoidCallback onRetry;
+  final VoidCallback onOpenSettings;
+
+  const _EmptyNearbyState({
+    required this.locationRequired,
+    required this.message,
+    required this.onRetry,
+    required this.onOpenSettings,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(32),
+      decoration: BoxDecoration(
+        color: _FeedTok.cardBg,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _FeedTok.border),
+      ),
+      child: Column(
+        children: [
+          Icon(
+            locationRequired ? Icons.location_off_rounded : Icons.storefront_outlined,
+            color: _FeedTok.primary,
+            size: 36,
+          ),
+          const SizedBox(height: 12),
+          Text(
+            message ??
+                (locationRequired
+                    ? 'Enable location to see nearby recommendations.'
+                    : 'No businesses found near your location right now.'),
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: _FeedTok.textMedium, fontSize: 13, height: 1.4),
+          ),
+          const SizedBox(height: 16),
+          if (locationRequired) ...[
+            TextButton.icon(
+              onPressed: onRetry,
+              icon: const Icon(Icons.my_location_rounded, size: 18),
+              label: const Text('Enable location'),
+              style: TextButton.styleFrom(foregroundColor: _FeedTok.primary),
+            ),
+            TextButton(
+              onPressed: onOpenSettings,
+              child: const Text(
+                'Open settings',
+                style: TextStyle(color: _FeedTok.textMedium, fontSize: 12),
+              ),
+            ),
+          ] else
+            TextButton.icon(
+              onPressed: onRetry,
+              icon: const Icon(Icons.refresh_rounded, size: 18),
+              label: const Text('Try again'),
+              style: TextButton.styleFrom(foregroundColor: _FeedTok.primary),
+            ),
+        ],
+      ),
     );
   }
 }

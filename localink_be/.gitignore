@@ -4,3 +4,7 @@
 .env
 .env.*
 !.env.example
+
+# Publish output (must not be nested under project content)
+publish_be/
+publish/

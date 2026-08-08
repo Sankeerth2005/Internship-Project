@@ -7,5 +7,6 @@ namespace localink_be.Services.Interfaces
         Task<string> AddFavoriteAsync(FavoriteDto dto);
         Task<string> RemoveFavoriteAsync(long userId, long businessId);
         Task<List<long>> GetUserFavoritesAsync(long userId);
+        Task<List<BusinessDto>> GetUserFavoriteBusinessesAsync(long userId);
     }
 }

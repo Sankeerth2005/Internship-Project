@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../business/data/models/business_models.dart';
-import '../../../../core/network/dio_client.dart';
+import '../../../../core/widgets/optimized_network_image.dart';
 
 class FavoriteBusinessCard extends StatefulWidget {
   final BusinessDto business;
@@ -52,19 +52,14 @@ class _FavoriteBusinessCardState extends State<FavoriteBusinessCard> {
                 SizedBox(
                   width: 110,
                   height: 110,
-                  child: widget.business.photos.isNotEmpty
-                      ? Image.network(
-                          '${Uri.parse(DioClient().dio.options.baseUrl).origin}${widget.business.photos.first}',
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, st) => Container(
-                            color: const Color(0xFFF0EFEA),
-                            child: const Icon(Icons.storefront_rounded, color: Color(0xFFFF6600), size: 30),
-                          ),
-                        )
-                      : Container(
-                          color: const Color(0xFFF0EFEA),
-                          child: const Icon(Icons.storefront_rounded, color: Color(0xFFFF6600), size: 30),
-                        ),
+                  child: OptimizedNetworkImage.business(
+                    imageUrl: widget.business.photos.isNotEmpty
+                        ? widget.business.photos.first
+                        : null,
+                    width: 110,
+                    height: 110,
+                    iconSize: 30,
+                  ),
                 ),
 
                 // Details

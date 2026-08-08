@@ -45,50 +45,29 @@ public class ReviewController : ControllerBase
                 message = "Review submitted successfully"
             });
         }
-        catch (Exception ex)
+        catch (ArgumentException ex)
         {
-            return BadRequest(new
-            {
-                success = false,
-                error = ex.Message
-            });
+            return BadRequest(new { success = false, error = ex.Message });
         }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { success = false, error = ex.Message });
+        }
+        // Unexpected errors bubble to ExceptionMiddleware
     }
 
     [HttpGet("business/{businessId}")]
     public async Task<IActionResult> GetReviews(long businessId)
     {
-        try
-        {
-            var reviews = await _reviewService.GetReviewsByBusiness(businessId);
-
-            return Ok(reviews);
-        }
-        catch (Exception ex)
-        {
-            return StatusCode(500, new
-            {
-                error = ex.Message
-            });
-        }
+        var reviews = await _reviewService.GetReviewsByBusiness(businessId);
+        return Ok(reviews);
     }
 
     [HttpGet("summary/{businessId}")]
     public async Task<IActionResult> GetSummary(long businessId)
     {
-        try
-        {
-            var summary = await _reviewService.GetSummary(businessId);
-
-            return Ok(summary);
-        }
-        catch (Exception ex)
-        {
-            return StatusCode(500, new
-            {
-                error = ex.Message
-            });
-        }
+        var summary = await _reviewService.GetSummary(businessId);
+        return Ok(summary);
     }
     private long GetUserId()
     {

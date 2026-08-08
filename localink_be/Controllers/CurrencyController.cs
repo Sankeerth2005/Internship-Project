@@ -17,17 +17,21 @@ namespace localink_be.Controllers
         [HttpGet("convert")]
         public async Task<IActionResult> ConvertCurrency([FromQuery] decimal amount, [FromQuery] string from, [FromQuery] string to)
         {
+            if (string.IsNullOrWhiteSpace(from) || string.IsNullOrWhiteSpace(to))
+            {
+                return BadRequest(new { success = false, message = "From and To currencies are required" });
+            }
+
             try
             {
-                if (string.IsNullOrWhiteSpace(from) || string.IsNullOrWhiteSpace(to))
-                {
-                    return BadRequest(new { success = false, message = "From and To currencies are required" });
-                }
-
                 var result = await _currencyService.ConvertCurrencyAsync(amount, from, to);
                 return Ok(new { success = true, data = new { amount = result, from, to } });
             }
-            catch (Exception ex)
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { success = false, message = ex.Message });
+            }
+            catch (InvalidOperationException ex)
             {
                 return BadRequest(new { success = false, message = ex.Message });
             }
@@ -36,17 +40,21 @@ namespace localink_be.Controllers
         [HttpGet("rates")]
         public async Task<IActionResult> GetExchangeRates([FromQuery] string baseCurrency = "USD")
         {
+            if (string.IsNullOrWhiteSpace(baseCurrency))
+            {
+                baseCurrency = "USD";
+            }
+
             try
             {
-                if (string.IsNullOrWhiteSpace(baseCurrency))
-                {
-                    baseCurrency = "USD";
-                }
-
                 var rates = await _currencyService.GetExchangeRatesAsync(baseCurrency);
                 return Ok(new { success = true, data = new { baseCurrency, rates } });
             }
-            catch (Exception ex)
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { success = false, message = ex.Message });
+            }
+            catch (InvalidOperationException ex)
             {
                 return BadRequest(new { success = false, message = ex.Message });
             }

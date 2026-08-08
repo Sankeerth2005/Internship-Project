@@ -1,137 +1,110 @@
-import Navbar from '@/components/Navbar'
-import Footer from '@/components/Footer'
-import SectionHeader from '@/components/SectionHeader'
-import GlassCard from '@/components/GlassCard'
-import { siteContent } from '@/constants/content'
-import { Apple, Mail, CheckCircle, Smartphone, QrCode, Play } from 'lucide-react'
+import type { Metadata } from 'next'
+import Image from 'next/image'
+import { ShieldCheck } from 'lucide-react'
+import PageShell from '@/components/PageShell'
+import StoreBadges from '@/components/StoreBadges'
+import { site } from '@/constants/colors'
 
-export default function Download() {
+export const metadata: Metadata = {
+  title: 'Download',
+  description: 'Download Vocal for Sanatan on Google Play. iOS coming soon.',
+  alternates: { canonical: 'https://vocalforsanatan.com/download' },
+}
+
+export default function DownloadPage() {
   return (
-    <main className="min-h-screen">
-      <Navbar />
-      
-      {/* Hero Section */}
-      <section className="pt-32 pb-20 mesh-gradient">
-        <div className="container-custom">
-          <SectionHeader
-            title="Download Vocal For Sanatan"
-            subtitle="Get the App"
-            description="Experience the future of local business discovery. Download Vocal For Sanatan on your favorite device."
-            align="center"
-          />
-        </div>
-      </section>
-
-      {/* App Store Badges */}
-      <section className="py-20 bg-surface">
-        <div className="container-custom">
-          <div className="text-center mb-12">
-            <h2 className="heading-lg mb-4">{siteContent.download.title}</h2>
-            <p className="text-body">{siteContent.download.subtitle}</p>
-          </div>
-
-          <div className="flex flex-col sm:flex-row gap-6 justify-center items-center mb-16">
-            {/* iOS Badge */}
-            <div className="glass rounded-card p-8 text-center w-full max-w-sm">
-              <Apple className="w-16 h-16 text-primary mx-auto mb-4" />
-              <h3 className="heading-md mb-2">iOS App Store</h3>
-              <p className="text-text-muted mb-4">Coming Soon</p>
-              <button className="w-full bg-black text-white px-6 py-4 rounded-xl opacity-50 cursor-not-allowed flex items-center justify-center gap-3">
-                <Apple className="w-8 h-8" />
-                <div className="text-left">
-                  <div className="text-xs opacity-80">Download on the</div>
-                  <div className="text-lg font-semibold">App Store</div>
-                </div>
-              </button>
+    <PageShell
+      eyebrow="Download"
+      title="Get Vocal for Sanatan"
+      description="Find local businesses, chat with owners, and grow your neighbourhood network."
+    >
+      <section className="pb-20">
+        <div className="container-custom max-w-3xl">
+          <div className="rounded-card border border-border bg-white p-6 sm:p-8 shadow-soft">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-5">
+              <Image
+                src="/app-icon.png"
+                alt="Vocal for Sanatan"
+                width={88}
+                height={88}
+                className="rounded-2xl border border-border object-cover shadow-soft"
+              />
+              <div className="flex-1">
+                <h2 className="font-display text-2xl font-bold text-text">Vocal for Sanatan</h2>
+                <p className="mt-1 text-sm text-text-muted">
+                  Android on Google Play · iOS coming soon
+                </p>
+                <p className="mt-1 text-xs text-text-soft">
+                  Package ID: <code>{site.packageId}</code>
+                </p>
+              </div>
             </div>
 
-            {/* Android Badge */}
-            <div className="glass rounded-card p-8 text-center w-full max-w-sm">
-              <Play className="w-16 h-16 text-primary mx-auto mb-4" />
-              <h3 className="heading-md mb-2">Google Play</h3>
-              <p className="text-text-muted mb-4">Coming Soon</p>
-              <button className="w-full bg-black text-white px-6 py-4 rounded-xl opacity-50 cursor-not-allowed flex items-center justify-center gap-3">
-                <Play className="w-8 h-8" />
-                <div className="text-left">
-                  <div className="text-xs opacity-80">GET IT ON</div>
-                  <div className="text-lg font-semibold">Google Play</div>
-                </div>
-              </button>
+            <div className="mt-6">
+              <StoreBadges
+                size="lg"
+                playHref="https://play.google.com/store/apps/details?id=com.vocalforsanatan.app"
+                appleHref="/contact"
+              />
             </div>
+
+            <p className="mt-4 text-xs text-text-soft">
+              Google Play link activates once the listing is live. App Store opens contact for iOS
+              waitlist until launch.
+            </p>
           </div>
 
-          {/* Features List */}
-          <div className="max-w-2xl mx-auto">
-            <GlassCard>
-              <h3 className="heading-md mb-6 text-center">App Features</h3>
-              <ul className="space-y-4">
-                {[
-                  'AI-powered business search',
-                  'Real-time chat with businesses',
-                  'Location-based discovery',
-                  'Multi-language support',
-                  'Business analytics dashboard',
-                  'Verified reviews and ratings',
-                ].map((feature, index) => (
-                  <li key={index} className="flex items-center gap-3">
-                    <CheckCircle className="w-5 h-5 text-success flex-shrink-0" />
-                    <span className="text-text-muted">{feature}</span>
-                  </li>
-                ))}
-              </ul>
-            </GlassCard>
-          </div>
-        </div>
-      </section>
-
-      {/* Email Signup */}
-      <section className="py-20">
-        <div className="container-custom">
-          <div className="max-w-md mx-auto">
-            <GlassCard className="text-center">
-              <Mail className="w-16 h-16 text-primary mx-auto mb-4" />
-              <h3 className="heading-md mb-2">{siteContent.download.notifyTitle}</h3>
-              <p className="text-text-muted mb-6">{siteContent.download.notifyDescription}</p>
-              <form className="space-y-4">
-                <input
-                  type="email"
-                  placeholder="Enter your email address"
-                  className="w-full px-4 py-3 rounded-input border border-border bg-white focus:outline-none focus:ring-2 focus:ring-primary"
-                  aria-label="Email address"
+          <div className="mt-6 grid gap-4 sm:grid-cols-2">
+            <div className="rounded-2xl border border-border bg-background-surface p-5">
+              <div className="mb-3 flex items-center gap-3">
+                <Image
+                  src="/google-play.png"
+                  alt=""
+                  width={36}
+                  height={36}
+                  className="rounded-lg object-contain bg-black"
                 />
-                <button type="submit" className="w-full bg-primary text-white px-6 py-3 rounded-button font-bold shadow-button hover:shadow-lg transition-all">
-                  Notify Me
-                </button>
-              </form>
-            </GlassCard>
+                <h3 className="font-display text-lg font-bold text-text">Google Play</h3>
+              </div>
+              <p className="text-sm text-text-muted">
+                Available for Android customers and business owners.
+              </p>
+            </div>
+            <div className="rounded-2xl border border-border bg-background-surface p-5">
+              <div className="mb-3 flex items-center gap-3">
+                <Image
+                  src="/app-store.png"
+                  alt=""
+                  width={36}
+                  height={36}
+                  className="rounded-[8px] object-contain"
+                />
+                <h3 className="font-display text-lg font-bold text-text">App Store</h3>
+              </div>
+              <p className="text-sm text-text-muted">iOS version is on the roadmap. Stay tuned.</p>
+            </div>
+          </div>
+
+          <div className="mt-6 flex items-start gap-3 rounded-card border border-border bg-white p-5 text-sm text-text-muted">
+            <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-success" />
+            <p>
+              Before installing, review our{' '}
+              <a href="/privacy" className="font-semibold text-primary">
+                Privacy Policy
+              </a>{' '}
+              and{' '}
+              <a href="/terms" className="font-semibold text-primary">
+                Terms of Service
+              </a>
+              . Need to leave later?{' '}
+              <a href="/delete-account" className="font-semibold text-primary">
+                Delete your account
+              </a>{' '}
+              anytime.
+            </p>
           </div>
         </div>
       </section>
-
-      {/* Version Info */}
-      <section className="py-20 bg-surface">
-        <div className="container-custom">
-          <div className="grid md:grid-cols-3 gap-8 max-w-4xl mx-auto">
-            <GlassCard className="text-center">
-              <Smartphone className="w-12 h-12 text-primary mx-auto mb-4" />
-              <h3 className="font-semibold mb-2">Version</h3>
-              <p className="text-text-muted">1.0.0 (Coming Soon)</p>
-            </GlassCard>
-            <GlassCard className="text-center">
-              <QrCode className="w-12 h-12 text-primary mx-auto mb-4" />
-              <h3 className="font-semibold mb-2">QR Code</h3>
-              <p className="text-text-muted">Scan to download</p>
-            </GlassCard>
-            <GlassCard className="text-center">
-              <CheckCircle className="w-12 h-12 text-primary mx-auto mb-4" />
-              <h3 className="font-semibold mb-2">Requirements</h3>
-              <p className="text-text-muted">iOS 14+ / Android 8+</p>
-            </GlassCard>
-          </div>
-        </div>
-      </section>
-
-      <Footer />
-    </main>
+    </PageShell>
   )
 }

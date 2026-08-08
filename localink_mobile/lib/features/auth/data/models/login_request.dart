@@ -8,13 +8,10 @@ class LoginRequest {
   final String usernameOrEmail;
   @JsonKey(name: 'password')
   final String password;
-  @JsonKey(name: 'captchaToken')
-  final String captchaToken;
 
   LoginRequest({
     required this.usernameOrEmail,
     required this.password,
-    required this.captchaToken,
   });
 
   factory LoginRequest.fromJson(Map<String, dynamic> json) =>

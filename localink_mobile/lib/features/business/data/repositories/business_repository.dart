@@ -1,5 +1,5 @@
 import 'package:dio/dio.dart';
-import '../../../../core/storage/secure_storage_service.dart';
+import '../../../../core/storage/category_cache_store.dart';
 import '../models/business_models.dart';
 
 class BusinessRepository {
@@ -8,27 +8,30 @@ class BusinessRepository {
   // ignore: prefer_initializing_formals
   BusinessRepository({required Dio dio}) : _dio = dio;
 
-  Future<Options> _getAuthOptions() async {
-    final token = await SecureStorageService.getToken();
-    return Options(
-      headers: {
-        'Content-Type': 'application/json',
-        if (token != null) 'Authorization': 'Bearer $token',
-      },
-    );
-  }
 
   // CACHE VARIABLES
   List<CategoryDto>? _cachedCategories;
   final Map<int, List<SubcategoryDto>> _cachedSubcategories = {};
 
-  // CATEGORIES
-  Future<List<CategoryDto>> getCategories() async {
-    if (_cachedCategories != null) return _cachedCategories!;
-    final response = await _dio.get('categories');
-    final list = response.data as List? ?? [];
-    _cachedCategories = list.map((e) => CategoryDto.fromJson(e)).toList();
-    return _cachedCategories!;
+  // CATEGORIES (memory + disk for offline)
+  Future<List<CategoryDto>> getCategories({bool forceRefresh = false}) async {
+    if (!forceRefresh && _cachedCategories != null) return _cachedCategories!;
+
+    try {
+      final response = await _dio.get('categories');
+      final list = response.data as List? ?? [];
+      _cachedCategories = list.map((e) => CategoryDto.fromJson(e)).toList();
+      await CategoryCacheStore.save(_cachedCategories!);
+      return _cachedCategories!;
+    } catch (e) {
+      if (_cachedCategories != null) return _cachedCategories!;
+      final disk = await CategoryCacheStore.load();
+      if (disk.isNotEmpty) {
+        _cachedCategories = disk;
+        return disk;
+      }
+      rethrow;
+    }
   }
 
   // SUBCATEGORIES
@@ -40,23 +43,33 @@ class BusinessRepository {
     return _cachedSubcategories[categoryId]!;
   }
 
-  // SEARCH BUSINESSES
-  Future<List<BusinessDto>> searchBusinesses(
+  // SEARCH BUSINESSES — server-side filter/sort/pagination (no client ranking)
+  Future<PagedBusinessResult> searchBusinesses(
     String query, {
     double? latitude,
     double? longitude,
     String? sortBy,
     String? userPincode,
     String? userCity,
+    int? categoryId,
+    int? subcategoryId,
+    double? radiusKm,
+    int page = 1,
+    int pageSize = 20,
   }) async {
     final response = await _dio.get(
-      'business/search',
+      'businesses',
       queryParameters: {
-        'query': query,
-        // ignore: use_null_aware_elements
-        if (sortBy != null) 'sortBy': sortBy,
-        // ignore: use_null_aware_elements
-        if (userPincode != null) 'userPincode': userPincode,
+        if (query.isNotEmpty) 'search': query,
+        if (sortBy != null) 'sort': sortBy,
+        if (userPincode != null && userPincode.isNotEmpty) 'userPincode': userPincode,
+        if (latitude != null) 'latitude': latitude,
+        if (longitude != null) 'longitude': longitude,
+        if (radiusKm != null) 'radius': radiusKm,
+        if (categoryId != null) 'categoryId': categoryId,
+        if (subcategoryId != null) 'subcategoryId': subcategoryId,
+        'page': page,
+        'pageSize': pageSize,
       },
       options: Options(
         headers: {
@@ -66,8 +79,23 @@ class BusinessRepository {
         },
       ),
     );
-    final list = response.data as List? ?? [];
-    return list.map((e) => BusinessDto.fromJson(e)).toList();
+
+    final data = response.data;
+    if (data is Map<String, dynamic>) {
+      return PagedBusinessResult.fromJson(data);
+    }
+
+    // Legacy array fallback (older deployments)
+    final list = data as List? ?? [];
+    final items = list.map((e) => BusinessDto.fromJson(e as Map<String, dynamic>)).toList();
+    return PagedBusinessResult(
+      items: items,
+      page: page,
+      pageSize: pageSize,
+      totalCount: items.length,
+      hasNextPage: false,
+      sort: sortBy ?? 'nearest',
+    );
   }
 
   // GET ALL BUSINESSES
@@ -85,8 +113,7 @@ class BusinessRepository {
 
   // GET OWNED BUSINESSES (Dashboard)
   Future<List<BusinessDto>> getMyBusinesses() async {
-    final options = await _getAuthOptions();
-    final response = await _dio.get('business/my-businesses', options: options);
+    final response = await _dio.get('business/my-businesses');
     final list = response.data as List? ?? [];
     return list.map((e) => BusinessDto.fromJson(e)).toList();
   }
@@ -94,11 +121,10 @@ class BusinessRepository {
   // REGISTER BUSINESS
   Future<int> registerBusiness(BusinessDto business) async {
     try {
-      final options = await _getAuthOptions();
-      final response = await _dio.post(
+        final response = await _dio.post(
         'business/register',
         data: business.toJson(),
-        options: options,
+       
       );
       return response.data['businessId'] as int;
     } on DioException catch (e) {
@@ -109,8 +135,7 @@ class BusinessRepository {
   // UPDATE BUSINESS
   Future<bool> updateBusiness(int id, BusinessDto business) async {
     try {
-      final options = await _getAuthOptions();
-      final payload = {
+        final payload = {
         'businessName': business.businessName,
         'description': business.description,
         'categoryId': business.categoryId,
@@ -118,6 +143,7 @@ class BusinessRepository {
         'phoneCode': business.phoneCode,
         'phoneNumber': business.phoneNumber,
         'email': business.email,
+        'website': business.website,
         'city': business.city,
         'streetAddress': business.address,
         'state': business.state,
@@ -131,7 +157,7 @@ class BusinessRepository {
       final response = await _dio.put(
         'business/$id',
         data: payload,
-        options: options,
+       
       );
       return response.data['success'] == true;
     } on DioException catch (e) {
@@ -141,7 +167,6 @@ class BusinessRepository {
 
   // ADD REVIEW
   Future<void> addReview(int businessId, double rating, String comment, {String? image}) async {
-    final options = await _getAuthOptions();
     await _dio.post(
       'reviews',
       data: {
@@ -151,7 +176,7 @@ class BusinessRepository {
         // ignore: use_null_aware_elements
         if (image != null) 'image': image,
       },
-      options: options,
+     
     );
   }
 
@@ -193,26 +218,31 @@ class BusinessRepository {
 
   // ─── FAVORITES ───
   Future<List<int>> getFavorites(int userId) async {
-    final options = await _getAuthOptions();
-    final response = await _dio.get('favorites/user/$userId', options: options);
+    final response = await _dio.get('favorites/user/$userId');
     final list = response.data as List? ?? [];
     return list.map<int>((e) => (e as num).toInt()).toList();
   }
 
+  /// Single round-trip for favorite business cards (avoids N× getById).
+  Future<List<BusinessDto>> getFavoriteBusinesses(int userId) async {
+    final response =
+        await _dio.get('favorites/user/$userId/businesses');
+    final list = response.data as List? ?? [];
+    return list.map((e) => BusinessDto.fromJson(e)).toList();
+  }
+
   Future<void> addFavorite(int userId, int businessId) async {
-    final options = await _getAuthOptions();
     await _dio.post('favorites/add', data: {
       'userId': userId,
       'businessId': businessId,
-    }, options: options);
+    });
   }
 
   Future<void> removeFavorite(int userId, int businessId) async {
-    final options = await _getAuthOptions();
     await _dio.delete('favorites/remove', queryParameters: {
       'userId': userId,
       'businessId': businessId,
-    }, options: options);
+    });
   }
 
   // ─── AI REVIEW ───
@@ -221,7 +251,6 @@ class BusinessRepository {
     int rating,
     String businessName,
   ) async {
-    final options = await _getAuthOptions();
     final response = await _dio.post(
       'ai/review-suggestions',
       data: {
@@ -229,7 +258,7 @@ class BusinessRepository {
         'rating': rating,
         'businessName': businessName,
       },
-      options: options,
+     
     );
     if (response.data['success'] == true) {
       final data = response.data['data'];
@@ -265,35 +294,32 @@ class BusinessRepository {
 
   // ─── TEMPORARY CLOSURE ───
   Future<bool> requestTemporaryClosure(int businessId, String reason, int days) async {
-    final options = await _getAuthOptions();
     final response = await _dio.post(
       'business/$businessId/temporary-closure',
       data: {
         'reason': reason,
         'days': days,
       },
-      options: options,
+     
     );
     return response.data['success'] == true;
   }
 
   Future<bool> cancelTemporaryClosure(int businessId) async {
-    final options = await _getAuthOptions();
     final response = await _dio.post(
       'business/$businessId/cancel-temporary-closure',
-      options: options,
+     
     );
     return response.data['success'] == true;
   }
 
   Future<bool> requestDeletion(int businessId, String reason) async {
-    final options = await _getAuthOptions();
     final response = await _dio.post(
       'business/$businessId/request-deletion',
       data: {
         'reason': reason,
       },
-      options: options,
+     
     );
     return response.statusCode == 200;
   }

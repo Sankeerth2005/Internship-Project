@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../../core/widgets/brand_icons.dart';
 
 class HomeHeroBanner extends StatefulWidget {
   final VoidCallback onTap;
@@ -49,19 +50,19 @@ class _HomeHeroBannerState extends State<HomeHeroBanner>
           scale: _scale,
           child: Container(
             width: double.infinity,
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(22),
             decoration: BoxDecoration(
               gradient: const LinearGradient(
                 colors: [Color(0xFFFF9E4F), Color(0xFFFF6600)],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(22),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFFFF6600).withValues(alpha: 0.22),
-                  blurRadius: 12,
-                  offset: const Offset(0, 6),
+                  color: const Color(0xFFFF6600).withValues(alpha: 0.28),
+                  blurRadius: 20,
+                  offset: const Offset(0, 8),
                 ),
               ],
             ),
@@ -71,24 +72,45 @@ class _HomeHeroBannerState extends State<HomeHeroBanner>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: const Text(
+                          'NEAR YOU',
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 1.2,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
                       const Text(
-                        'Explore Your Local Business',
+                        'Explore local businesses',
                         style: TextStyle(
                           fontFamily: 'Inter',
                           color: Colors.white,
-                          fontSize: 17,
+                          fontSize: 18,
                           fontWeight: FontWeight.w900,
-                          letterSpacing: 0.3,
+                          letterSpacing: -0.2,
                         ),
                       ),
                       const SizedBox(height: 6),
                       Text(
-                        'Discover top-rated services, stores & verified deals near you.',
+                        'Top-rated services, verified shops & deals around you.',
                         style: TextStyle(
                           fontFamily: 'Inter',
                           color: Colors.white.withValues(alpha: 0.92),
-                          fontSize: 12,
-                          height: 1.35,
+                          fontSize: 12.5,
+                          height: 1.4,
                         ),
                       ),
                     ],
@@ -96,16 +118,21 @@ class _HomeHeroBannerState extends State<HomeHeroBanner>
                 ),
                 const SizedBox(width: 14),
                 Container(
+                  width: 58,
+                  height: 58,
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.2),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.explore_rounded,
                     color: Colors.white,
-                    size: 32,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.12),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
                   ),
+                  child: BrandIcons.om(size: 36),
                 ),
               ],
             ),

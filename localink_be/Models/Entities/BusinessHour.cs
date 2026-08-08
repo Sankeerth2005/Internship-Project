@@ -18,12 +18,12 @@ namespace localink_be.Models.Entities
 
         [Required]
         [Column("day_of_week")]
-        public string DayOfWeek { get; set; }
+        public string DayOfWeek { get; set; } = string.Empty;
 
         [Required]
         [RegularExpression("^(custom|24h|closed)$", ErrorMessage = "Invalid mode")]
         [Column("mode")]
-        public string Mode { get; set; }
+        public string Mode { get; set; } = string.Empty;
 
         [Column("created_at")]
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

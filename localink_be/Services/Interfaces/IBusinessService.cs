@@ -15,6 +15,19 @@ namespace localink_be.Services.Interfaces
     Task<long> RegisterBusinessAsync(RegisterBusinessDto dto, long userId);
     Task<object?> GetBusinessPreviewAsync(long businessId);
     Task<List<BusinessDto>> SearchBusinessesAsync(string query, double? userLat = null, double? userLng = null, string? sortBy = "distance", string? userPincode = "", string? userCity = "");
+    Task<PagedResultDto<BusinessDto>> SearchBusinessesPagedAsync(
+        string? query,
+        double? userLat = null,
+        double? userLng = null,
+        string? sortBy = "distance",
+        string? userPincode = "",
+        string? userCity = "",
+        double? radiusKm = null,
+        int? categoryId = null,
+        int? subcategoryId = null,
+        int page = 1,
+        int pageSize = 20,
+        CancellationToken cancellationToken = default);
     Task<List<BusinessDto>> GetBusinessesByUserAsync(long userId);
     Task<List<BusinessDto>> GetBySubcategoryAsync(int subcategoryId);
     Task<BusinessDto?> GetByIdAsync(long id);

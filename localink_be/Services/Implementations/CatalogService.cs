@@ -17,6 +17,32 @@ namespace localink_be.Services.Implementations
             _photoService = photoService;
         }
 
+        public async Task EnsureOwnsBusinessAsync(long businessId, long userId, bool isAdmin)
+        {
+            if (isAdmin) return;
+            var owns = await _context.Businesses.AnyAsync(b => b.BusinessId == businessId && b.UserId == userId);
+            if (!owns)
+                throw new UnauthorizedAccessException("You do not own this business");
+        }
+
+        private async Task EnsureOwnsCatalogAsync(int catalogId, long userId, bool isAdmin)
+        {
+            if (isAdmin) return;
+            var owns = await _context.Catalogs
+                .AnyAsync(c => c.Id == catalogId && c.Business != null && c.Business.UserId == userId);
+            if (!owns)
+                throw new UnauthorizedAccessException("You do not own this catalog");
+        }
+
+        private async Task EnsureOwnsCatalogItemAsync(int itemId, long userId, bool isAdmin)
+        {
+            if (isAdmin) return;
+            var owns = await _context.CatalogItems
+                .AnyAsync(i => i.Id == itemId && i.Catalog != null && i.Catalog.Business != null && i.Catalog.Business.UserId == userId);
+            if (!owns)
+                throw new UnauthorizedAccessException("You do not own this catalog item");
+        }
+
         public async Task<List<CatalogDto>> GetBusinessCatalogsAsync(long businessId)
         {
             var catalogs = await _context.Catalogs
@@ -27,8 +53,10 @@ namespace localink_be.Services.Implementations
             return catalogs.Select(MapToDto).ToList();
         }
 
-        public async Task<CatalogDto> CreateCatalogAsync(long businessId, CreateCatalogDto dto)
+        public async Task<CatalogDto> CreateCatalogAsync(long businessId, CreateCatalogDto dto, long userId, bool isAdmin)
         {
+            await EnsureOwnsBusinessAsync(businessId, userId, isAdmin);
+
             var catalog = new Catalog
             {
                 BusinessId = businessId,
@@ -42,8 +70,10 @@ namespace localink_be.Services.Implementations
             return MapToDto(catalog);
         }
 
-        public async Task<CatalogDto> UpdateCatalogAsync(int catalogId, CreateCatalogDto dto)
+        public async Task<CatalogDto> UpdateCatalogAsync(int catalogId, CreateCatalogDto dto, long userId, bool isAdmin)
         {
+            await EnsureOwnsCatalogAsync(catalogId, userId, isAdmin);
+
             var catalog = await _context.Catalogs.Include(c => c.Items).FirstOrDefaultAsync(c => c.Id == catalogId);
             if (catalog == null) throw new KeyNotFoundException("Catalog not found");
 
@@ -54,8 +84,10 @@ namespace localink_be.Services.Implementations
             return MapToDto(catalog);
         }
 
-        public async Task DeleteCatalogAsync(int catalogId)
+        public async Task DeleteCatalogAsync(int catalogId, long userId, bool isAdmin)
         {
+            await EnsureOwnsCatalogAsync(catalogId, userId, isAdmin);
+
             var catalog = await _context.Catalogs.FindAsync(catalogId);
             if (catalog == null) return;
 
@@ -63,8 +95,10 @@ namespace localink_be.Services.Implementations
             await _context.SaveChangesAsync();
         }
 
-        public async Task<CatalogItemDto> AddCatalogItemAsync(int catalogId, CreateCatalogItemDto dto, IFormFile? image)
+        public async Task<CatalogItemDto> AddCatalogItemAsync(int catalogId, CreateCatalogItemDto dto, IFormFile? image, long userId, bool isAdmin)
         {
+            await EnsureOwnsCatalogAsync(catalogId, userId, isAdmin);
+
             string? imageUrl = null;
             if (image != null)
             {
@@ -89,8 +123,10 @@ namespace localink_be.Services.Implementations
             return MapItemToDto(item);
         }
 
-        public async Task<CatalogItemDto> UpdateCatalogItemAsync(int itemId, CreateCatalogItemDto dto, IFormFile? image)
+        public async Task<CatalogItemDto> UpdateCatalogItemAsync(int itemId, CreateCatalogItemDto dto, IFormFile? image, long userId, bool isAdmin)
         {
+            await EnsureOwnsCatalogItemAsync(itemId, userId, isAdmin);
+
             var item = await _context.CatalogItems.FindAsync(itemId);
             if (item == null) throw new KeyNotFoundException("Item not found");
 
@@ -110,8 +146,10 @@ namespace localink_be.Services.Implementations
             return MapItemToDto(item);
         }
 
-        public async Task DeleteCatalogItemAsync(int itemId)
+        public async Task DeleteCatalogItemAsync(int itemId, long userId, bool isAdmin)
         {
+            await EnsureOwnsCatalogItemAsync(itemId, userId, isAdmin);
+
             var item = await _context.CatalogItems.FindAsync(itemId);
             if (item == null) return;
 
@@ -119,7 +157,7 @@ namespace localink_be.Services.Implementations
             await _context.SaveChangesAsync();
         }
 
-        private CatalogDto MapToDto(Catalog catalog)
+        private static CatalogDto MapToDto(Catalog catalog)
         {
             return new CatalogDto
             {
@@ -127,11 +165,11 @@ namespace localink_be.Services.Implementations
                 BusinessId = catalog.BusinessId,
                 Title = catalog.Title,
                 Description = catalog.Description,
-                Items = catalog.Items.Select(MapItemToDto).ToList()
+                Items = catalog.Items?.Select(MapItemToDto).ToList() ?? new List<CatalogItemDto>()
             };
         }
 
-        private CatalogItemDto MapItemToDto(CatalogItem item)
+        private static CatalogItemDto MapItemToDto(CatalogItem item)
         {
             return new CatalogItemDto
             {
@@ -140,9 +178,9 @@ namespace localink_be.Services.Implementations
                 Name = item.Name,
                 Description = item.Description,
                 Price = item.Price,
-                ImageUrl = item.ImageUrl,
                 IsAvailable = item.IsAvailable,
-                Currency = item.Currency ?? "USD"
+                ImageUrl = item.ImageUrl,
+                Currency = item.Currency
             };
         }
     }

@@ -11,6 +11,7 @@ namespace localink_be.Models.DTOs
     public string? PhoneNumber { get; set; }
     public string? PhoneCode { get; set; }
     public string? Email { get; set; }
+    public string? Website { get; set; }
 
     public string? Country { get; set; }
 

@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../business/providers/business_provider.dart';
 import '../../business/data/models/business_models.dart';
 import '../../shared/presentation/widgets/app_feedback.dart';
+import '../../../../core/widgets/optimized_network_image.dart';
 
 class AiMessageBubble extends ConsumerWidget {
   final String content;
@@ -23,26 +24,9 @@ class AiMessageBubble extends ConsumerWidget {
       return _buildUserBubble(context);
     }
 
-    final allBusinessesAsync = ref.watch(allBusinessesProvider);
-
-    return allBusinessesAsync.when(
-      data: (businesses) {
-        final matched = <BusinessDto>[];
-        final lowerText = content.toLowerCase();
-
-        for (final b in businesses) {
-          if (b.businessName.length >= 4 &&
-              (lowerText.contains(b.businessName.toLowerCase()) ||
-                  lowerText.contains('[${b.businessName.toLowerCase()}]'))) {
-            matched.add(b);
-          }
-        }
-
-        return _buildAiBubbleWithMatches(context, ref, matched);
-      },
-      loading: () => _buildAiBubbleWithMatches(context, ref, []),
-      error: (error, stack) => _buildAiBubbleWithMatches(context, ref, []),
-    );
+    // Do not load the full business catalog just to match names — that was an N+1/network spike.
+    // Show text reply only until chat-search returns structured business IDs.
+    return _buildAiBubbleWithMatches(context, ref, const []);
   }
 
   Widget _buildUserBubble(BuildContext context) {
@@ -177,20 +161,13 @@ class AiMessageBubble extends ConsumerWidget {
           // Header / Thumbnail
           ClipRRect(
             borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-            child: b.photos.isNotEmpty
-                ? Image.network(
-                    b.photos.first,
-                    height: 80,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                  )
-                : Container(
-                    height: 80,
-                    color: const Color(0xFFF9F8F6),
-                    child: const Center(
-                      child: Icon(Icons.storefront_rounded, color: Color(0xFFFF6600), size: 28),
-                    ),
-                  ),
+            child: OptimizedNetworkImage.business(
+              imageUrl: b.photos.isNotEmpty ? b.photos.first : null,
+              height: 80,
+              width: double.infinity,
+              placeholderColor: const Color(0xFFF9F8F6),
+              iconSize: 28,
+            ),
           ),
 
           Padding(

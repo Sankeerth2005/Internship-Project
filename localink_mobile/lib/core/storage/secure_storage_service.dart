@@ -4,9 +4,13 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 class SecureStorageService {
   static const _storage = FlutterSecureStorage(
     aOptions: AndroidOptions(encryptedSharedPreferences: true),
+    iOptions: IOSOptions(
+      accessibility: KeychainAccessibility.first_unlock_this_device,
+    ),
   );
 
   static const _tokenKey = 'jwt_token';
+  static const _refreshTokenKey = 'refresh_token';
   static const _userTypeKey = 'user_type';
   static const _userIdKey = 'user_id';
 
@@ -22,8 +26,24 @@ class SecureStorageService {
     try {
       return await _storage.read(key: _tokenKey);
     } catch (e) {
-      debugPrint('SecureStorageService: Error reading token: $e. Clearing storage.');
-      await clearAll();
+      debugPrint('SecureStorageService: Error reading token: $e');
+      return null;
+    }
+  }
+
+  static Future<void> saveRefreshToken(String refreshToken) async {
+    try {
+      await _storage.write(key: _refreshTokenKey, value: refreshToken);
+    } catch (e) {
+      debugPrint('SecureStorageService: Error writing refresh token: $e');
+    }
+  }
+
+  static Future<String?> getRefreshToken() async {
+    try {
+      return await _storage.read(key: _refreshTokenKey);
+    } catch (e) {
+      debugPrint('SecureStorageService: Error reading refresh token: $e');
       return null;
     }
   }
@@ -33,6 +53,14 @@ class SecureStorageService {
       await _storage.delete(key: _tokenKey);
     } catch (e) {
       debugPrint('SecureStorageService: Error deleting token: $e');
+    }
+  }
+
+  static Future<void> deleteRefreshToken() async {
+    try {
+      await _storage.delete(key: _refreshTokenKey);
+    } catch (e) {
+      debugPrint('SecureStorageService: Error deleting refresh token: $e');
     }
   }
 
@@ -48,8 +76,7 @@ class SecureStorageService {
     try {
       return await _storage.read(key: _userTypeKey);
     } catch (e) {
-      debugPrint('SecureStorageService: Error reading userType: $e. Clearing storage.');
-      await clearAll();
+      debugPrint('SecureStorageService: Error reading userType: $e');
       return null;
     }
   }
@@ -67,9 +94,22 @@ class SecureStorageService {
       final val = await _storage.read(key: _userIdKey);
       return val != null ? int.tryParse(val) : null;
     } catch (e) {
-      debugPrint('SecureStorageService: Error reading userId: $e. Clearing storage.');
-      await clearAll();
+      debugPrint('SecureStorageService: Error reading userId: $e');
       return null;
+    }
+  }
+
+  /// Clears only auth-related keys (keeps other secure prefs intact).
+  static Future<void> clearAuth() async {
+    try {
+      await Future.wait([
+        _storage.delete(key: _tokenKey),
+        _storage.delete(key: _refreshTokenKey),
+        _storage.delete(key: _userTypeKey),
+        _storage.delete(key: _userIdKey),
+      ]);
+    } catch (e) {
+      debugPrint('SecureStorageService: Error clearing auth: $e');
     }
   }
 

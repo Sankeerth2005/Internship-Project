@@ -35,8 +35,8 @@ namespace localink_be.Services.Implementations
                 var businessHour = new BusinessHour
                 {
                     BusinessId = businessId,
-                    DayOfWeek = day.DayOfWeek,
-                    Mode = day.Mode,
+                    DayOfWeek = day.DayOfWeek ?? string.Empty,
+                    Mode = day.Mode ?? string.Empty,
                     CreatedAt = DateTime.UtcNow,
                     UpdatedAt = DateTime.UtcNow
                 };
@@ -103,8 +103,8 @@ namespace localink_be.Services.Implementations
                 var businessHour = new BusinessHour
                 {
                     BusinessId = businessId,
-                    DayOfWeek = day.DayOfWeek,
-                    Mode = day.Mode,
+                    DayOfWeek = day.DayOfWeek ?? string.Empty,
+                    Mode = day.Mode ?? string.Empty,
                     CreatedAt = DateTime.UtcNow,
                     UpdatedAt = DateTime.UtcNow
                 };

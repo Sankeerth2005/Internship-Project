@@ -38,7 +38,7 @@ public class UserService : IUserService
                 UserId = u.UserId,
                 FullName = u.FullName,
                 Email = u.Email,
-                Phone = u.PhoneNumber,
+                Phone = u.PhoneNumber ?? string.Empty,
                 CountryCode = u.CountryCode,
                 ProfilePicture = u.ProfilePicture,
 
@@ -170,24 +170,145 @@ public class UserService : IUserService
             address = new Address
             {
                 UserId = userId,
-                StreetAddress = dto.Address.Street,
-                City = dto.Address.City,
-                State = dto.Address.State,
-                Country = dto.Address.Country,
-                Pincode = dto.Address.Pincode
+                StreetAddress = dto.Address.Street ?? string.Empty,
+                City = dto.Address.City ?? string.Empty,
+                State = dto.Address.State ?? string.Empty,
+                Country = dto.Address.Country ?? string.Empty,
+                Pincode = dto.Address.Pincode ?? string.Empty
             };
 
             _db.Addresses.Add(address);
         }
         else
         {
-            address.StreetAddress = dto.Address.Street;
-            address.City = dto.Address.City;
-            address.State = dto.Address.State;
-            address.Country = dto.Address.Country;
-            address.Pincode = dto.Address.Pincode;
+            address.StreetAddress = dto.Address.Street ?? string.Empty;
+            address.City = dto.Address.City ?? string.Empty;
+            address.State = dto.Address.State ?? string.Empty;
+            address.Country = dto.Address.Country ?? string.Empty;
+            address.Pincode = dto.Address.Pincode ?? string.Empty;
         }
 
+        await _db.SaveChangesAsync();
+        return true;
+    }
+
+    public async Task<bool> DeleteUserAccountAsync(long userId)
+    {
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.UserId == userId);
+        if (user == null)
+            return false;
+
+        var ownedBusinessIds = await _db.Businesses
+            .Where(b => b.UserId == userId)
+            .Select(b => b.BusinessId)
+            .ToListAsync();
+
+        // --- Owned businesses: clear children before removing business rows ---
+        if (ownedBusinessIds.Count > 0)
+        {
+            var ownerConversationIds = await _db.Conversations
+                .Where(c => ownedBusinessIds.Contains(c.BusinessId))
+                .Select(c => c.Id)
+                .ToListAsync();
+
+            if (ownerConversationIds.Count > 0)
+            {
+                await _db.Messages
+                    .Where(m => ownerConversationIds.Contains(m.ConversationId))
+                    .ExecuteDeleteAsync();
+                await _db.Conversations
+                    .Where(c => ownerConversationIds.Contains(c.Id))
+                    .ExecuteDeleteAsync();
+            }
+
+            var catalogIds = await _db.Catalogs
+                .Where(c => ownedBusinessIds.Contains(c.BusinessId))
+                .Select(c => c.Id)
+                .ToListAsync();
+
+            if (catalogIds.Count > 0)
+            {
+                await _db.CatalogItems
+                    .Where(i => catalogIds.Contains(i.CatalogId))
+                    .ExecuteDeleteAsync();
+                await _db.Catalogs
+                    .Where(c => catalogIds.Contains(c.Id))
+                    .ExecuteDeleteAsync();
+            }
+
+            await _db.Favorites
+                .Where(f => ownedBusinessIds.Contains(f.BusinessId))
+                .ExecuteDeleteAsync();
+
+            await _db.BusinessReviews
+                .Where(r => ownedBusinessIds.Contains(r.BusinessId))
+                .ExecuteDeleteAsync();
+
+            var hourIds = await _db.BusinessHours
+                .Where(h => ownedBusinessIds.Contains(h.BusinessId))
+                .Select(h => h.BusinessHourId)
+                .ToListAsync();
+
+            if (hourIds.Count > 0)
+            {
+                await _db.BusinessHourSlots
+                    .Where(s => hourIds.Contains(s.BusinessHourId))
+                    .ExecuteDeleteAsync();
+                await _db.BusinessHours
+                    .Where(h => hourIds.Contains(h.BusinessHourId))
+                    .ExecuteDeleteAsync();
+            }
+
+            await _db.BusinessPhotos
+                .Where(p => ownedBusinessIds.Contains(p.BusinessId))
+                .ExecuteDeleteAsync();
+
+            await _db.BusinessContacts
+                .Where(c => ownedBusinessIds.Contains(c.BusinessId))
+                .ExecuteDeleteAsync();
+
+            await _db.BusinessMetrics
+                .Where(m => ownedBusinessIds.Contains(m.BusinessId))
+                .ExecuteDeleteAsync();
+
+            await _db.AdminDashboards
+                .Where(a => ownedBusinessIds.Contains(a.BusinessId))
+                .ExecuteDeleteAsync();
+
+            await _db.Businesses
+                .Where(b => ownedBusinessIds.Contains(b.BusinessId))
+                .ExecuteDeleteAsync();
+        }
+
+        // --- User-scoped rows (as customer / profile) ---
+        var userConversationIds = await _db.Conversations
+            .Where(c => c.UserId == userId)
+            .Select(c => c.Id)
+            .ToListAsync();
+
+        if (userConversationIds.Count > 0)
+        {
+            await _db.Messages
+                .Where(m => userConversationIds.Contains(m.ConversationId))
+                .ExecuteDeleteAsync();
+            await _db.Conversations
+                .Where(c => userConversationIds.Contains(c.Id))
+                .ExecuteDeleteAsync();
+        }
+
+        await _db.Favorites.Where(f => f.UserId == userId).ExecuteDeleteAsync();
+        await _db.BusinessReviews.Where(r => r.UserId == userId).ExecuteDeleteAsync();
+        await _db.Addresses.Where(a => a.UserId == userId).ExecuteDeleteAsync();
+        await _db.RefreshTokens.Where(t => t.UserId == userId).ExecuteDeleteAsync();
+
+        // Feedback.UserId is int? — clear matching rows defensively
+        if (userId <= int.MaxValue)
+        {
+            var feedbackUserId = (int)userId;
+            await _db.Feedbacks.Where(f => f.UserId == feedbackUserId).ExecuteDeleteAsync();
+        }
+
+        _db.Users.Remove(user);
         await _db.SaveChangesAsync();
         return true;
     }

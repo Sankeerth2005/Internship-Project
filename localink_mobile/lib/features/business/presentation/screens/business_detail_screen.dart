@@ -12,6 +12,7 @@ import '../../providers/category_usage_tracker.dart';
 import '../../../catalog/presentation/providers/catalog_provider.dart';
 import '../../data/models/business_models.dart';
 import '../../../../core/network/dio_client.dart';
+import '../../../../core/widgets/optimized_network_image.dart';
 import '../../../../core/network/signalr_service.dart';
 import '../../../auth/providers/auth_provider.dart';
 import '../../../auth/providers/auth_state.dart';
@@ -21,8 +22,8 @@ import '../../widgets/business_review_card.dart';
 import '../../../shared/presentation/widgets/app_back_button.dart';
 import '../../../shared/presentation/widgets/app_feedback.dart';
 import '../../../../core/network/app_error_formatter.dart';
+import '../../../../core/storage/user_prefs_store.dart';
 import '../../../catalog/presentation/providers/currency_provider.dart';
-import '../../../catalog/data/models/currency_models.dart';
 
 // ─── DESIGN TOKENS ────────────────────────────────────────────────────────────
 class _DetailTok {
@@ -96,9 +97,9 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
   }
 
   Future<void> _loadUserCurrency() async {
-    // Load user's preferred currency from storage or default to INR
-    // For now, default to INR - you can integrate with user profile later
-    setState(() => _userCurrency = 'INR');
+    final code = await UserPrefsStore.getCurrency();
+    if (!mounted) return;
+    setState(() => _userCurrency = code);
   }
 
   Future<double> _convertPrice(double price, String fromCurrency) async {
@@ -363,19 +364,12 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
                   background: Stack(
                     fit: StackFit.expand,
                     children: [
-                      business.photos.isNotEmpty
-                          ? Image.network(
-                              '${DioClient.backendOrigin}${business.photos.first}',
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, err, st) => Container(
-                                color: const Color(0xFFF5F4F0),
-                                child: const Icon(Icons.storefront_rounded, color: _DetailTok.primary, size: 60),
-                              ),
-                            )
-                          : Container(
-                              color: const Color(0xFFF5F4F0),
-                              child: const Icon(Icons.storefront_rounded, color: _DetailTok.primary, size: 60),
-                            ),
+                      OptimizedNetworkImage.business(
+                        imageUrl: business.photos.isNotEmpty ? business.photos.first : null,
+                        placeholderColor: const Color(0xFFF5F4F0),
+                        iconColor: _DetailTok.primary,
+                        iconSize: 60,
+                      ),
                       // Top & Bottom gradient mask for text visibility
                       Positioned.fill(
                         child: Container(
@@ -422,6 +416,8 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
                                       fontWeight: FontWeight.w900,
                                       letterSpacing: 0.3,
                                     ),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
                                   ),
                                   const SizedBox(height: 6),
                                   Row(
@@ -734,6 +730,8 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
                               Text(
                                 business.description,
                                 style: const TextStyle(color: _DetailTok.textMedium, fontSize: 13, height: 1.45),
+                                maxLines: 5,
+                                overflow: TextOverflow.ellipsis,
                               ),
                               const Divider(color: _DetailTok.border, height: 32),
 
@@ -752,6 +750,8 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
                               Text(
                                 business.address,
                                 style: const TextStyle(color: _DetailTok.textHigh, fontSize: 13),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
                               ),
                               const SizedBox(height: 2),
                               Text(
@@ -901,9 +901,16 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
                                               final convertedPrice = snapshot.data ?? item.price;
                                               return ListTile(
                                                 leading: item.imageUrl != null
-                                                    ? ClipRRect(
+                                                    ? OptimizedNetworkImage(
+                                                        imageUrl: item.imageUrl,
+                                                        width: 50,
+                                                        height: 50,
+                                                        fit: BoxFit.cover,
                                                         borderRadius: BorderRadius.circular(8),
-                                                      child: Image.network('${DioClient.backendOrigin}${item.imageUrl!}', width: 50, height: 50, fit: BoxFit.cover),
+                                                        memCacheWidth: 100,
+                                                        memCacheHeight: 100,
+                                                        errorIcon: Icons.inventory_2_rounded,
+                                                        errorIconColor: _DetailTok.primary,
                                                       )
                                                     : const Icon(Icons.inventory_2_rounded, size: 40, color: _DetailTok.primary),
                                                 title: Text(item.name, style: const TextStyle(fontWeight: FontWeight.w600)),

@@ -11,7 +11,7 @@ namespace localink_be.Models.Entities
         public int CategoryId { get; set; }
 
         [Column("category_name")]
-        public string CategoryName { get; set; }
+        public string CategoryName { get; set; } = string.Empty;
         
         [Column("icon_url")]
         public string IconUrl { get; set; } = null!;

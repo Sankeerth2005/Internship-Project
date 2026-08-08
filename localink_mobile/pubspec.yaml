@@ -1,5 +1,5 @@
 name: localink_mobile
-description: "A new Flutter project."
+description: "Vocal for Sanatan / Localink — Flutter client for local business discovery."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.0.3+4
+version: 1.0.5+6
 
 environment:
   sdk: ^3.12.2
@@ -56,6 +56,10 @@ dependencies:
   flutter_tts: ^4.2.5
   file_picker: 10.3.10
   cross_file: ^0.3.5+4
+  google_sign_in: ^6.2.1
+  cached_network_image: ^3.4.1
+  connectivity_plus: ^7.3.1
+  shared_preferences: ^2.5.5
 
 
 dev_dependencies:

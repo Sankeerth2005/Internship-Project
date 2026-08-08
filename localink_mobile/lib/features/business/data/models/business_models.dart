@@ -260,6 +260,49 @@ class BusinessDto {
       };
 }
 
+/// Server-side paged discovery response from GET /api/v1/businesses
+class PagedBusinessResult {
+  final List<BusinessDto> items;
+  final int page;
+  final int pageSize;
+  final int totalCount;
+  final int totalPages;
+  final bool hasNextPage;
+  final bool hasPreviousPage;
+  final double? appliedRadiusKm;
+  final String sort;
+
+  PagedBusinessResult({
+    required this.items,
+    required this.page,
+    required this.pageSize,
+    required this.totalCount,
+    this.totalPages = 0,
+    this.hasNextPage = false,
+    this.hasPreviousPage = false,
+    this.appliedRadiusKm,
+    this.sort = 'nearest',
+  });
+
+  factory PagedBusinessResult.fromJson(Map<String, dynamic> json) {
+    final rawItems = json['items'] as List? ?? json['Items'] as List? ?? [];
+    return PagedBusinessResult(
+      items: rawItems
+          .map((e) => BusinessDto.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      page: json['page'] ?? json['Page'] ?? 1,
+      pageSize: json['pageSize'] ?? json['PageSize'] ?? 20,
+      totalCount: json['totalCount'] ?? json['TotalCount'] ?? 0,
+      totalPages: json['totalPages'] ?? json['TotalPages'] ?? 0,
+      hasNextPage: json['hasNextPage'] ?? json['HasNextPage'] ?? false,
+      hasPreviousPage: json['hasPreviousPage'] ?? json['HasPreviousPage'] ?? false,
+      appliedRadiusKm: (json['appliedRadiusKm'] as num?)?.toDouble() ??
+          (json['AppliedRadiusKm'] as num?)?.toDouble(),
+      sort: json['sort']?.toString() ?? json['Sort']?.toString() ?? 'nearest',
+    );
+  }
+}
+
 class BusinessReviewDto {
   final int reviewId;
   final int businessId;

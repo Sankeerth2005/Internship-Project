@@ -72,15 +72,18 @@ class _AppButtonState extends State<AppButton> with SingleTickerProviderStateMix
           child: Container(
             height: 50,
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(24.0),
-              color: widget.onPressed == null ? const Color(0xFFF0EFEA) : AppTheme.accentColor,
+              borderRadius: BorderRadius.circular(16.0),
+              gradient: widget.onPressed == null
+                  ? null
+                  : AppTheme.primarySolarGradient,
+              color: widget.onPressed == null ? const Color(0xFFF0EFEA) : null,
               boxShadow: widget.onPressed == null
                   ? []
                   : [
                       BoxShadow(
-                        color: AppTheme.accentColor.withValues(alpha: 0.18),
-                        blurRadius: 12,
-                        offset: const Offset(0, 4),
+                        color: AppTheme.accentColor.withValues(alpha: 0.28),
+                        blurRadius: 16,
+                        offset: const Offset(0, 6),
                       ),
                     ],
             ),

@@ -1,25 +1,27 @@
+import 'dart:async';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
+import '../config/app_config.dart';
 import '../storage/secure_storage_service.dart';
+import 'dio_auth_policy.dart';
 
 class DioClient {
   static final DioClient _instance = DioClient._internal();
   late final Dio _dio;
 
-  // 💡 CONFIGURATION FOR EXTERNAL DEVICE / EMULATOR:
-  // - For Android Emulator: Use '10.0.2.2'
-  // - For Physical Device (USB Debugging): Run `adb reverse tcp:5138 tcp:5138` on your computer terminal and change this to '127.0.0.1'
-  // - For Physical Device (same Wi-Fi): Change this to your computer's local IP (e.g., '192.168.1.15')
-  // - For Testing with ngrok: Use ngrok URL for external access
-  static const String backendHost = 'bulldog-kinsman-tutor.ngrok-free.dev';
-  static const bool useHttps = true;
-  static const int backendPort = 443;
+  static String get backendHost => AppConfig.backendHost;
+  static bool get useHttps => AppConfig.useHttps;
+
+  /// Called only when refresh fails or session is intentionally ended.
   static VoidCallback? onUnauthorized;
   static VoidCallback? onRateLimited;
 
-  /// Resolves a potentially relative URL (e.g. `/uploads/abc.jpg`) to an absolute URL
-  /// using the backend base URL origin.
+  static bool _isRefreshing = false;
+  static Completer<bool>? _refreshCompleter;
+
+  /// Resolves a potentially relative URL (e.g. `/uploads/abc.jpg`) to an absolute URL.
   static String? resolveUrl(String? value) {
     if (value == null || value.isEmpty) {
       return null;
@@ -27,22 +29,18 @@ class DioClient {
 
     final parsed = Uri.tryParse(value);
     if (parsed != null && parsed.hasScheme) {
-      // Already an absolute URL with scheme (http://, https://)
       return value;
     }
 
-    // Build the backend origin from the configured host
-    final scheme = useHttps ? 'https' : 'http';
-    final port = (useHttps && backendPort == 443) ? '' : ':$backendPort';
-    final origin = '$scheme://$backendHost$port';
+    final origin = backendOrigin;
     return value.startsWith('/') ? '$origin$value' : '$origin/$value';
   }
 
-  /// Returns the backend origin (scheme + host + port) for building image URLs
   static String get backendOrigin {
     final scheme = useHttps ? 'https' : 'http';
-    final port = (useHttps && backendPort == 443) ? '' : ':$backendPort';
-    return '$scheme://$backendHost$port';
+    final host = backendHost;
+    // Host may already include port (127.0.0.1:5138)
+    return '$scheme://$host';
   }
 
   factory DioClient() {
@@ -50,17 +48,22 @@ class DioClient {
   }
 
   DioClient._internal() {
-    // Use ngrok URL for external testing
-    final scheme = useHttps ? 'https' : 'http';
-    final port = (useHttps && backendPort == 443) ? '' : ':$backendPort';
-    String baseUrlStr = '$scheme://$backendHost$port/api/v1/';
+    final baseUrlStr = '$backendOrigin/api/v1/';
+
+    final defaultHeaders = <String, dynamic>{
+      'Content-Type': 'application/json',
+    };
+    // Free ngrok interstitial can break WebView / some HTTP stacks without this.
+    if (backendHost.contains('ngrok')) {
+      defaultHeaders['ngrok-skip-browser-warning'] = '1';
+    }
 
     _dio = Dio(
       BaseOptions(
         baseUrl: baseUrlStr,
-        connectTimeout: const Duration(seconds: 10),
-        receiveTimeout: const Duration(seconds: 10),
-        headers: {'Content-Type': 'application/json'},
+        connectTimeout: const Duration(seconds: 15),
+        receiveTimeout: const Duration(seconds: 20),
+        headers: defaultHeaders,
       ),
     );
 
@@ -81,8 +84,28 @@ class DioClient {
           handler.next(options);
         },
         onError: (DioException e, handler) async {
-          final isLoginRequest = e.requestOptions.path.contains('sessions');
-          if (e.response?.statusCode == 401 && !isLoginRequest) {
+          final path = e.requestOptions.path;
+
+          if (DioAuthPolicy.shouldAttemptRefresh(
+            statusCode: e.response?.statusCode,
+            path: path,
+          )) {
+            final refreshed = await _tryRefreshToken();
+            if (refreshed) {
+              try {
+                final token = await SecureStorageService.getToken();
+                final opts = e.requestOptions;
+                opts.headers['Authorization'] = 'Bearer $token';
+                final response = await _dio.fetch(opts);
+                return handler.resolve(response);
+              } catch (retryError) {
+                if (retryError is DioException) {
+                  return handler.next(retryError);
+                }
+                return handler.next(e);
+              }
+            }
+
             onUnauthorized?.call();
           } else if (e.response?.statusCode == 429) {
             onRateLimited?.call();
@@ -92,9 +115,69 @@ class DioClient {
       ),
     );
 
-    _dio.interceptors.add(
-      LogInterceptor(responseBody: true, requestBody: true),
-    );
+    if (kDebugMode) {
+      _dio.interceptors.add(
+        LogInterceptor(responseBody: true, requestBody: true),
+      );
+    }
+  }
+
+  /// Single-flight refresh so concurrent 401s share one refresh call.
+  static Future<bool> _tryRefreshToken() async {
+    if (_isRefreshing) {
+      return _refreshCompleter?.future ?? Future.value(false);
+    }
+
+    _isRefreshing = true;
+    _refreshCompleter = Completer<bool>();
+
+    try {
+      final refreshToken = await SecureStorageService.getRefreshToken();
+      if (refreshToken == null || refreshToken.isEmpty) {
+        _refreshCompleter!.complete(false);
+        return false;
+      }
+
+      final refreshDio = Dio(
+        BaseOptions(
+          baseUrl: '$backendOrigin/api/v1/',
+          connectTimeout: const Duration(seconds: 15),
+          receiveTimeout: const Duration(seconds: 20),
+          headers: {'Content-Type': 'application/json'},
+        ),
+      );
+
+      final response = await refreshDio.post(
+        'auth/refresh',
+        data: {'refreshToken': refreshToken},
+      );
+
+      final data = response.data;
+      if (data is Map && data['success'] == true && data['data'] is Map) {
+        final payload = data['data'] as Map;
+        final newAccess = payload['token']?.toString();
+        final newRefresh = payload['refreshToken']?.toString();
+
+        if (newAccess != null && newAccess.isNotEmpty) {
+          await SecureStorageService.saveToken(newAccess);
+          if (newRefresh != null && newRefresh.isNotEmpty) {
+            await SecureStorageService.saveRefreshToken(newRefresh);
+          }
+          _refreshCompleter!.complete(true);
+          return true;
+        }
+      }
+
+      _refreshCompleter!.complete(false);
+      return false;
+    } catch (e) {
+      debugPrint('DioClient: Token refresh failed: $e');
+      _refreshCompleter!.complete(false);
+      return false;
+    } finally {
+      _isRefreshing = false;
+      _refreshCompleter = null;
+    }
   }
 
   Dio get dio => _dio;

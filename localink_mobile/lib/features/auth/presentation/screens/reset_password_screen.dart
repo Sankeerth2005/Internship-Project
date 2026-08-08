@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/network/dio_client.dart';
+import '../../../../core/validation/app_validators.dart';
 import '../../../shared/presentation/widgets/app_text_field.dart';
 import '../../../shared/presentation/widgets/app_button.dart';
 import '../../../shared/presentation/widgets/shake_widget.dart';
@@ -150,28 +151,10 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen>
     setState(() {}); // Updates requirement checkmarks dynamically
   }
 
-  String? _validatePassword(String? val) {
-    if (val == null || val.isEmpty) return 'Password is required';
-    if (val.length < 8) return 'Password must be at least 8 characters';
-    
-    final hasUppercase = RegExp(r'[A-Z]').hasMatch(val);
-    final hasLowercase = RegExp(r'[a-z]').hasMatch(val);
-    final hasDigits = RegExp(r'[0-9]').hasMatch(val);
-    final hasSpecialCharacters = RegExp(r'[!@#$%^&*(),.?":{}|<>]').hasMatch(val);
+  String? _validatePassword(String? val) => AppValidators.password(val);
 
-    if (!hasUppercase) return 'Must contain at least one uppercase letter';
-    if (!hasLowercase) return 'Must contain at least one lowercase letter';
-    if (!hasDigits) return 'Must contain at least one number';
-    if (!hasSpecialCharacters) return 'Must contain at least one special character';
-
-    return null;
-  }
-
-  String? _validateConfirmPassword(String? val) {
-    if (val == null || val.isEmpty) return 'Confirm password is required';
-    if (val != _passwordController.text) return 'Passwords do not match';
-    return null;
-  }
+  String? _validateConfirmPassword(String? val) =>
+      AppValidators.confirmPassword(val, _passwordController.text);
 
   // ── PRESERVED LOGIC (DO NOT MODIFY) ────────────────────────────────────────
   Future<void> _resetPassword() async {

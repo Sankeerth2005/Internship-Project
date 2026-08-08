@@ -94,7 +94,7 @@ class _BusinessDashboardScreenState extends ConsumerState<BusinessDashboardScree
           actions: [
             IconButton(
               icon: const Icon(Icons.add_business_rounded, color: _DashTok.primary),
-              tooltip: 'Add Store',
+              tooltip: 'Add Business',
               onPressed: () {
                 HapticFeedback.lightImpact();
                 context.push('/register-business');
@@ -170,7 +170,7 @@ class _BusinessDashboardScreenState extends ConsumerState<BusinessDashboardScree
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 const Text(
-                                  'Switch Business Store',
+                                  'Switch Business',
                                   style: TextStyle(
                                     color: _DashTok.textMedium,
                                     fontSize: 11,
@@ -184,16 +184,20 @@ class _BusinessDashboardScreenState extends ConsumerState<BusinessDashboardScree
                                     context.push('/register-business');
                                   },
                                   style: TextButton.styleFrom(
-                                    padding: EdgeInsets.zero,
-                                    minimumSize: Size.zero,
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                    minimumSize: const Size(0, 36),
                                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                                     foregroundColor: _DashTok.primary,
+                                    backgroundColor: _DashTok.primaryLight,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
                                   ),
-                                  icon: const Icon(Icons.add_rounded, size: 14),
+                                  icon: const Icon(Icons.add_rounded, size: 18),
                                   label: const Text(
-                                    'Add New Store',
+                                    'Add New Business',
                                     style: TextStyle(
-                                      fontSize: 11,
+                                      fontSize: 13,
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),
@@ -222,7 +226,11 @@ class _BusinessDashboardScreenState extends ConsumerState<BusinessDashboardScree
                                   items: businesses.map((b) {
                                     return DropdownMenuItem<int>(
                                       value: b.businessId,
-                                      child: Text(b.businessName),
+                                      child: Text(
+                                        b.businessName,
+                                        overflow: TextOverflow.ellipsis,
+                                        maxLines: 1,
+                                      ),
                                     );
                                   }).toList(),
                                   onChanged: (id) {
@@ -255,7 +263,7 @@ class _BusinessDashboardScreenState extends ConsumerState<BusinessDashboardScree
                                   ),
                                   icon: const Icon(Icons.add_business_rounded, size: 14),
                                   label: const Text(
-                                    'Register Another Store',
+                                    'Register Another Business',
                                     style: TextStyle(
                                       fontSize: 11,
                                       fontWeight: FontWeight.bold,
@@ -321,7 +329,7 @@ class _BusinessDashboardScreenState extends ConsumerState<BusinessDashboardScree
                           ),
                           const SizedBox(height: 4),
                           const Text(
-                            'Track how many customers discover, view, call, or navigate to your store listing.',
+                            'Track how many customers discover, view, call, or navigate to your business listing.',
                             style: TextStyle(
                               color: _DashTok.textMedium,
                               fontSize: 12.5,
@@ -480,17 +488,22 @@ class _BusinessDashboardScreenState extends ConsumerState<BusinessDashboardScree
                                   ),
                                 ],
                               ),
-                              child: const Row(
+                              child: Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  Icon(Icons.edit_note_rounded, color: Colors.white, size: 24),
-                                  SizedBox(width: 10),
-                                  Text(
-                                    'Update Store Details (Hours, Photos, Info)',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.bold,
+                                  const Icon(Icons.edit_note_rounded, color: Colors.white, size: 24),
+                                  const SizedBox(width: 10),
+                                  Flexible(
+                                    child: Text(
+                                      'Update Business Details (Hours, Photos, Info)',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                      maxLines: 2,
+                                      textAlign: TextAlign.center,
                                     ),
                                   ),
                                 ],
@@ -517,17 +530,22 @@ class _BusinessDashboardScreenState extends ConsumerState<BusinessDashboardScree
                                   ),
                                 ],
                               ),
-                              child: const Row(
+                              child: Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  Icon(Icons.restaurant_menu_rounded, color: Colors.white, size: 24),
-                                  SizedBox(width: 10),
-                                  Text(
-                                    'Manage Product / Service Catalog',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.bold,
+                                  const Icon(Icons.restaurant_menu_rounded, color: Colors.white, size: 24),
+                                  const SizedBox(width: 10),
+                                  Flexible(
+                                    child: Text(
+                                      'Manage Product / Service Catalog',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                      maxLines: 2,
+                                      textAlign: TextAlign.center,
                                     ),
                                   ),
                                 ],
@@ -542,7 +560,7 @@ class _BusinessDashboardScreenState extends ConsumerState<BusinessDashboardScree
                                   icon: activeBusiness.isTemporarilyClosed
                                       ? Icons.play_arrow_rounded
                                       : Icons.pause_rounded,
-                                  label: activeBusiness.isTemporarilyClosed ? 'Reopen Store' : 'Temporary Closure',
+                                  label: activeBusiness.isTemporarilyClosed ? 'Reopen Business' : 'Temporary Closure',
                                   onTap: () {
                                     HapticFeedback.mediumImpact();
                                     _showTemporaryClosureDialog(context, ref, activeBusiness);
@@ -554,7 +572,7 @@ class _BusinessDashboardScreenState extends ConsumerState<BusinessDashboardScree
                               Expanded(
                                 child: _buildActionBtn(
                                   icon: Icons.delete_outline_rounded,
-                                  label: 'Delete Store Listing',
+                                  label: 'Delete Business Listing',
                                   onTap: () {
                                     HapticFeedback.heavyImpact();
                                     _showDeletionDialog(context, ref, activeBusiness);
@@ -605,7 +623,7 @@ class _BusinessDashboardScreenState extends ConsumerState<BusinessDashboardScree
                         ),
                         _buildTimelineItem(
                           icon: Icons.verified_user_rounded,
-                          title: 'Store Approved',
+                          title: 'Business Approved',
                           desc: 'Your listing is now verified and active.',
                           time: '5d ago',
                           color: _DashTok.success,
@@ -661,12 +679,12 @@ class _BusinessDashboardScreenState extends ConsumerState<BusinessDashboardScree
             ),
             const SizedBox(height: 24),
             const Text(
-              'Welcome, Store Owner!',
+              'Welcome, Business Owner!',
               style: TextStyle(color: _DashTok.textHigh, fontSize: 20, fontWeight: FontWeight.w900),
             ),
             const SizedBox(height: 10),
             const Text(
-              'Register your business, services, or stores to gain neighborhood customers.',
+              'Register your business or services to gain neighborhood customers.',
               style: TextStyle(color: _DashTok.textMedium, fontSize: 13, height: 1.45),
               textAlign: TextAlign.center,
             ),
@@ -695,7 +713,7 @@ class _BusinessDashboardScreenState extends ConsumerState<BusinessDashboardScree
                     Icon(Icons.add_rounded, color: Colors.white, size: 18),
                     SizedBox(width: 6),
                     Text(
-                      'Register Store Now',
+                      'Register Business Now',
                       style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
                     ),
                   ],
@@ -1004,8 +1022,9 @@ class _BusinessDashboardScreenState extends ConsumerState<BusinessDashboardScree
                 fontSize: 10.5,
                 fontWeight: FontWeight.bold,
               ),
-              maxLines: 1,
+              maxLines: 2,
               overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
             ),
           ],
         ),
@@ -1125,7 +1144,7 @@ class _BusinessDashboardScreenState extends ConsumerState<BusinessDashboardScree
                           width: 16,
                           child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
                         )
-                      : const Text('Reopen Store', style: TextStyle(fontWeight: FontWeight.bold)),
+                      : const Text('Reopen Business', style: TextStyle(fontWeight: FontWeight.bold)),
                 ),
               ],
             );

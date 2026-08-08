@@ -18,25 +18,32 @@ class AppCard extends StatelessWidget {
     this.color,
     this.border,
     this.boxShadow,
-    this.borderRadius = 24.0,
+    this.borderRadius = 20.0,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
       constraints: maxWidth != null ? BoxConstraints(maxWidth: maxWidth!) : null,
-      padding: padding ?? const EdgeInsets.all(24.0),
+      padding: padding ?? const EdgeInsets.all(22.0),
       decoration: BoxDecoration(
         color: color ?? Colors.white,
         borderRadius: BorderRadius.circular(borderRadius),
-        border: border ?? Border.all(color: AppTheme.borderColor),
-        boxShadow: boxShadow ?? [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
-            blurRadius: 15,
-            offset: const Offset(0, 6),
-          ),
-        ],
+        border: border ??
+            Border.all(color: AppTheme.borderColor.withValues(alpha: 0.9)),
+        boxShadow: boxShadow ??
+            [
+              BoxShadow(
+                color: const Color(0xFF1A1918).withValues(alpha: 0.04),
+                blurRadius: 24,
+                offset: const Offset(0, 10),
+              ),
+              BoxShadow(
+                color: AppTheme.accentColor.withValues(alpha: 0.03),
+                blurRadius: 18,
+                offset: const Offset(0, 4),
+              ),
+            ],
       ),
       child: child,
     );

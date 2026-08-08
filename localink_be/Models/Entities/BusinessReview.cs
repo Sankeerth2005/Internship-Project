@@ -16,6 +16,6 @@ namespace localink_be.Models.Entities
         public bool IsFlagged { get; set; }
         public string? ModerationReason { get; set; }
 
-        public User User { get; set; }  
+        public User User { get; set; } = null!;
     }
 }

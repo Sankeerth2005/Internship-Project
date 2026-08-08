@@ -1,11 +1,14 @@
 using localink_be.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace localink_be.Controllers
 {
     [ApiController]
     [Route("api/v1/ai")]
+    [Authorize]
+    [EnableRateLimiting("AiPolicy")]
     public class AIController : ControllerBase
     {
         private readonly IAIService _aiService;

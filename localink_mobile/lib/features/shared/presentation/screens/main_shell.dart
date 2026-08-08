@@ -1,17 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'dart:ui';
 
-class MainShell extends StatefulWidget {
+class MainShell extends ConsumerStatefulWidget {
   final StatefulNavigationShell navigationShell;
 
   const MainShell({super.key, required this.navigationShell});
 
   @override
-  State<MainShell> createState() => _MainShellState();
+  ConsumerState<MainShell> createState() => _MainShellState();
 }
 
-class _MainShellState extends State<MainShell> {
+class _MainShellState extends ConsumerState<MainShell> {
   // Stack to track tab navigation history for proper back button behavior
   final List<int> _tabHistory = [0];
 
@@ -49,27 +50,32 @@ class _MainShellState extends State<MainShell> {
           height: 80,
           margin: const EdgeInsets.fromLTRB(20, 0, 20, 10),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(24),
+            borderRadius: BorderRadius.circular(28),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFF1A1918).withValues(alpha: 0.07),
-                blurRadius: 16,
-                spreadRadius: 1,
-                offset: const Offset(0, 4),
+                color: const Color(0xFF1A1918).withValues(alpha: 0.08),
+                blurRadius: 24,
+                spreadRadius: 0,
+                offset: const Offset(0, 8),
+              ),
+              BoxShadow(
+                color: const Color(0xFFFF6600).withValues(alpha: 0.06),
+                blurRadius: 18,
+                offset: const Offset(0, 2),
               ),
             ],
           ),
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(24),
+            borderRadius: BorderRadius.circular(28),
             child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+              filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
               child: Container(
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFFFFFF).withValues(alpha: 0.88),
-                  borderRadius: BorderRadius.circular(24),
+                  color: const Color(0xFFFFFFFF).withValues(alpha: 0.92),
+                  borderRadius: BorderRadius.circular(28),
                   border: Border.all(
                     color: const Color(0xFFEAE8E3),
-                    width: 1.2,
+                    width: 1,
                   ),
                 ),
                 child: NavigationBarTheme(

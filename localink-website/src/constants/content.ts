@@ -1,173 +1,113 @@
 export const siteContent = {
   hero: {
-    headline: 'Discover Local Businesses, Connect with Your Community',
-    subheadline: 'The all-in-one platform that connects users with local businesses through intelligent search, real-time communication, and AI-powered recommendations.',
-    ctaPrimary: 'Download the App',
-    ctaSecondary: 'Explore as Business Owner',
-    ctaTertiary: 'Learn More',
+    brand: 'Vocal for Sanatan',
+    headline: 'Your neighbourhood, discovered.',
+    subheadline:
+      'Find trusted local businesses with AI search, maps, reviews, and direct chat — no middlemen.',
+    ctaPrimary: 'Get the app',
+    ctaSecondary: 'List your business',
   },
   features: {
-    title: 'Why Choose Vocal For Sanatan?',
+    title: 'Everything local, in one place',
+    subtitle: 'Built for customers and business owners who want a direct connection.',
     items: [
       {
         icon: 'Search',
-        title: 'AI-Powered Business Search',
-        description: 'Find exactly what you need with our intelligent search that understands natural language and provides personalized recommendations based on your preferences and location.',
+        title: 'AI-powered search',
+        description:
+          'Ask in natural language. Our assistant understands what you need and surfaces nearby matches.',
       },
       {
         icon: 'MessageCircle',
-        title: 'Connect Instantly with Businesses',
-        description: 'Chat directly with business owners, send voice messages, and get real-time responses. No more waiting for email replies or playing phone tag.',
+        title: 'Chat with owners',
+        description:
+          'Message businesses in real time — text or voice — and get answers without phone tag.',
       },
       {
         icon: 'Star',
-        title: 'Trust Through Authentic Reviews',
-        description: 'Read genuine reviews from real customers. Our AI-enhanced review system helps users share detailed experiences and businesses build trust.',
+        title: 'Authentic reviews',
+        description:
+          'Read experiences from real customers and share yours to help the community choose wisely.',
       },
       {
         icon: 'MapPin',
-        title: 'Find Businesses Near You',
-        description: 'Discover businesses based on your location with integrated maps, distance-based sorting, and accurate pincode validation.',
+        title: 'Near you on the map',
+        description:
+          'Location-aware discovery with distance sorting so you find what is actually close.',
       },
       {
         icon: 'BarChart3',
-        title: 'Grow Your Business with Insights',
-        description: 'Track your performance with detailed analytics, view customer engagement metrics, and get AI-powered recommendations to improve your business.',
+        title: 'Owner insights',
+        description:
+          'Track profile views, leads, and engagement so you know what is working for your listing.',
       },
       {
-        icon: 'Globe',
-        title: 'Accessible in Your Language',
-        description: 'Experience the platform in your preferred language with our real-time translation support, making local discovery accessible to everyone.',
+        icon: 'Mic',
+        title: 'Voice-first access',
+        description:
+          'Search and interact hands-free with voice input and spoken feedback when you need it.',
       },
     ],
   },
   howItWorks: {
-    title: 'How Vocal For Sanatan Works',
+    title: 'How it works',
     userSteps: [
       {
         step: 'Discover',
-        description: 'Search for businesses by category, location, or use our AI assistant to find exactly what you need.',
+        description: 'Search by category, area, or ask the AI guide for what you need nearby.',
       },
       {
         step: 'Connect',
-        description: 'Chat with business owners, view reviews, and save your favorites for quick access.',
+        description: 'Open a listing, check hours and reviews, then chat with the owner directly.',
       },
       {
         step: 'Engage',
-        description: 'Leave reviews, share experiences, and help others discover great local businesses.',
+        description: 'Save favourites, leave reviews, and keep your local circle growing.',
       },
     ],
     businessSteps: [
       {
         step: 'Register',
-        description: 'Create your business profile in minutes with our easy-to-use registration process.',
+        description: 'Create your profile with photos, hours, location, and contact details.',
       },
       {
         step: 'Manage',
-        description: 'Update your information, manage photos, and keep your customers informed.',
+        description: 'Update listings, reply to customers, and keep your presence current.',
       },
       {
-        step: 'Analyze',
-        description: 'Track views, reviews, and customer engagement to optimize your business performance.',
-      },
-    ],
-  },
-  statistics: {
-    title: 'Vocal For Sanatan by the Numbers',
-    items: [
-      { value: '10,000+', label: 'Businesses Registered' },
-      { value: '50,000+', label: 'Active Users' },
-      { value: '100,000+', label: 'Business Reviews' },
-      { value: '25+', label: 'Categories Supported' },
-      { value: '4.8/5', label: 'Average User Rating' },
-      { value: '500+', label: 'Cities Covered' },
-    ],
-  },
-  testimonials: {
-    title: 'What Our Users Say',
-    items: [
-      {
-        quote: 'Vocal For Sanatan made it so easy to find reliable local businesses. The AI assistant understood exactly what I was looking for!',
-        name: 'Priya Sharma',
-        role: 'Small Business Owner',
-        location: 'Bengaluru, India',
-        rating: 5,
-      },
-      {
-        quote: 'As a business owner, the analytics dashboard helped me understand my customers better. My engagement increased by 40% in just 2 months!',
-        name: 'Rajesh Kumar',
-        role: 'Restaurant Owner',
-        location: 'Bengaluru, India',
-        rating: 5,
-      },
-      {
-        quote: 'The real-time chat feature is a game-changer. I can quickly get answers from businesses without making multiple calls.',
-        name: 'Ananya Patel',
-        role: 'Regular User',
-        location: 'Bengaluru, India',
-        rating: 5,
-      },
-      {
-        quote: 'Finally, a platform that understands local businesses. The multi-language support helped me reach customers I couldn\'t before.',
-        name: 'Vikram Singh',
-        role: 'Service Provider',
-        location: 'Bengaluru, India',
-        rating: 5,
+        step: 'Grow',
+        description: 'Use analytics and reviews to attract more of the right customers.',
       },
     ],
   },
   categories: {
-    title: 'Explore Categories',
+    title: 'Explore categories',
     items: [
-      { name: 'Restaurants & Cafes', description: 'Food & dining options' },
-      { name: 'Shopping & Retail', description: 'Local stores and markets' },
-      { name: 'Health & Wellness', description: 'Doctors, gyms, spas' },
-      { name: 'Home Services', description: 'Plumbers, electricians, cleaners' },
-      { name: 'Automotive', description: 'Car repair, services, dealerships' },
-      { name: 'Education', description: 'Tutors, coaching centers, schools' },
-      { name: 'Professional Services', description: 'Lawyers, accountants, consultants' },
-      { name: 'Entertainment', description: 'Events, venues, activities' },
-      { name: 'Travel & Tourism', description: 'Hotels, tours, travel agents' },
-      { name: 'Beauty & Fashion', description: 'Salons, boutiques, personal care' },
+      { name: 'Food & dining', description: 'Restaurants, cafés, sweets' },
+      { name: 'Shopping', description: 'Retail & local markets' },
+      { name: 'Health', description: 'Clinics, gyms, wellness' },
+      { name: 'Home services', description: 'Repairs & maintenance' },
+      { name: 'Automotive', description: 'Service & parts' },
+      { name: 'Education', description: 'Tutors & centres' },
+      { name: 'Professionals', description: 'Legal, finance, consulting' },
+      { name: 'Beauty', description: 'Salons & fashion' },
     ],
   },
   download: {
-    title: 'Download Vocal For Sanatan Today',
-    subtitle: 'Available on iOS and Android - Coming Soon to Your Favorite App Store',
-    notifyTitle: 'Be the First to Know When We Launch',
-    notifyDescription: 'Sign up for early access and get notified when Vocal For Sanatan is available in your app store.',
+    title: 'Get Vocal for Sanatan',
+    subtitle: 'Available on Google Play. iOS coming soon.',
   },
   business: {
-    title: 'Grow Your Business with Vocal For Sanatan',
-    subtitle: 'Join thousands of local businesses already on Vocal For Sanatan',
+    title: 'Grow with Vocal for Sanatan',
+    subtitle: 'Reach customers who are already looking for businesses like yours.',
     benefits: [
-      'Increased Visibility: Get discovered by customers actively searching for your services',
-      'Direct Communication: Chat with potential customers in real-time',
-      'Customer Insights: Understand your audience with detailed analytics',
-      'Review Management: Build trust through authentic customer reviews',
-      'AI-Powered Recommendations: Get intelligent suggestions to improve your listing',
-      'Multi-Language Reach: Connect with customers in their preferred language',
+      'Show up when neighbours search for your category',
+      'Chat directly with interested customers',
+      'Build trust with photos, hours, and reviews',
+      'Understand engagement with simple analytics',
     ],
-    ctaTitle: 'Ready to Grow Your Business?',
-    ctaDescription: 'Register your business today and start connecting with local customers.',
   },
   footer: {
-    company: {
-      title: 'Company',
-      links: ['About Us', 'How It Works', 'Careers', 'Press Kit', 'Contact Us'],
-    },
-    product: {
-      title: 'Product',
-      links: ['Features', 'Pricing', 'For Business Owners', 'API Documentation', 'Mobile App'],
-    },
-    legal: {
-      title: 'Legal',
-      links: ['Privacy Policy', 'Terms of Service', 'Cookie Policy', 'GDPR Compliance'],
-    },
-    newsletter: {
-      title: 'Stay Updated',
-      description: 'Subscribe to our newsletter for the latest updates and features.',
-    },
-    copyright: '© 2026 Vocal For Sanatan. All rights reserved.',
+    copyright: '© 2026 Vocal for Sanatan. All rights reserved.',
   },
 } as const

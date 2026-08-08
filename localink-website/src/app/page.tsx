@@ -1,6 +1,7 @@
 import Navbar from '@/components/Navbar'
 import Footer from '@/components/Footer'
 import Hero from '@/sections/Hero'
+import ValueStrip from '@/sections/ValueStrip'
 import Features from '@/sections/Features'
 import HowItWorks from '@/sections/HowItWorks'
 import Categories from '@/sections/Categories'
@@ -12,6 +13,7 @@ export default function Home() {
     <main className="min-h-screen">
       <Navbar />
       <Hero />
+      <ValueStrip />
       <Features />
       <HowItWorks />
       <Categories />

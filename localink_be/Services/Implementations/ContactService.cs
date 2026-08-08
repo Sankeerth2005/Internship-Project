@@ -7,6 +7,7 @@ using localink_be.Data;
 using localink_be.Models.Entities;
 using localink_be.Models.DTOs;
 using localink_be.Services.Interfaces;
+using NetTopologySuite.Geometries;
 
 namespace localink_be.Services.Implementations
 {
@@ -19,6 +20,16 @@ namespace localink_be.Services.Implementations
         {
             _db = db ?? throw new ArgumentNullException(nameof(db));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        }
+
+        private static Point? BuildGeoPoint(double? latitude, double? longitude)
+        {
+            if (!latitude.HasValue || !longitude.HasValue) return null;
+            if (latitude is < -90 or > 90) return null;
+            if (longitude is < -180 or > 180) return null;
+            if (latitude == 0 && longitude == 0) return null;
+            // NTS Point: X = longitude, Y = latitude, SRID 4326
+            return new Point(longitude.Value, latitude.Value) { SRID = 4326 };
         }
 
         // ADD CONTACT (used during registration)
@@ -70,6 +81,7 @@ namespace localink_be.Services.Implementations
                 Pincode = dto.Pincode,
                 Latitude = dto.Latitude,
                 Longitude = dto.Longitude,
+                GeoLocation = BuildGeoPoint(dto.Latitude, dto.Longitude),
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             };
@@ -125,6 +137,7 @@ namespace localink_be.Services.Implementations
             existing.Pincode = updated.Pincode;
             existing.Latitude = updated.Latitude;
             existing.Longitude = updated.Longitude;
+            existing.GeoLocation = BuildGeoPoint(updated.Latitude, updated.Longitude);
             existing.UpdatedAt = DateTime.UtcNow;
 
             await _db.SaveChangesAsync();

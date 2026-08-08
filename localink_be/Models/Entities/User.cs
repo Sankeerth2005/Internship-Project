@@ -20,6 +20,14 @@ namespace localink_be.Models.Entities
         public string? PasswordResetOtp { get; set; }
         public DateTime? OtpExpiry { get; set; }
         public string? ProfilePicture { get; set; }
+        
+        // Track authentication provider (email, google, etc.)
+        public string? AuthProvider { get; set; }
+        public string? ProviderId { get; set; }
+        
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime? UpdatedAt { get; set; }
+        
         public ICollection<Business> Businesses { get; set; } = new List<Business>();
     }
 }

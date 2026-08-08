@@ -1,12 +1,18 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'features/auth/presentation/screens/forgot_password_screen.dart';
 import 'features/auth/presentation/screens/verify_otp_screen.dart';
 import 'features/auth/presentation/screens/reset_password_screen.dart';
+import 'features/auth/presentation/screens/change_password_screen.dart';
 import 'features/auth/presentation/screens/login_screen.dart';
 import 'features/auth/presentation/screens/signup_screen.dart';
 import 'features/auth/presentation/screens/profile_screen.dart';
+import 'features/shared/presentation/screens/privacy_policy_screen.dart';
+import 'features/shared/presentation/screens/account_deletion_screen.dart';
 import 'features/auth/providers/auth_provider.dart';
 import 'features/auth/providers/auth_state.dart';
 import 'features/business/data/models/business_models.dart';
@@ -28,83 +34,116 @@ import 'features/chat/presentation/screens/conversations_screen.dart';
 import 'features/chat/presentation/screens/chat_screen.dart';
 import 'features/catalog/presentation/screens/manage_catalog_screen.dart';
 
+import 'core/config/app_config.dart';
 import 'core/theme/app_theme.dart';
+import 'core/auth/role_routes.dart';
 import 'core/network/dio_client.dart';
+import 'core/monitoring/crash_reporter.dart';
+import 'features/shared/presentation/widgets/offline_banner.dart';
 
 void main() {
-  runApp(const ProviderScope(child: LocalinkApp()));
+  WidgetsFlutterBinding.ensureInitialized();
+
+  FlutterError.onError = CrashReporter.recordFlutterError;
+
+  runZonedGuarded(
+    () {
+      // Never throw before runApp — that freezes the Android native splash
+      // (black screen + centered launcher icon) with no recoverable UI.
+      String? releaseConfigError;
+      try {
+        AppConfig.assertReleaseReady();
+      } on StateError catch (e) {
+        releaseConfigError = e.message;
+        debugPrint('Release config error: $e');
+      }
+
+      runApp(
+        ProviderScope(
+          child: releaseConfigError == null
+              ? const LocalinkApp()
+              : _MisconfiguredReleaseApp(message: releaseConfigError),
+        ),
+      );
+    },
+    (error, stack) {
+      CrashReporter.recordZoneError(error, stack);
+    },
+  );
 }
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
+
+String _homeForRole(String userType) => RoleRoutes.homeForRole(userType);
+
+bool _isAdminRoute(String location) =>
+    location == '/admin-dashboard' || location == '/admin-heatmap';
+
+bool _isOwnerRoute(String location) =>
+    location == '/business-dashboard' ||
+    location.startsWith('/register-business') ||
+    location.startsWith('/edit-business') ||
+    location.startsWith('/analytics/') ||
+    location.startsWith('/owner-analytics/') ||
+    location.startsWith('/manage-catalog/') ||
+    location == '/owner-profile';
 
 final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     navigatorKey: _rootNavigatorKey,
     initialLocation: '/splash',
     refreshListenable: GoRouterRefreshListenable(ref),
-    errorBuilder: (context, state) => _RouteErrorScreen(error: state.error?.toString()),
+    errorBuilder: (context, state) =>
+        _RouteErrorScreen(error: state.error?.toString()),
     redirect: (BuildContext context, GoRouterState state) {
-      final authState = ref.read(authProvider); // Read auth state without re-creating router
+      final authState = ref.read(authProvider);
       final splashShown = ref.read(splashShownProvider);
       final currentLocation = state.matchedLocation;
 
-      // If splash has not completed displaying yet, force staying on /splash
       if (!splashShown) {
-        if (currentLocation == '/splash') {
-          return null;
-        }
+        if (currentLocation == '/splash') return null;
         return '/splash';
       }
 
-      // If splash has completed but location is still /splash, redirect away from splash
       if (currentLocation == '/splash') {
         if (authState is AuthAuthenticated) {
-          final role = authState.userType.toLowerCase().trim();
-          if (role == 'admin') return '/admin-dashboard';
-          if (role == 'businessowner') return '/business-dashboard';
-          return '/home';
+          return _homeForRole(authState.userType);
         }
         return '/welcome';
       }
 
-      // If the app is still in the initial authentication check,
-      // allow it to stay on current public screen.
       if (authState is AuthInitial) {
-        return null; 
+        return null;
       }
 
-      // Define public routes that an unauthenticated user can access.
-      // These are routes that don't require authentication.
       final isPublicRoute = currentLocation == '/welcome' ||
           currentLocation == '/login' ||
           currentLocation == '/signup' ||
           currentLocation == '/forgot-password' ||
           currentLocation == '/verify-otp' ||
-          currentLocation == '/reset-password';
+          currentLocation == '/reset-password' ||
+          currentLocation == '/privacy-policy';
 
-      // If the user is NOT authenticated and trying to access a protected route,
-      // redirect them to the welcome screen.
       if (authState is AuthUnauthenticated && !isPublicRoute) {
         return '/welcome';
       }
 
-      // If the user IS authenticated...
       if (authState is AuthAuthenticated) {
-        // ...and they are trying to access any public route,
-        // redirect them to their appropriate dashboard.
-        if (isPublicRoute) {
-          final role = authState.userType.toLowerCase().trim();
-          if (role == 'admin') {
-            return '/admin-dashboard';
-          }
-          if (role == 'businessowner') {
-            return '/business-dashboard';
-          }
-          return '/home';
+        if (isPublicRoute && currentLocation != '/privacy-policy') {
+          return _homeForRole(authState.userType);
+        }
+
+        final role = authState.userType;
+        if (_isAdminRoute(currentLocation) && !RoleRoutes.isAdmin(role)) {
+          return _homeForRole(role);
+        }
+        if (_isOwnerRoute(currentLocation) &&
+            !RoleRoutes.canAccessOwnerRoutes(role)) {
+          return _homeForRole(role);
         }
       }
 
-      return null; // No redirection needed, continue to the requested route.
+      return null;
     },
     routes: [
       GoRoute(
@@ -130,22 +169,45 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/verify-otp',
         builder: (context, state) {
-          final email = state.extra as String;
-          return VerifyOtpScreen(email: email);
+          final email = state.extra is String
+              ? state.extra as String
+              : (state.uri.queryParameters['email'] ?? '');
+          if (email.trim().isEmpty) {
+            return const ForgotPasswordScreen();
+          }
+          return VerifyOtpScreen(email: email.trim());
         },
       ),
       GoRoute(
         path: '/reset-password',
         builder: (context, state) {
-          final extra = state.extra as Map<String, String>;
+          String email = '';
+          String otp = '';
+          final extra = state.extra;
+          if (extra is Map) {
+            email = (extra['email'] ?? '').toString();
+            otp = (extra['otp'] ?? '').toString();
+          }
+          email = email.isNotEmpty
+              ? email
+              : (state.uri.queryParameters['email'] ?? '');
+          otp = otp.isNotEmpty
+              ? otp
+              : (state.uri.queryParameters['otp'] ?? '');
+          if (email.trim().isEmpty || otp.trim().isEmpty) {
+            return const ForgotPasswordScreen();
+          }
           return ResetPasswordScreen(
-            email: extra['email']!,
-            otp: extra['otp']!,
+            email: email.trim(),
+            otp: otp.trim(),
           );
         },
       ),
+      GoRoute(
+        path: '/change-password',
+        builder: (context, state) => const ChangePasswordScreen(),
+      ),
 
-      // User dashboard shell with bottom nav
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) {
           return MainShell(navigationShell: navigationShell);
@@ -186,7 +248,6 @@ final routerProvider = Provider<GoRouter>((ref) {
         ],
       ),
 
-      // Business owner dashboard (no bottom nav — separate screen)
       GoRoute(
         path: '/business-dashboard',
         builder: (context, state) => const BusinessDashboardScreen(),
@@ -275,6 +336,16 @@ final routerProvider = Provider<GoRouter>((ref) {
           businessId: int.parse(state.pathParameters['id']!),
         ),
       ),
+      GoRoute(
+        parentNavigatorKey: _rootNavigatorKey,
+        path: '/privacy-policy',
+        builder: (context, state) => const PrivacyPolicyScreen(),
+      ),
+      GoRoute(
+        parentNavigatorKey: _rootNavigatorKey,
+        path: '/delete-account',
+        builder: (context, state) => const AccountDeletionScreen(),
+      ),
     ],
   );
 });
@@ -305,22 +376,32 @@ class LocalinkApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(routerProvider);
 
-    // Initialize rate limit feedback callback
     DioClient.onRateLimited = () {
       scaffoldMessengerKey.currentState?.clearSnackBars();
       scaffoldMessengerKey.currentState?.showSnackBar(
         const SnackBar(
-          content: Text('Too many requests. Please wait a moment before trying again.'),
+          content: Text(
+            'Too many requests. Please wait a moment before trying again.',
+          ),
           backgroundColor: Color(0xFFFF4D4F),
         ),
       );
     };
 
     return MaterialApp.router(
-      scaffoldMessengerKey: scaffoldMessengerKey,
-      title: 'Vocal for Sanatan',
+      title: 'Vocal For Sanatan',
+      debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       routerConfig: router,
+      scaffoldMessengerKey: scaffoldMessengerKey,
+      builder: (context, child) {
+        return Column(
+          children: [
+            const OfflineBanner(),
+            Expanded(child: child ?? const SizedBox.shrink()),
+          ],
+        );
+      },
     );
   }
 }
@@ -332,74 +413,26 @@ class _RouteErrorScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
       body: Center(
         child: Padding(
-          padding: const EdgeInsets.all(32.0),
+          padding: const EdgeInsets.all(24),
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: const BoxDecoration(
-                  color: Color(0xFFFFF0E6),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.error_outline_rounded,
-                  color: Color(0xFFFF6600),
-                  size: 48,
-                ),
-              ),
-              const SizedBox(height: 24),
+              const Icon(Icons.error_outline, size: 48, color: Color(0xFFFF4D4F)),
+              const SizedBox(height: 16),
               const Text(
-                'Page Not Found',
-                style: TextStyle(
-                  fontFamily: 'Inter',
-                  fontSize: 22,
-                  fontWeight: FontWeight.w800,
-                  color: Color(0xFF1A1918),
-                ),
+                'Something went wrong',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
               ),
-              const SizedBox(height: 8),
-              const Text(
-                'The page you are looking for does not exist or has been moved.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontFamily: 'Inter',
-                  fontSize: 13,
-                  color: Color(0xFF5F5C58),
-                  height: 1.45,
-                ),
-              ),
-              if (error != null) ...[
-                const SizedBox(height: 16),
-                Text(
-                  error!,
-                  style: TextStyle(
-                    fontFamily: 'Courier',
-                    fontSize: 11,
-                    color: Colors.red,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
+              if (kDebugMode && error != null) ...[
+                const SizedBox(height: 8),
+                Text(error!, textAlign: TextAlign.center),
               ],
-              const SizedBox(height: 32),
-              ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFFF6600),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                onPressed: () => context.go('/splash'),
-                icon: const Icon(Icons.home_rounded, size: 18),
-                label: const Text(
-                  'Return to Home',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
+              const SizedBox(height: 24),
+              FilledButton(
+                onPressed: () => context.go('/welcome'),
+                child: const Text('Go Home'),
               ),
             ],
           ),
@@ -409,3 +442,61 @@ class _RouteErrorScreen extends StatelessWidget {
   }
 }
 
+/// Shown when a release APK was built without required --dart-define flags.
+class _MisconfiguredReleaseApp extends StatelessWidget {
+  final String message;
+  const _MisconfiguredReleaseApp({required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: Scaffold(
+        backgroundColor: Colors.white,
+        body: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(28),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.settings_suggest_outlined,
+                    size: 56, color: Color(0xFFFF6600)),
+                const SizedBox(height: 20),
+                const Text(
+                  'App build is misconfigured',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF1A1918),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  message,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    height: 1.45,
+                    color: Color(0xFF5C5854),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                const Text(
+                  'Rebuild with scripts/build_manager_apk.ps1 and pass API_HOST '
+                  '(and API_USE_HTTPS=true for production).',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 13,
+                    height: 1.4,
+                    color: Color(0xFF9F9B96),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}

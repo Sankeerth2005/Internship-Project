@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Text;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -9,6 +10,7 @@ using localink_be.Data;
 using localink_be.Models.Entities;
 using localink_be.Models.DTOs;
 using localink_be.Services.Interfaces;
+using Google.Apis.Auth;
 
 namespace localink_be.Services.Implementations
 {
@@ -17,20 +19,17 @@ namespace localink_be.Services.Implementations
         private readonly AppDbContext _context;
         private readonly IConfiguration _config;
         private readonly IEmailService _emailService;
-        private readonly ICaptchaService _captchaService;
         private readonly ILogger<AuthService> _logger;
 
         public AuthService(
             AppDbContext context,
             IConfiguration config,
             IEmailService emailService,
-            ICaptchaService captchaService,
             ILogger<AuthService> logger)
         {
             _context = context;
             _config = config;
             _emailService = emailService;
-            _captchaService = captchaService;
             _logger = logger;
         }
 
@@ -60,9 +59,16 @@ namespace localink_be.Services.Implementations
                     if (phoneExists)
                         throw new InvalidOperationException("Phone number already exists");
 
+                    var accountType = (request.UserType ?? "user").Trim().ToLowerInvariant();
+                    if (accountType is not ("client" or "businessowner" or "user"))
+                        throw new ArgumentException("Invalid user type");
+                    // Never allow self-registration as admin
+                    if (accountType == "admin")
+                        throw new UnauthorizedAccessException("Admin accounts cannot be self-registered");
+
                     user = new User
                     {
-                        AccountType = request.UserType?.Trim().ToLower() ?? "user",
+                        AccountType = accountType,
                         FullName = request.Name,
                         Email = email,
                         PhoneNumber = request.Phone,
@@ -118,29 +124,15 @@ namespace localink_be.Services.Implementations
             return exists ? "Email exists" : "Email available";
         }
 
-        public async Task<string> ResetPasswordAsync(ForgotPasswordRequest request)
+        public Task<string> ResetPasswordAsync(ForgotPasswordRequest request)
         {
-            var email = request.Email.Trim().ToLower();
-
-            var user = await _context.Users
-                .FirstOrDefaultAsync(u => u.Email == email);
-
-            if (user == null)
-                throw new UnauthorizedAccessException("Invalid request");
-
-            user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.NewPassword, 12);
-
-            await _context.SaveChangesAsync();
-
-            return "Password updated successfully";
+            // Password reset without OTP is intentionally disabled.
+            return Task.FromException<string>(new InvalidOperationException(
+                "Password reset requires OTP verification. Use the forgot-password + OTP flow."));
         }
 
         public async Task<object> LoginAsync(LoginRequest request)
         {
-            var isCaptchaValid = await _captchaService.VerifyAsync(request.CaptchaToken);
-            if (!isCaptchaValid)
-                throw new UnauthorizedAccessException("Captcha validation failed");
-
             if (string.IsNullOrWhiteSpace(request.UsernameOrEmail) ||
                 string.IsNullOrWhiteSpace(request.Password))
                 throw new UnauthorizedAccessException("Invalid credentials");
@@ -155,27 +147,149 @@ namespace localink_be.Services.Implementations
                 !BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
                 throw new UnauthorizedAccessException("Invalid credentials");
 
-            var token = GenerateJwtToken(user);
-
-            return new
-            {
-                token,
-                user = new
-                {
-                    id = user.UserId.ToString(),
-                    name = user.FullName,
-                    email = user.Email,
-                    userType = user.AccountType
-                }
-            };
+            return await IssueSessionAsync(user);
         }
 
-        public async Task<string> SendResetOtpAsync(string email, string captchaToken)
+        public async Task<object> GoogleSignInAsync(string idToken)
         {
-            var isCaptchaValid = await _captchaService.VerifyAsync(captchaToken);
-            if (!isCaptchaValid)
-                throw new UnauthorizedAccessException("Captcha validation failed");
+            try
+            {
+                var clientId = _config["Google:ClientId"];
+                if (string.IsNullOrEmpty(clientId))
+                {
+                    throw new InvalidOperationException("Google authentication is not configured");
+                }
 
+                // Accept Web client (primary), optional explicit web id, and Android client audiences.
+                var audiences = new List<string> { clientId };
+                var webClientId = _config["Google:WebClientId"];
+                if (!string.IsNullOrWhiteSpace(webClientId) &&
+                    !audiences.Contains(webClientId, StringComparer.Ordinal))
+                {
+                    audiences.Add(webClientId);
+                }
+                var androidClientId = _config["Google:AndroidClientId"];
+                if (!string.IsNullOrWhiteSpace(androidClientId) &&
+                    !audiences.Contains(androidClientId, StringComparer.Ordinal))
+                {
+                    audiences.Add(androidClientId);
+                }
+
+                var settings = new GoogleJsonWebSignature.ValidationSettings()
+                {
+                    Audience = audiences
+                };
+
+                var payload = await GoogleJsonWebSignature.ValidateAsync(idToken, settings);
+
+                var email = payload.Email.ToLower();
+                var name = payload.Name;
+                var picture = payload.Picture;
+
+                var user = await _context.Users
+                    .FirstOrDefaultAsync(u => u.Email == email);
+
+                if (user != null)
+                {
+                    return await IssueSessionAsync(user, isNewUser: false);
+                }
+
+                var strategy = _context.Database.CreateExecutionStrategy();
+                return await strategy.ExecuteAsync(async () =>
+                {
+                    using var transaction = await _context.Database.BeginTransactionAsync();
+                    try
+                    {
+                        user = new User
+                        {
+                            AccountType = "user",
+                            FullName = name ?? "Google User",
+                            Email = email,
+                            ProfilePicture = picture,
+                            CountryCode = string.Empty,
+                            AuthProvider = "google",
+                            ProviderId = payload.Subject,
+                            CreatedAt = DateTime.UtcNow
+                        };
+
+                        _context.Users.Add(user);
+                        await _context.SaveChangesAsync();
+
+                        await transaction.CommitAsync();
+
+                        return await IssueSessionAsync(user, isNewUser: true);
+                    }
+                    catch
+                    {
+                        await transaction.RollbackAsync();
+                        throw;
+                    }
+                });
+            }
+            catch (UnauthorizedAccessException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Google sign-in failed");
+                throw new UnauthorizedAccessException("Google authentication failed");
+            }
+        }
+
+        public async Task<object> RefreshSessionAsync(string refreshToken)
+        {
+            if (string.IsNullOrWhiteSpace(refreshToken))
+                throw new UnauthorizedAccessException("Invalid refresh token");
+
+            var tokenHash = HashToken(refreshToken);
+            var stored = await _context.RefreshTokens
+                .Include(t => t.User)
+                .FirstOrDefaultAsync(t => t.TokenHash == tokenHash);
+
+            if (stored == null || stored.User == null)
+                throw new UnauthorizedAccessException("Invalid refresh token");
+
+            if (stored.RevokedAt != null)
+            {
+                // Possible token reuse after rotation — revoke all sessions for this user
+                await RevokeAllUserTokensAsync(stored.UserId);
+                throw new UnauthorizedAccessException("Refresh token revoked");
+            }
+
+            if (stored.ExpiresAt <= DateTime.UtcNow)
+                throw new UnauthorizedAccessException("Refresh token expired");
+
+            var user = stored.User;
+            var accessToken = GenerateAccessToken(user);
+            var (newRefreshToken, newEntity) = CreateRefreshTokenEntity(user.UserId);
+
+            stored.RevokedAt = DateTime.UtcNow;
+            stored.ReplacedByTokenHash = newEntity.TokenHash;
+            _context.RefreshTokens.Add(newEntity);
+            await _context.SaveChangesAsync();
+
+            return BuildAuthResponse(user, accessToken, newRefreshToken);
+        }
+
+        public async Task LogoutAsync(string refreshToken)
+        {
+            if (string.IsNullOrWhiteSpace(refreshToken))
+                return;
+
+            var tokenHash = HashToken(refreshToken);
+            var stored = await _context.RefreshTokens
+                .FirstOrDefaultAsync(t => t.TokenHash == tokenHash);
+
+            if (stored == null || stored.RevokedAt != null)
+                return;
+
+            stored.RevokedAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+        }
+
+        public async Task<string> SendResetOtpAsync(string email)
+        {
             var normalizedEmail = email.Trim().ToLower();
 
             var user = await _context.Users
@@ -189,14 +303,12 @@ namespace localink_be.Services.Implementations
 
             var otp = GenerateOtp();
 
-            user.PasswordResetOtp = otp;
+            // Store hashed OTP only — never plaintext, never log the code
+            user.PasswordResetOtp = BCrypt.Net.BCrypt.HashPassword(otp, workFactor: 10);
             user.OtpExpiry = DateTime.UtcNow.AddMinutes(15);
             user.OtpAttempts = 0;
 
             await _context.SaveChangesAsync();
-
-            // DEVELOPMENT ONLY: Log the OTP to the console so it can be retrieved without email configuration
-            _logger.LogWarning("[DEVELOPMENT OTP] OTP for {Email} is: {Otp}", email, otp);
 
             try
             {
@@ -204,7 +316,7 @@ namespace localink_be.Services.Implementations
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Email sending failed during OTP generation for {Email}", email);
+                _logger.LogError(ex, "Email sending failed during OTP generation for {Email}", normalizedEmail);
             }
 
             return "If the email exists, an OTP has been sent";
@@ -223,7 +335,8 @@ namespace localink_be.Services.Implementations
             if (user.OtpAttempts >= 5)
                 throw new UnauthorizedAccessException("Too many attempts. Request new OTP");
 
-            if (user.PasswordResetOtp != otp)
+            if (string.IsNullOrEmpty(user.PasswordResetOtp) ||
+                !BCrypt.Net.BCrypt.Verify(otp, user.PasswordResetOtp))
             {
                 user.OtpAttempts += 1;
                 await _context.SaveChangesAsync();
@@ -238,25 +351,116 @@ namespace localink_be.Services.Implementations
             user.PasswordResetOtp = null;
             user.OtpExpiry = null;
 
+            await RevokeAllUserTokensAsync(user.UserId);
             await _context.SaveChangesAsync();
 
             return "Password reset successful";
         }
 
+        public async Task<string> ChangePasswordAsync(long userId, ChangePasswordRequest request)
+        {
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.UserId == userId)
+                ?? throw new UnauthorizedAccessException("User not found");
+
+            if (string.IsNullOrEmpty(user.PasswordHash))
+                throw new InvalidOperationException("This account uses social login. Set a password via forgot-password first.");
+
+            if (!BCrypt.Net.BCrypt.Verify(request.CurrentPassword, user.PasswordHash))
+                throw new UnauthorizedAccessException("Current password is incorrect");
+
+            if (BCrypt.Net.BCrypt.Verify(request.NewPassword, user.PasswordHash))
+                throw new ArgumentException("New password must be different from the current password");
+
+            user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.NewPassword, 12);
+            user.UpdatedAt = DateTime.UtcNow;
+            await RevokeAllUserTokensAsync(user.UserId);
+            await _context.SaveChangesAsync();
+
+            return "Password changed successfully. Please sign in again.";
+        }
+
+        private async Task<object> IssueSessionAsync(User user, bool? isNewUser = null)
+        {
+            var accessToken = GenerateAccessToken(user);
+            var (refreshToken, entity) = CreateRefreshTokenEntity(user.UserId);
+            _context.RefreshTokens.Add(entity);
+            await _context.SaveChangesAsync();
+
+            return BuildAuthResponse(user, accessToken, refreshToken, isNewUser);
+        }
+
+        private object BuildAuthResponse(User user, string accessToken, string refreshToken, bool? isNewUser = null)
+        {
+            if (isNewUser.HasValue)
+            {
+                return new
+                {
+                    token = accessToken,
+                    refreshToken,
+                    expiresIn = GetAccessTokenLifetimeSeconds(),
+                    user = new
+                    {
+                        id = user.UserId.ToString(),
+                        name = user.FullName,
+                        email = user.Email,
+                        userType = user.AccountType,
+                        isNewUser = isNewUser.Value
+                    }
+                };
+            }
+
+            return new
+            {
+                token = accessToken,
+                refreshToken,
+                expiresIn = GetAccessTokenLifetimeSeconds(),
+                user = new
+                {
+                    id = user.UserId.ToString(),
+                    name = user.FullName,
+                    email = user.Email,
+                    userType = user.AccountType
+                }
+            };
+        }
+
+        private (string PlainToken, RefreshToken Entity) CreateRefreshTokenEntity(long userId)
+        {
+            var plain = GenerateSecureToken();
+            var entity = new RefreshToken
+            {
+                UserId = userId,
+                TokenHash = HashToken(plain),
+                CreatedAt = DateTime.UtcNow,
+                ExpiresAt = DateTime.UtcNow.AddDays(GetRefreshTokenLifetimeDays())
+            };
+            return (plain, entity);
+        }
+
+        private async Task RevokeAllUserTokensAsync(long userId)
+        {
+            var active = await _context.RefreshTokens
+                .Where(t => t.UserId == userId && t.RevokedAt == null)
+                .ToListAsync();
+
+            var now = DateTime.UtcNow;
+            foreach (var token in active)
+                token.RevokedAt = now;
+        }
+
         private string GenerateOtp()
         {
             var bytes = new byte[4];
-            using var rng = System.Security.Cryptography.RandomNumberGenerator.Create();
+            using var rng = RandomNumberGenerator.Create();
             rng.GetBytes(bytes);
             int number = BitConverter.ToInt32(bytes, 0) & 0x7fffffff;
             return (number % 900000 + 100000).ToString();
         }
 
-
-
-        private string GenerateJwtToken(User user)
+        private string GenerateAccessToken(User user)
         {
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]));
+            var jwtKey = _config["Jwt:Key"] ?? throw new InvalidOperationException("Jwt:Key is not configured");
+            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
             var claims = new[]
@@ -267,19 +471,60 @@ namespace localink_be.Services.Implementations
                 new Claim(ClaimTypes.Name, user.FullName ?? "")
             };
 
-            // Use 30-day expiry for persistent sessions
-            var expiryDaysStr = _config["Jwt:ExpiryDays"];
-            var expiryDays = string.IsNullOrWhiteSpace(expiryDaysStr) ? 30 : int.Parse(expiryDaysStr);
-
             var token = new JwtSecurityToken(
                 issuer: _config["Jwt:Issuer"],
                 audience: _config["Jwt:Audience"],
                 claims: claims,
-                expires: DateTime.UtcNow.AddDays(expiryDays),
+                expires: DateTime.UtcNow.AddMinutes(GetAccessTokenLifetimeMinutes()),
                 signingCredentials: creds
             );
 
             return new JwtSecurityTokenHandler().WriteToken(token);
+        }
+
+        private int GetAccessTokenLifetimeMinutes()
+        {
+            var minutesStr = _config["Jwt:ExpiryMinutes"];
+            if (int.TryParse(minutesStr, out var minutes) && minutes > 0)
+                return minutes;
+
+            // Fallback for older deployments that only set ExpiryDays
+            var daysStr = _config["Jwt:ExpiryDays"];
+            if (int.TryParse(daysStr, out var days) && days > 0)
+                return days * 24 * 60;
+
+            return 60;
+        }
+
+        private int GetAccessTokenLifetimeSeconds() => GetAccessTokenLifetimeMinutes() * 60;
+
+        /// <summary>
+        /// Long-lived refresh so mobile users stay signed in until logout or app uninstall.
+        /// Tokens are hashed + rotated on each refresh; logout/password-reset revokes them.
+        /// Default ~10 years (3650 days).
+        /// </summary>
+        private int GetRefreshTokenLifetimeDays()
+        {
+            var daysStr = _config["Jwt:RefreshTokenDays"];
+            if (int.TryParse(daysStr, out var days) && days > 0)
+                return days;
+            return 3650;
+        }
+
+        private static string GenerateSecureToken()
+        {
+            var bytes = new byte[64];
+            RandomNumberGenerator.Fill(bytes);
+            return Convert.ToBase64String(bytes)
+                .TrimEnd('=')
+                .Replace('+', '-')
+                .Replace('/', '_');
+        }
+
+        private static string HashToken(string token)
+        {
+            var hash = SHA256.HashData(Encoding.UTF8.GetBytes(token));
+            return Convert.ToHexString(hash);
         }
     }
 }

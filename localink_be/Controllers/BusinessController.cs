@@ -136,31 +136,35 @@ namespace localink_be.Controllers
 
         [HttpGet("search")]
         public async Task<IActionResult> SearchBusinesses(
-            [FromQuery] string? query = "", 
-            [FromQuery] string? sortBy = "distance", 
-            [FromQuery] string? userPincode = "", 
+            [FromQuery] string? query = "",
+            [FromQuery] string? sortBy = "distance",
+            [FromQuery] string? userPincode = "",
+            [FromQuery] double? latitude = null,
+            [FromQuery] double? longitude = null,
+            [FromQuery] double? radius = null,
+            [FromQuery] int? categoryId = null,
+            [FromQuery] int? subcategoryId = null,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 25,
+            [FromQuery] bool paged = false,
             [FromServices] localink_be.Data.AppDbContext db = null!)
         {
-            // Get user location from headers if available
-            double? userLat = null;
-            double? userLng = null;
+            double? userLat = latitude;
+            double? userLng = longitude;
             string? userCity = null;
 
-            if (Request.Headers.ContainsKey("X-User-Latitude") && 
-                Request.Headers.ContainsKey("X-User-Longitude"))
+            if ((!userLat.HasValue || !userLng.HasValue)
+                && Request.Headers.ContainsKey("X-User-Latitude")
+                && Request.Headers.ContainsKey("X-User-Longitude")
+                && double.TryParse(Request.Headers["X-User-Latitude"], out var lat)
+                && double.TryParse(Request.Headers["X-User-Longitude"], out var lng))
             {
-                if (double.TryParse(Request.Headers["X-User-Latitude"], out var lat) &&
-                    double.TryParse(Request.Headers["X-User-Longitude"], out var lng))
-                {
-                    userLat = lat;
-                    userLng = lng;
-                }
+                userLat ??= lat;
+                userLng ??= lng;
             }
 
             if (Request.Headers.ContainsKey("X-User-City"))
-            {
                 userCity = Request.Headers["X-User-City"].ToString();
-            }
 
             if (db != null && !string.IsNullOrEmpty(query))
             {
@@ -182,7 +186,15 @@ namespace localink_be.Controllers
                 catch { /* Suppress DB logging errors */ }
             }
 
-            return Ok(await _service.SearchBusinessesAsync(query, userLat, userLng, sortBy, userPincode, userCity));
+            var result = await _service.SearchBusinessesPagedAsync(
+                query, userLat, userLng, sortBy, userPincode, userCity,
+                radius, categoryId, subcategoryId, page, pageSize);
+
+            // Legacy clients expect a bare array; opt into envelope with paged=true
+            if (paged)
+                return Ok(result);
+
+            return Ok(result.Items);
         }
 
         [HttpGet("validate-pincode/{pincode}")]

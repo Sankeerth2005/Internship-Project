@@ -1,57 +1,61 @@
 'use client'
 
-import { ButtonHTMLAttributes, forwardRef } from 'react'
+import Link from 'next/link'
+import { ButtonHTMLAttributes, ReactNode } from 'react'
 import { cn } from '@/lib/utils'
-import { motion } from 'framer-motion'
 
-interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'tertiary' | 'outline'
-  size?: 'sm' | 'md' | 'lg'
-  isLoading?: boolean
+type Variant = 'primary' | 'secondary' | 'outline' | 'ghost'
+type Size = 'sm' | 'md' | 'lg'
+
+const variants: Record<Variant, string> = {
+  primary:
+    'bg-primary text-white shadow-button hover:bg-primary-dark hover:-translate-y-0.5',
+  secondary:
+    'bg-background-surface text-text border border-border hover:border-primary/40 hover:bg-white',
+  outline:
+    'border-2 border-primary/30 text-primary bg-white/70 hover:border-primary hover:bg-primary/5',
+  ghost: 'text-text-muted hover:text-primary hover:bg-primary/5',
 }
 
-const Button = forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant = 'primary', size = 'md', isLoading, children, disabled, ...props }, ref) => {
-    const baseStyles = 'inline-flex items-center justify-center font-bold rounded-button transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed'
-    
-    const variants = {
-      primary: 'bg-primary text-white hover:bg-primary-dark shadow-button hover:shadow-lg',
-      secondary: 'bg-surface text-text hover:bg-border',
-      tertiary: 'bg-transparent text-text hover:bg-surface',
-      outline: 'border-2 border-primary text-primary hover:bg-primary hover:text-white',
-    }
-    
-    const sizes = {
-      sm: 'px-4 py-2 text-sm',
-      md: 'px-6 py-3 text-base',
-      lg: 'px-8 py-4 text-lg',
-    }
-    
+const sizes: Record<Size, string> = {
+  sm: 'px-4 py-2 text-sm',
+  md: 'px-6 py-3 text-sm sm:text-base',
+  lg: 'px-8 py-3.5 text-base',
+}
+
+interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+  variant?: Variant
+  size?: Size
+  href?: string
+  children: ReactNode
+}
+
+export default function Button({
+  className,
+  variant = 'primary',
+  size = 'md',
+  href,
+  children,
+  ...props
+}: ButtonProps) {
+  const classes = cn(
+    'inline-flex items-center justify-center gap-2 font-bold rounded-button transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:opacity-50',
+    variants[variant],
+    sizes[size],
+    className
+  )
+
+  if (href) {
     return (
-      <motion.button
-        ref={ref}
-        className={cn(baseStyles, variants[variant], sizes[size], className)}
-        disabled={disabled || isLoading}
-        whileHover={{ scale: 1.02 }}
-        whileTap={{ scale: 0.98 }}
-        {...props}
-      >
-        {isLoading ? (
-          <span className="flex items-center gap-2">
-            <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-            </svg>
-            Loading...
-          </span>
-        ) : (
-          children
-        )}
-      </motion.button>
+      <Link href={href} className={classes}>
+        {children}
+      </Link>
     )
   }
-)
 
-Button.displayName = 'Button'
-
-export default Button
+  return (
+    <button className={classes} {...props}>
+      {children}
+    </button>
+  )
+}

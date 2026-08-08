@@ -20,7 +20,7 @@ namespace localink_be.Controllers
         }
 
         // POST: api/v1/business/{businessId}/photos
-        [Authorize(Roles = "client,businessowner")]
+        [Authorize(Roles = "client,businessowner,admin")]
         [HttpPost]
         public async Task<IActionResult> UploadPhoto(long businessId, IFormFile file)
         {
@@ -45,14 +45,9 @@ namespace localink_be.Controllers
             {
                 return BadRequest(new { success = false, message = ex.Message });
             }
-            catch (Exception ex)
-            {
-                return StatusCode(StatusCodes.Status500InternalServerError, new { success = false, message = ex.Message });
-            }
+            // Let ExceptionMiddleware handle unexpected errors (no internal message leak)
         }
-
-        // DELETE: api/v1/photos/{photoId}
-        [Authorize(Roles = "client,businessowner")]
+        [Authorize(Roles = "client,businessowner,admin")]
         [HttpDelete("~/api/v1/photos/{photoId}")]
         public async Task<IActionResult> DeletePhoto(long photoId)
         {
@@ -73,10 +68,7 @@ namespace localink_be.Controllers
             {
                 return StatusCode(StatusCodes.Status403Forbidden, new { success = false, message = ex.Message });
             }
-            catch (Exception ex)
-            {
-                return StatusCode(StatusCodes.Status500InternalServerError, new { success = false, message = ex.Message });
-            }
+            // Let ExceptionMiddleware handle unexpected errors (no internal message leak)
         }
     }
 }

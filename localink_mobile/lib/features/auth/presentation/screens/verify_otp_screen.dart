@@ -224,6 +224,7 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen>
 
   Future<void> _resendOtp() async {
     if (_resendCountdown > 0) return;
+
     setState(() {
       _isLoading = true;
     });
@@ -231,7 +232,6 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen>
       final dio = DioClient().dio;
       final response = await dio.post('auth/forgot-password', data: {
         'email': widget.email,
-        'captchaToken': 'test',
       });
       if (response.data['success'] == true) {
         HapticFeedback.mediumImpact();

@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using localink_be.Data;
 using localink_be.Models.Entities;
 using localink_be.Models.DTOs;
+using localink_be.Models.Queries;
 using localink_be.Services.Interfaces;
 using Microsoft.AspNetCore.SignalR;
 using localink_be.Hubs;
@@ -23,6 +24,7 @@ namespace localink_be.Services.Implementations
         private readonly IHubContext<NotificationHub> _hubContext;
         private readonly IServiceProvider _serviceProvider;
         private readonly IConfiguration _config;
+        private readonly IBusinessDiscoveryService _discoveryService;
     public BusinessService(AppDbContext db,
                            IContactService contactService,
                            IHoursService hoursService,
@@ -30,7 +32,8 @@ namespace localink_be.Services.Implementations
                            IEmailService emailService,
                            IHubContext<NotificationHub> hubContext,
                            IServiceProvider serviceProvider,
-                           IConfiguration config)
+                           IConfiguration config,
+                           IBusinessDiscoveryService discoveryService)
     {
         _db = db ?? throw new ArgumentNullException(nameof(db));
         _contactService = contactService;
@@ -40,6 +43,7 @@ namespace localink_be.Services.Implementations
         _hubContext = hubContext;
         _serviceProvider = serviceProvider;
         _config = config;
+        _discoveryService = discoveryService;
     }
 
  
@@ -206,9 +210,10 @@ namespace localink_be.Services.Implementations
                 }
             }
 
-            contact.PhoneCode = dto.PhoneCode;
-            contact.PhoneNumber = dto.PhoneNumber;
+            contact.PhoneCode = dto.PhoneCode ?? string.Empty;
+            contact.PhoneNumber = dto.PhoneNumber ?? string.Empty;
             contact.Email = dto.Email;
+            contact.Website = dto.Website ?? string.Empty;
             contact.City = dto.City;
             contact.State = dto.State;
             contact.Country = dto.Country;
@@ -294,7 +299,7 @@ namespace localink_be.Services.Implementations
                     throw new Exception("Invalid subcategory");
                 var business = new Business
                 {
-                    BusinessName = dto.BusinessName,
+                    BusinessName = dto.BusinessName ?? string.Empty,
                     Description = dto.Description,
                     CategoryId = dto.CategoryId,
                     SubcategoryId = dto.SubcategoryId,
@@ -353,7 +358,9 @@ namespace localink_be.Services.Implementations
                             .Select(c => c.CategoryName)
                             .FirstOrDefaultAsync();
 
-                        var adminEmail = _config["AdminEmail"] ?? "support@localink.com";
+                        var adminEmail = _config["AdminEmail"];
+                        if (string.IsNullOrWhiteSpace(adminEmail))
+                            adminEmail = "support@localink.com";
 
                         await scopedEmail.SendNewBusinessNotificationToAdminAsync(
                             adminEmail,
@@ -378,7 +385,7 @@ namespace localink_be.Services.Implementations
 
                         await _hubContext.Clients.Group("admin").SendAsync("ReceiveNotification", $"New Business Alert: '{business.BusinessName}' has been registered and is pending approval.");
                     }
-                    catch (Exception ex)
+                    catch (Exception)
                     {
                         // Fail silently to prevent crashing the response
                     }
@@ -491,6 +498,11 @@ namespace localink_be.Services.Implementations
                         .Select(c => c.Email)
                         .FirstOrDefault(),
 
+                    Website = _db.BusinessContacts
+                        .Where(c => c.BusinessId == b.BusinessId)
+                        .Select(c => c.Website)
+                        .FirstOrDefault(),
+
                     City = _db.BusinessContacts
                         .Where(c => c.BusinessId == b.BusinessId)
                         .Select(c => c.City)
@@ -569,6 +581,10 @@ namespace localink_be.Services.Implementations
                         .Where(c => c.BusinessId == b.BusinessId)
                         .Select(c => c.Email)
                         .FirstOrDefault(),
+                    Website = _db.BusinessContacts
+                        .Where(c => c.BusinessId == b.BusinessId)
+                        .Select(c => c.Website)
+                        .FirstOrDefault(),
                     City = _db.BusinessContacts
                         .Where(c => c.BusinessId == b.BusinessId)
                         .Select(c => c.City)
@@ -624,6 +640,10 @@ namespace localink_be.Services.Implementations
                     Email = _db.BusinessContacts
                         .Where(c => c.BusinessId == b.BusinessId)
                         .Select(c => c.Email)
+                        .FirstOrDefault(),
+                    Website = _db.BusinessContacts
+                        .Where(c => c.BusinessId == b.BusinessId)
+                        .Select(c => c.Website)
                         .FirstOrDefault(),
                     City = _db.BusinessContacts
                         .Where(c => c.BusinessId == b.BusinessId)
@@ -693,162 +713,43 @@ namespace localink_be.Services.Implementations
 
         public async Task<List<BusinessDto>> SearchBusinessesAsync(string query, double? userLat = null, double? userLng = null, string? sortBy = "distance", string? userPincode = "", string? userCity = "")
         {
-            var businessesQuery = _db.Businesses
-                .AsNoTracking()
-                .Where(b => _db.AdminDashboards.Any(a => a.BusinessId == b.BusinessId && a.Status == BusinessStatus.Approved));
+            // Backward-compatible wrapper: DB-layer spatial discovery, first page (25 items).
+            var paged = await SearchBusinessesPagedAsync(
+                query, userLat, userLng, sortBy, userPincode, userCity,
+                radiusKm: null, categoryId: null, subcategoryId: null,
+                page: 1, pageSize: 25);
 
-            if (!string.IsNullOrWhiteSpace(query))
-            {
-                query = query.Trim().ToLower();
-                businessesQuery = businessesQuery.Where(b =>
-                     EF.Functions.Like(b.BusinessName, $"%{query}%") ||
-                    (b.Description != null && EF.Functions.Like(b.Description, $"%{query}%")) ||
-                    (b.Category != null && EF.Functions.Like(b.Category.CategoryName, $"%{query}%")) ||
-                    (b.Subcategory != null && EF.Functions.Like(b.Subcategory.SubcategoryName, $"%{query}%"))
-                );
-            }
+            return paged.Items.ToList();
+        }
 
-            // Project to DTO
-            var projectedQuery = businessesQuery.Select(b => new BusinessDto
+        public Task<PagedResultDto<BusinessDto>> SearchBusinessesPagedAsync(
+            string? query,
+            double? userLat = null,
+            double? userLng = null,
+            string? sortBy = "distance",
+            string? userPincode = "",
+            string? userCity = "",
+            double? radiusKm = null,
+            int? categoryId = null,
+            int? subcategoryId = null,
+            int page = 1,
+            int pageSize = 20,
+            CancellationToken cancellationToken = default)
+        {
+            return _discoveryService.DiscoverAsync(new BusinessDiscoveryQuery
             {
-                Id = b.BusinessId,
-                Name = b.BusinessName,
-                Description = b.Description,
-                CategoryName = b.Category != null ? b.Category.CategoryName : "",
-                SubcategoryName = b.Subcategory != null ? b.Subcategory.SubcategoryName : "",
-                SubcategoryId = b.SubcategoryId,
-                CategoryId = b.CategoryId,
-                PhoneNumber = _db.BusinessContacts
-                    .Where(c => c.BusinessId == b.BusinessId)
-                    .Select(c => c.PhoneNumber)
-                    .FirstOrDefault(),
-                PhoneCode = _db.BusinessContacts
-                    .Where(c => c.BusinessId == b.BusinessId)
-                    .Select(c => c.PhoneCode)
-                    .FirstOrDefault(),
-                Email = _db.BusinessContacts
-                    .Where(c => c.BusinessId == b.BusinessId)
-                    .Select(c => c.Email)
-                    .FirstOrDefault(),
-                City = _db.BusinessContacts
-                    .Where(c => c.BusinessId == b.BusinessId)
-                    .Select(c => c.City)
-                    .FirstOrDefault(),
-                State = _db.BusinessContacts
-                    .Where(c => c.BusinessId == b.BusinessId)
-                    .Select(c => c.State)
-                    .FirstOrDefault(),
-                Country = _db.BusinessContacts
-                    .Where(c => c.BusinessId == b.BusinessId)
-                    .Select(c => c.Country)
-                    .FirstOrDefault(),
-                StreetAddress = _db.BusinessContacts
-                    .Where(c => c.BusinessId == b.BusinessId)
-                    .Select(c => c.StreetAddress)
-                    .FirstOrDefault(),
-                Pincode = _db.BusinessContacts
-                    .Where(c => c.BusinessId == b.BusinessId)
-                    .Select(c => c.Pincode)
-                    .FirstOrDefault(),
-                Latitude = _db.BusinessContacts
-                    .Where(c => c.BusinessId == b.BusinessId)
-                    .Select(c => c.Latitude)
-                    .FirstOrDefault(),
-                Longitude = _db.BusinessContacts
-                    .Where(c => c.BusinessId == b.BusinessId)
-                    .Select(c => c.Longitude)
-                    .FirstOrDefault(),
-                Status = _db.AdminDashboards
-                    .Where(a => a.BusinessId == b.BusinessId)
-                    .Select(a => a.Status.ToString())
-                    .FirstOrDefault(),
-                PrimaryImage = _db.BusinessPhotos
-                    .Where(p => p.BusinessId == b.BusinessId)
-                    .OrderByDescending(p => p.IsPrimary)
-                    .Select(p => p.ImageUrl)
-                    .FirstOrDefault(),
-                Photos = _db.BusinessPhotos
-                    .Where(p => p.BusinessId == b.BusinessId)
-                    .OrderByDescending(p => p.IsPrimary)
-                    .Select(p => p.ImageUrl)
-                    .ToList(),
-                AverageRating = _db.BusinessReviews
-                    .Where(r => r.BusinessId == b.BusinessId)
-                    .Select(r => (double?)r.Rating)
-                    .Average() ?? 0.0,
-                TotalReviews = _db.BusinessReviews
-                    .Count(r => r.BusinessId == b.BusinessId),
-                IsTemporarilyClosed = b.TemporaryClosureStatus == "Approved" && b.TemporaryClosureReopenDate.HasValue && b.TemporaryClosureReopenDate.Value > DateTime.UtcNow,
-                TemporaryClosureReason = b.TemporaryClosureReason,
-                TemporaryClosureStatus = b.TemporaryClosureStatus,
-                TemporaryClosureDays = b.TemporaryClosureDays,
-                TemporaryClosureReopenDate = b.TemporaryClosureReopenDate,
-                // Calculate distance using Haversine formula approximation with Cosine squared fix
-                Distance = userLat.HasValue && userLng.HasValue
-                    ? _db.BusinessContacts
-                        .Where(c => c.BusinessId == b.BusinessId && c.Latitude.HasValue && c.Longitude.HasValue)
-                        .Select(c => (double?)(111.0 * Math.Sqrt(
-                            Math.Pow(c.Latitude.Value - userLat.Value, 2) +
-                            Math.Pow(c.Longitude.Value - userLng.Value, 2) * Math.Pow(Math.Cos(userLat.Value * Math.PI / 180.0), 2)
-                        )))
-                        .FirstOrDefault()
-                    : null
-            });
-
-            var allMatches = await projectedQuery.ToListAsync();
-
-            // Perform sorting on the matched results list in memory
-            var normalizedSort = sortBy?.ToLower().Trim() ?? "distance";
-            IEnumerable<BusinessDto> sortedResults;
-
-            if (normalizedSort == "alphabetical" || normalizedSort == "name")
-            {
-                sortedResults = allMatches.OrderBy(b => b.Name);
-            }
-            else if (normalizedSort == "rating" || normalizedSort == "reviews")
-            {
-                sortedResults = allMatches.OrderByDescending(b => b.AverageRating)
-                                          .ThenByDescending(b => b.TotalReviews)
-                                          .ThenBy(b => b.Name);
-            }
-            else if (normalizedSort == "popularity")
-            {
-                sortedResults = allMatches.OrderByDescending(b => b.TotalReviews)
-                                          .ThenByDescending(b => b.AverageRating)
-                                          .ThenBy(b => b.Name);
-            }
-            else if (normalizedSort == "recent" || normalizedSort == "recentlyadded" || normalizedSort == "newest")
-            {
-                sortedResults = allMatches.OrderByDescending(b => b.Id);
-            }
-            else // Default: Sort by distance
-            {
-                var cleanPincode = userPincode?.Trim();
-                var cleanCity = userCity?.Trim().ToLower();
-
-                if (userLat.HasValue && userLng.HasValue)
-                {
-                    sortedResults = allMatches.OrderBy(b => b.Distance ?? double.MaxValue)
-                                              .ThenBy(b => (!string.IsNullOrEmpty(cleanPincode) && b.Pincode != null && b.Pincode.Trim() == cleanPincode) ? 0 : 1)
-                                              .ThenBy(b => (!string.IsNullOrEmpty(cleanCity) && b.City != null && b.City.Trim().ToLower() == cleanCity) ? 0 : 1)
-                                              .ThenBy(b => b.Name);
-                }
-                else
-                {
-                    if (!string.IsNullOrEmpty(cleanPincode) || !string.IsNullOrEmpty(cleanCity))
-                    {
-                        sortedResults = allMatches.OrderBy(b => (!string.IsNullOrEmpty(cleanPincode) && b.Pincode != null && b.Pincode.Trim() == cleanPincode) ? 0 : 1)
-                                                  .ThenBy(b => (!string.IsNullOrEmpty(cleanCity) && b.City != null && b.City.Trim().ToLower() == cleanCity) ? 0 : 1)
-                                                  .ThenBy(b => b.Name);
-                    }
-                    else
-                    {
-                        sortedResults = allMatches.OrderBy(b => b.Name);
-                    }
-                }
-            }
-
-            return sortedResults.Take(25).ToList();
+                Latitude = userLat,
+                Longitude = userLng,
+                RadiusKm = radiusKm,
+                Search = query,
+                Sort = BusinessSortModeParser.Parse(sortBy),
+                UserPincode = userPincode,
+                UserCity = userCity,
+                CategoryId = categoryId,
+                SubcategoryId = subcategoryId,
+                Page = page,
+                PageSize = pageSize
+            }, cancellationToken);
         }
 
         public async Task<VoiceSearchResponse> VoiceSearchAsync(VoiceSearchRequest request, double? userLat = null, double? userLng = null)
@@ -994,6 +895,10 @@ namespace localink_be.Services.Implementations
                         .Where(c => c.BusinessId == b.BusinessId)
                         .Select(c => c.Email)
                         .FirstOrDefault(),
+                    Website = _db.BusinessContacts
+                        .Where(c => c.BusinessId == b.BusinessId)
+                        .Select(c => c.Website)
+                        .FirstOrDefault(),
                     City = _db.BusinessContacts
                         .Where(c => c.BusinessId == b.BusinessId)
                         .Select(c => c.City)
@@ -1029,8 +934,8 @@ namespace localink_be.Services.Implementations
                         ? _db.BusinessContacts
                             .Where(c => c.BusinessId == b.BusinessId && c.Latitude.HasValue && c.Longitude.HasValue)
                             .Select(c => (double?)(111.0 * Math.Sqrt(
-                                Math.Pow(c.Latitude.Value - userLat.Value, 2) +
-                                Math.Pow(c.Longitude.Value - userLng.Value, 2) * Math.Cos(userLat.Value * Math.PI / 180.0)
+                                Math.Pow((c.Latitude ?? 0) - userLat.Value, 2) +
+                                Math.Pow((c.Longitude ?? 0) - userLng.Value, 2) * Math.Cos(userLat.Value * Math.PI / 180.0)
                             )))
                             .FirstOrDefault()
                         : null
@@ -1094,6 +999,7 @@ namespace localink_be.Services.Implementations
                         PhoneNumber = _db.BusinessContacts.Where(c => c.BusinessId == b.BusinessId).Select(c => c.PhoneNumber).FirstOrDefault(),
                         PhoneCode = _db.BusinessContacts.Where(c => c.BusinessId == b.BusinessId).Select(c => c.PhoneCode).FirstOrDefault(),
                         Email = _db.BusinessContacts.Where(c => c.BusinessId == b.BusinessId).Select(c => c.Email).FirstOrDefault(),
+                        Website = _db.BusinessContacts.Where(c => c.BusinessId == b.BusinessId).Select(c => c.Website).FirstOrDefault(),
                         City = _db.BusinessContacts.Where(c => c.BusinessId == b.BusinessId).Select(c => c.City).FirstOrDefault(),
                         State = _db.BusinessContacts.Where(c => c.BusinessId == b.BusinessId).Select(c => c.State).FirstOrDefault(),
                         Latitude = _db.BusinessContacts.Where(c => c.BusinessId == b.BusinessId).Select(c => c.Latitude).FirstOrDefault(),
@@ -1105,8 +1011,8 @@ namespace localink_be.Services.Implementations
                             ? _db.BusinessContacts
                                 .Where(c => c.BusinessId == b.BusinessId && c.Latitude.HasValue && c.Longitude.HasValue)
                                 .Select(c => (double?)(111.0 * Math.Sqrt(
-                                    Math.Pow(c.Latitude.Value - userLat.Value, 2) +
-                                    Math.Pow(c.Longitude.Value - userLng.Value, 2) * Math.Cos(userLat.Value * Math.PI / 180.0)
+                                    Math.Pow((c.Latitude ?? 0) - userLat.Value, 2) +
+                                    Math.Pow((c.Longitude ?? 0) - userLng.Value, 2) * Math.Cos(userLat.Value * Math.PI / 180.0)
                                 )))
                                 .FirstOrDefault()
                             : null
@@ -1134,7 +1040,7 @@ namespace localink_be.Services.Implementations
                     }
                 };
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 // Log the error
                 return new VoiceSearchResponse

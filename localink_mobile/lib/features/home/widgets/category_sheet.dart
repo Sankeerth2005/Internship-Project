@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../business/data/models/business_models.dart';
+import '../../../core/storage/recent_search_store.dart';
+import '../../../core/theme/app_theme.dart';
 
 class CategorySheet extends StatefulWidget {
   final List<CategoryDto> categories;
@@ -34,10 +36,19 @@ class _CategorySheetState extends State<CategorySheet> {
   }
 
   Future<void> _loadRecentSearches() async {
-    // TODO: Load recent searches from local storage or backend
+    final recent = await RecentSearchStore.load();
+    if (!mounted) return;
     setState(() {
-      _recentSearches = [];
+      _recentSearches = recent;
     });
+  }
+
+  Future<void> _rememberSearch(String query) async {
+    final q = query.trim();
+    if (q.length < 2) return;
+    final recent = await RecentSearchStore.add(q);
+    if (!mounted) return;
+    setState(() => _recentSearches = recent);
   }
 
   @override
@@ -220,6 +231,8 @@ class _CategorySheetState extends State<CategorySheet> {
                             child: Text(
                               tag,
                               style: const TextStyle(color: Color(0xFF5F5C58), fontSize: 12),
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
                             ),
                           ),
                         );
@@ -277,8 +290,15 @@ class _CategorySheetState extends State<CategorySheet> {
                             : widget.selectedCategoryId == cat!.categoryId;
 
                         return GestureDetector(
-                          onTap: () {
+                          onTap: () async {
                             HapticFeedback.mediumImpact();
+                            final q = _searchCtrl.text.trim();
+                            if (q.length >= 2) {
+                              await _rememberSearch(q);
+                            } else if (!isAllCard && cat != null) {
+                              await _rememberSearch(cat.categoryName);
+                            }
+                            if (!mounted) return;
                             widget.onCategorySelected(isAllCard ? null : cat!.categoryId);
                             Navigator.pop(context);
                           },

@@ -54,11 +54,18 @@ public class EmailService : IEmailService
             throw new InvalidOperationException("Email credentials are not configured.");
         }
 
+        if (string.IsNullOrWhiteSpace(toEmail))
+            throw new InvalidOperationException("Recipient email address is missing.");
+
+        var normalizedTo = NormalizeEmailAddress(toEmail);
+        if (normalizedTo == null)
+            throw new InvalidOperationException($"Recipient email address is invalid: '{toEmail}'.");
+
         try
         {
             var email = new MimeMessage();
             email.From.Add(new MailboxAddress(appName, fromAddress));
-            email.To.Add(MailboxAddress.Parse(toEmail));
+            email.To.Add(MailboxAddress.Parse(normalizedTo));
             email.Subject = subject;
             email.Body = new BodyBuilder
             {
@@ -75,7 +82,7 @@ public class EmailService : IEmailService
 
             _logger.LogInformation(
                 "Email successfully sent to {Email} with subject '{Subject}'",
-                toEmail,
+                normalizedTo,
                 subject
             );
         }
@@ -90,6 +97,27 @@ public class EmailService : IEmailService
             );
             throw;
         }
+    }
+
+    /// <summary>
+    /// Trims, lowercases domain, and fixes common typos like "name.@gmail.com".
+    /// Returns null when the address is still not parseable by MimeKit.
+    /// </summary>
+    private static string? NormalizeEmailAddress(string raw)
+    {
+        var email = raw.Trim();
+        if (email.Length == 0) return null;
+
+        var at = email.LastIndexOf('@');
+        if (at <= 0 || at == email.Length - 1) return null;
+
+        var local = email[..at].Trim().TrimEnd('.');
+        var domain = email[(at + 1)..].Trim().Trim('.');
+        if (local.Length == 0 || domain.Length == 0 || !domain.Contains('.'))
+            return null;
+
+        var normalized = $"{local}@{domain.ToLowerInvariant()}";
+        return MailboxAddress.TryParse(normalized, out _) ? normalized : null;
     }
 
     private string GetWelcomeTemplate(string name)

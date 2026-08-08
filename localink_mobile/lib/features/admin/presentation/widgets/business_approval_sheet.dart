@@ -140,6 +140,8 @@ class _BusinessApprovalSheetState extends ConsumerState<BusinessApprovalSheet> {
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: 4),
                       Row(
@@ -189,6 +191,8 @@ class _BusinessApprovalSheetState extends ConsumerState<BusinessApprovalSheet> {
             Text(
               b.description,
               style: const TextStyle(color: Colors.white70, fontSize: 13, height: 1.45),
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
             ),
             const SizedBox(height: 16),
             _buildDetailRow('Owner', b.ownerName ?? 'Not specified', Icons.person_outline),

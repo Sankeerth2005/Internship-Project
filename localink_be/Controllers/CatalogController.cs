@@ -17,6 +17,17 @@ namespace localink_be.Controllers
             _catalogService = catalogService;
         }
 
+        private long GetCurrentUserId()
+        {
+            var idClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (long.TryParse(idClaim, out long id)) return id;
+            throw new UnauthorizedAccessException("Invalid token");
+        }
+
+        private bool IsAdmin() =>
+            User.IsInRole("admin") ||
+            string.Equals(User.FindFirst(ClaimTypes.Role)?.Value, "admin", StringComparison.OrdinalIgnoreCase);
+
         [HttpGet("{businessId}")]
         public async Task<IActionResult> GetBusinessCatalogs(long businessId)
         {
@@ -28,9 +39,15 @@ namespace localink_be.Controllers
         [HttpPost("{businessId}")]
         public async Task<IActionResult> CreateCatalog(long businessId, [FromBody] CreateCatalogDto dto)
         {
-            // Verify business ownership? Ideally yes, but skipping complex auth check for brevity
-            var catalog = await _catalogService.CreateCatalogAsync(businessId, dto);
-            return Ok(new { success = true, data = catalog });
+            try
+            {
+                var catalog = await _catalogService.CreateCatalogAsync(businessId, dto, GetCurrentUserId(), IsAdmin());
+                return Ok(new { success = true, data = catalog });
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Forbid();
+            }
         }
 
         [Authorize(Roles = "client,businessowner,admin")]
@@ -39,8 +56,12 @@ namespace localink_be.Controllers
         {
             try
             {
-                var catalog = await _catalogService.UpdateCatalogAsync(catalogId, dto);
+                var catalog = await _catalogService.UpdateCatalogAsync(catalogId, dto, GetCurrentUserId(), IsAdmin());
                 return Ok(new { success = true, data = catalog });
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Forbid();
             }
             catch (KeyNotFoundException)
             {
@@ -52,16 +73,30 @@ namespace localink_be.Controllers
         [HttpDelete("{catalogId}")]
         public async Task<IActionResult> DeleteCatalog(int catalogId)
         {
-            await _catalogService.DeleteCatalogAsync(catalogId);
-            return Ok(new { success = true });
+            try
+            {
+                await _catalogService.DeleteCatalogAsync(catalogId, GetCurrentUserId(), IsAdmin());
+                return Ok(new { success = true });
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Forbid();
+            }
         }
 
         [Authorize(Roles = "client,businessowner,admin")]
         [HttpPost("{catalogId}/items")]
         public async Task<IActionResult> AddCatalogItem(int catalogId, [FromForm] CreateCatalogItemDto dto, IFormFile? image)
         {
-            var item = await _catalogService.AddCatalogItemAsync(catalogId, dto, image);
-            return Ok(new { success = true, data = item });
+            try
+            {
+                var item = await _catalogService.AddCatalogItemAsync(catalogId, dto, image, GetCurrentUserId(), IsAdmin());
+                return Ok(new { success = true, data = item });
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Forbid();
+            }
         }
 
         [Authorize(Roles = "client,businessowner,admin")]
@@ -70,8 +105,12 @@ namespace localink_be.Controllers
         {
             try
             {
-                var item = await _catalogService.UpdateCatalogItemAsync(itemId, dto, image);
+                var item = await _catalogService.UpdateCatalogItemAsync(itemId, dto, image, GetCurrentUserId(), IsAdmin());
                 return Ok(new { success = true, data = item });
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Forbid();
             }
             catch (KeyNotFoundException)
             {
@@ -83,8 +122,15 @@ namespace localink_be.Controllers
         [HttpDelete("items/{itemId}")]
         public async Task<IActionResult> DeleteCatalogItem(int itemId)
         {
-            await _catalogService.DeleteCatalogItemAsync(itemId);
-            return Ok(new { success = true });
+            try
+            {
+                await _catalogService.DeleteCatalogItemAsync(itemId, GetCurrentUserId(), IsAdmin());
+                return Ok(new { success = true });
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Forbid();
+            }
         }
     }
 }

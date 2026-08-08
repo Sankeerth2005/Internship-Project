@@ -1,16 +1,12 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:localink_mobile/main.dart';
+import 'package:localink_mobile/core/auth/role_routes.dart';
+import 'package:localink_mobile/core/config/app_config.dart';
 
 void main() {
-  testWidgets('Smoke test - App runs', (WidgetTester tester) async {
-    await tester.pumpWidget(const ProviderScope(child: LocalinkApp()));
+  test('Smoke — role routing + config defaults are sane', () {
+    expect(RoleRoutes.homeForRole('client'), '/home');
+    expect(RoleRoutes.homeForRole('businessowner'), '/business-dashboard');
+    expect(RoleRoutes.homeForRole('admin'), '/admin-dashboard');
+    expect(AppConfig.backendHost, isNotEmpty);
   });
 }

@@ -3,6 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/auth/google_sign_in_helper.dart';
+import '../../../../core/auth/role_routes.dart';
+import '../../../../core/widgets/brand_icons.dart';
+import '../../../../core/validation/app_validators.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/auth_state.dart';
 import '../../../shared/presentation/widgets/app_text_field.dart';
@@ -147,36 +151,38 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     super.dispose();
   }
 
-  // ── PRESERVED AUTHENTICATION LOGIC (DO NOT MODIFY) ───────────────────────
-  void _login() {
-    if (_formKey.currentState!.validate()) {
-      ref
-          .read(authProvider.notifier)
-          .login(_emailController.text.trim(), _passwordController.text);
-    } else {
+  // ── AUTHENTICATION ───────────────────────────────────────────────────────
+  Future<void> _login() async {
+    if (!_formKey.currentState!.validate()) {
       HapticFeedback.mediumImpact();
       _shakeKey.currentState?.shake();
+      return;
+    }
+
+    await ref.read(authProvider.notifier).login(
+          _emailController.text.trim(),
+          _passwordController.text,
+        );
+  }
+
+  Future<void> _signInWithGoogle() async {
+    try {
+      HapticFeedback.lightImpact();
+      final idToken = await GoogleSignInHelper.getIdToken();
+      if (idToken == null) return; // user cancelled
+      await ref.read(authProvider.notifier).googleSignIn(idToken);
+    } catch (e) {
+      if (mounted) {
+        HapticFeedback.heavyImpact();
+        AppFeedback.showError(context, GoogleSignInHelper.friendlyError(e));
+      }
     }
   }
 
-  String? _validateEmail(String? value) {
-    if (value == null || value.trim().isEmpty) return 'Email is required';
-    final trimmed = value.trim();
-    if (trimmed.length > 256) return 'Email cannot exceed 256 characters';
-    final emailRegex = RegExp(
-      r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
-    );
-    if (!emailRegex.hasMatch(trimmed)) {
-      return 'Enter a valid email address';
-    }
-    return null;
-  }
+  String? _validateEmail(String? value) => AppValidators.email(value);
 
-  String? _validatePassword(String? value) {
-    if (value == null || value.isEmpty) return 'Password is required';
-    if (value.length > 128) return 'Password cannot exceed 128 characters';
-    return null;
-  }
+  String? _validatePassword(String? value) =>
+      AppValidators.password(value, requireStrong: false);
   // ─────────────────────────────────────────────────────────────────────────
 
   String get _subtitle =>
@@ -205,14 +211,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
         }
       } else if (next is AuthAuthenticated) {
         HapticFeedback.mediumImpact();
-        final role = next.userType.toLowerCase().trim();
-        if (role == 'admin') {
-          context.go('/admin-dashboard');
-        } else if (role == 'businessowner') {
-          context.go('/business-dashboard');
-        } else {
-          context.go('/home');
-        }
+        context.go(RoleRoutes.homeForRole(next.userType));
       }
     });
     // ──────────────────────────────────────────────────────────────────────
@@ -296,7 +295,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
               offset: Offset(0, _logoFloat.value),
               child: child,
             ),
-            child: const BrandIconBadge(text: 'ॐ', size: 80),
+            child: const BrandIconBadge.om(size: 80),
           ),
           const SizedBox(height: _Tok.xl),
           const Text(
@@ -453,7 +452,42 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
               onPressed: isLoading ? null : _login,
             ),
           ),
+          const SizedBox(height: _Tok.lg),
+          
+          // Google Sign-In Button
+          Container(
+            height: 48,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFEAE8E3)),
+            ),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: isLoading ? null : _signInWithGoogle,
+                borderRadius: BorderRadius.circular(12),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    BrandIcons.google(size: 24),
+                    const SizedBox(width: 12),
+                    const Text(
+                      'Continue with Google',
+                      style: TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF1A1918),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
           const SizedBox(height: _Tok.xl),
+          
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [

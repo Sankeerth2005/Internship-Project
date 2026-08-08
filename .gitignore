@@ -44,6 +44,12 @@ Thumbs.db
 localink-fe/node_modules/
 localink-fe/.angular/
 
+# Website build artifacts (source lives in localink-website/)
+localink-website/node_modules/
+localink-website/.next/
+localink-website/out/
+localink-website_DELETE_ME/
+
 localink_be/bin/
 localink_be/obj/
 localink_be/obj/
@@ -60,11 +66,12 @@ localink_mobile/app-release.apk
 *.apk
 *.ipa
 
-# Secrets
+# Secrets — single root .env only; keep the committed template
 .env
 .env.production
 .env.local
 .env.*
+!.env.example
 .env copy
 
 # Build/Publish artifact directories

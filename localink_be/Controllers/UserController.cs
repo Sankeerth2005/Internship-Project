@@ -8,45 +8,18 @@ namespace localink_be.Controllers
 {
 [ApiController]
 [Route("api/v1/user")]
+[Authorize]
 public class UserController : ControllerBase
 {
     private readonly IUserService _service;
-    private readonly IAuthService _authService;
-    public UserController(IUserService service, IAuthService authService)
+    private readonly IPhotoService _photoService;
+
+    public UserController(IUserService service, IPhotoService photoService)
     {
         _service = service;
-        _authService = authService;
-    }
-    [HttpPost]
-    public async Task<IActionResult> Register(RegisterRequest request)
-    {
-        if (!ModelState.IsValid)
-            return BadRequest(new { success = false, errors = ModelState });
-
-        var result = await _authService.RegisterAsync(request);
-
-        return Ok(new { success = true, message = result });
+        _photoService = photoService;
     }
 
-    [HttpGet("email")]
-    public async Task<IActionResult> VerifyEmail([FromQuery] string value)
-    {
-        var result = await _authService.VerifyEmailAsync(value);
-        return Ok(new { success = true, message = result });
-    }
-
-    [HttpPut("password")]
-    public async Task<IActionResult> ResetPassword(ForgotPasswordRequest request)
-    {
-        if (!ModelState.IsValid)
-            return BadRequest(new { success = false, errors = ModelState });
-
-        var result = await _authService.ResetPasswordAsync(request);
-
-        return Ok(new { success = true, message = result });
-    }
-
-    [Authorize]
     [HttpGet("profile")]
     public async Task<IActionResult> GetProfile()
     {
@@ -61,7 +34,6 @@ public class UserController : ControllerBase
         return Ok(result);
     }
     
-    [Authorize]
     [HttpPut("profile")]
     public async Task<IActionResult> UpdateProfile([FromBody] UpdateUserProfileDto request)
     {
@@ -81,9 +53,8 @@ public class UserController : ControllerBase
         return Ok(new { success = true, message = "Profile updated successfully" });
     }
 
-    [Authorize]
     [HttpPost("avatar")]
-    public async Task<IActionResult> UploadAvatar(IFormFile file, [FromServices] IPhotoService photoService)
+    public async Task<IActionResult> UploadAvatar(IFormFile file)
     {
         var userIdStr = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
         if (string.IsNullOrEmpty(userIdStr)) return Unauthorized();
@@ -91,7 +62,7 @@ public class UserController : ControllerBase
         if (file == null || file.Length == 0)
             return BadRequest(new { success = false, message = "No image file uploaded" });
 
-        var imageUrl = await photoService.UploadImageAsync(file, "avatars");
+        var imageUrl = await _photoService.UploadImageAsync(file, "avatars");
         if (imageUrl == null)
             return BadRequest(new { success = false, message = "Failed to upload image" });
 
@@ -110,6 +81,21 @@ public class UserController : ControllerBase
         });
 
         return Ok(new { success = true, imageUrl });
+    }
+
+    [HttpDelete("account")]
+    public async Task<IActionResult> DeleteAccount()
+    {
+        var userIdStr = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userIdStr)) return Unauthorized();
+
+        var userId = long.Parse(userIdStr);
+        var result = await _service.DeleteUserAccountAsync(userId);
+
+        if (!result)
+            return NotFound(new { success = false, message = "User not found" });
+
+        return Ok(new { success = true, message = "Account deleted successfully" });
     }
 }
 }

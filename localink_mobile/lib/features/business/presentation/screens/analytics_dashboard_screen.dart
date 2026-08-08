@@ -329,7 +329,7 @@ class _AnalyticsDashboardScreenState extends ConsumerState<AnalyticsDashboardScr
                       ),
                       const SizedBox(height: 4),
                       const Text(
-                        'Compares contact clicks against store favorites.',
+                        'Compares contact clicks against business favorites.',
                         style: TextStyle(color: _AnalTok.textMedium, fontSize: 11),
                       ),
                       const SizedBox(height: 14),

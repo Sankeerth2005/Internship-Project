@@ -14,13 +14,13 @@ namespace localink_be.Models.Entities
         [Column("business_name")]
         [Required(ErrorMessage = "Business name is required")]
         [RegularExpression(@"^[A-Za-z\s&'-]+$", ErrorMessage = "Business name can only contain letters, spaces, &, ', -")]
-        public string BusinessName { get; set; }
+        public string BusinessName { get; set; } = string.Empty;
 
         [Column("description")]
         [Required(ErrorMessage = "Description is required")]
         [MinLength(10, ErrorMessage = "Description must be at least 10 characters long")]
         [RegularExpression(@"^[A-Za-z][A-Za-z\s.,'()%!]*$", ErrorMessage = "Description must start with a letter and can contain letters, spaces, and punctuation")]
-        public string Description { get; set; }
+        public string Description { get; set; } = string.Empty;
 
         public long UserId { get; set; } 
         

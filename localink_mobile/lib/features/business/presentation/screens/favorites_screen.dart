@@ -4,6 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../providers/business_provider.dart';
 import '../../../favorites/widgets/favorite_business_card.dart';
+import '../../../../core/widgets/skeleton.dart';
+import '../../../../core/network/app_error_formatter.dart';
+import '../../../../core/network/connectivity_provider.dart';
+import '../../../shared/presentation/widgets/app_state_widget.dart';
 
 class _FavTok {
   static const Color primary = Color(0xFFFF6600);
@@ -34,7 +38,7 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
   @override
   Widget build(BuildContext context) {
     final favorites = ref.watch(favoritesProvider);
-    final allBusinessesAsync = ref.watch(searchResultsProvider);
+    final allBusinessesAsync = ref.watch(favoriteBusinessesProvider);
 
     return Scaffold(
       backgroundColor: _FavTok.bg,
@@ -135,13 +139,23 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
             // Main Content Area
             Expanded(
               child: allBusinessesAsync.when(
-                loading: () => const Center(child: CircularProgressIndicator(color: _FavTok.primary)),
-                error: (err, st) => Center(
-                  child: Text('Error: $err', style: const TextStyle(color: _FavTok.textMedium)),
+                loading: () => ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  itemCount: 4,
+                  itemBuilder: (_, __) => const BusinessCardSkeleton(),
                 ),
+                error: (err, st) => AppErrorFormatter.isOfflineError(err) ||
+                        ref.watch(isOfflineProvider)
+                    ? AppStateWidget.offline(
+                        onRetry: () => ref.invalidate(favoriteBusinessesProvider),
+                      )
+                    : AppStateWidget.error(
+                        message: AppErrorFormatter.format(err),
+                        onRetry: () => ref.invalidate(favoriteBusinessesProvider),
+                      ),
                 data: (businesses) {
-                  // Get favorited businesses
-                  final favList = businesses.where((b) => favorites.contains(b.businessId)).toList();
+                  // Favorites already resolved by ID from API
+                  final favList = businesses;
 
                   if (favList.isEmpty) {
                     return _buildEmptyState();
@@ -231,7 +245,7 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
                                 ),
                               )
                             : ListView.builder(
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4).copyWith(bottom: 120),
                                 itemCount: filteredFavs.length,
                                 itemBuilder: (context, index) {
                                   final business = filteredFavs[index];
@@ -273,31 +287,11 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
   }
 
   Widget _buildEmptyState() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(40),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.favorite_border_rounded, color: _FavTok.textLow, size: 72),
-            const SizedBox(height: 16),
-            const Text(
-              'No Favorites Saved',
-              style: TextStyle(
-                color: _FavTok.textHigh,
-                fontSize: 16,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-            const SizedBox(height: 6),
-            const Text(
-              'Explore neighborhood listings and click the heart icon to save them here.',
-              style: TextStyle(color: _FavTok.textMedium, fontSize: 13),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      ),
+    return AppStateWidget.empty(
+      title: 'No favorites saved',
+      description:
+          'Explore neighborhood listings and tap the heart icon to save them here.',
+      icon: Icons.favorite_border_rounded,
     );
   }
 }

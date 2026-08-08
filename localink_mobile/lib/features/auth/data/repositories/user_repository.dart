@@ -1,5 +1,4 @@
 import 'package:dio/dio.dart';
-import '../../../../core/storage/secure_storage_service.dart';
 import '../models/user_profile.dart';
 
 class UserRepository {
@@ -8,20 +7,10 @@ class UserRepository {
 
   UserRepository({required this.dio});
 
-  Future<Options> _getAuthOptions() async {
-    final token = await SecureStorageService.getToken();
-    return Options(
-      headers: {
-        'Content-Type': 'application/json',
-        if (token != null) 'Authorization': 'Bearer $token',
-      },
-    );
-  }
 
   Future<UserProfileDto> getProfile() async {
     try {
-      final options = await _getAuthOptions();
-      final response = await dio.get('user/profile', options: options);
+      final response = await dio.get('user/profile');
       _cachedProfile = UserProfileDto.fromJson(response.data);
       return _cachedProfile!;
     } on DioException catch (e) {
@@ -39,8 +28,7 @@ class UserRepository {
 
   Future<void> updateProfile(UpdateUserProfileDto dto) async {
     try {
-      final options = await _getAuthOptions();
-      await dio.put('user/profile', data: dto.toJson(), options: options);
+      await dio.put('user/profile', data: dto.toJson());
       _cachedProfile = null;
     } on DioException catch (e) {
       final data = e.response?.data;
@@ -73,5 +61,22 @@ class UserRepository {
 
   void clearCache() {
     _cachedProfile = null;
+  }
+
+  Future<void> deleteAccount() async {
+    try {
+      await dio.delete('user/account');
+      _cachedProfile = null;
+    } on DioException catch (e) {
+      final data = e.response?.data;
+      String? msg;
+      if (data is Map) {
+        msg = data['message']?.toString();
+      } else if (data is String && data.isNotEmpty) {
+        msg = data;
+      }
+      msg ??= e.message ?? 'Failed to delete account';
+      throw Exception(msg);
+    }
   }
 }

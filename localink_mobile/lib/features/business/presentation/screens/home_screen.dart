@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,7 +10,13 @@ import '../../data/models/business_models.dart';
 import '../../../auth/providers/auth_provider.dart';
 import '../../../auth/providers/auth_state.dart';
 import '../../../auth/providers/user_provider.dart';
-import '../../../../core/network/dio_client.dart';
+import '../../../../core/widgets/optimized_network_image.dart';
+import '../../../../core/widgets/skeleton.dart';
+import '../../../../core/network/app_error_formatter.dart';
+import '../../../../core/network/connectivity_provider.dart';
+import '../../../../core/storage/recent_search_store.dart';
+import '../../../../core/storage/last_search_store.dart';
+import '../../../shared/presentation/widgets/app_state_widget.dart';
 import '../widgets/voice_search_dialog.dart';
 import '../../../../core/network/signalr_service.dart';
 import '../../../home/widgets/home_header.dart';
@@ -38,16 +45,40 @@ class HomeScreen extends ConsumerStatefulWidget {
 class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProviderStateMixin {
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
+  Timer? _searchDebounce;
 
-  // Recent searches list
-  final List<String> _recentSearches = ['Restaurant', 'Car Service', 'Doctor', 'Salon'];
+  // Recent searches — loaded from device, populated only by real queries
+  List<String> _recentSearches = [];
   bool _showAutocomplete = false;
+
+  void _onSearchChangedDebounced(String val) {
+    setState(() {
+      _showAutocomplete = val.length >= 3;
+    });
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 350), () async {
+      if (!mounted) return;
+      ref.read(searchQueryProvider.notifier).setQuery(val);
+      if (val.trim().length >= 2) {
+        await LastSearchStore.save(val);
+        final updated = await RecentSearchStore.add(val);
+        if (mounted) setState(() => _recentSearches = updated);
+      }
+    });
+  }
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       _getUserLocation();
+      final recent = await RecentSearchStore.load();
+      final last = await LastSearchStore.load();
+      if (last != null && mounted && _searchController.text.isEmpty) {
+        _searchController.text = last;
+        ref.read(searchQueryProvider.notifier).setQuery(last);
+      }
+      if (mounted) setState(() => _recentSearches = recent);
     });
     SignalRService().addNotificationListener(_onNotificationReceived);
 
@@ -80,6 +111,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     _searchFocusNode.dispose();
     SignalRService().removeNotificationListener(_onNotificationReceived);
     _searchController.dispose();
@@ -91,7 +123,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
         message.contains('BusinessDeleted') || 
         message.contains('status') || 
         message.contains('closure')) {
-      ref.invalidate(searchResultsProvider);
+      ref.invalidate(searchFeedProvider);
     }
   }
 
@@ -109,45 +141,124 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
     });
   }
 
+  static const List<({String key, String label, String hint, IconData icon})> _sortOptions = [
+    (key: 'nearest', label: 'Nearest', hint: 'Closest to you first', icon: Icons.near_me_rounded),
+    (key: 'alphabetical', label: 'A–Z', hint: 'Name ascending', icon: Icons.sort_by_alpha_rounded),
+    (key: 'alphabetical_desc', label: 'Z–A', hint: 'Name descending', icon: Icons.sort_by_alpha_rounded),
+    (key: 'top_rated', label: 'Top rated', hint: 'Highest average rating', icon: Icons.star_rounded),
+    (key: 'most_reviewed', label: 'Most reviewed', hint: 'Most customer reviews', icon: Icons.reviews_rounded),
+    (key: 'newest', label: 'Newest', hint: 'Recently added first', icon: Icons.fiber_new_rounded),
+    (key: 'most_popular', label: 'Most popular', hint: 'Views, favorites & clicks', icon: Icons.trending_up_rounded),
+  ];
+
+  String _normalizeSortKey(String sortKey) {
+    switch (sortKey) {
+      case 'distance':
+      case 'nearby':
+        return 'nearest';
+      case 'reviews':
+      case 'rating':
+        return 'top_rated';
+      case 'popularity':
+      case 'popular':
+        return 'most_popular';
+      default:
+        return sortKey;
+    }
+  }
+
+  String _sortLabelFor(String sortKey) {
+    final key = _normalizeSortKey(sortKey);
+    for (final option in _sortOptions) {
+      if (option.key == key) return option.label;
+    }
+    return 'Sort';
+  }
+
   void _openSortBottomSheet(String currentSort) {
+    final selectedKey = _normalizeSortKey(currentSort);
     showModalBottomSheet(
       context: context,
       backgroundColor: _HomeTok.white,
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (context) {
         return SafeArea(
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: _HomeTok.border,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text(
-                      'Sort Businesses',
-                      style: TextStyle(
-                        fontFamily: 'Inter',
-                        color: _HomeTok.charcoal,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Sort by',
+                            style: TextStyle(
+                              fontFamily: 'Inter',
+                              color: _HomeTok.charcoal,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          SizedBox(height: 4),
+                          Text(
+                            'Results stay within your search radius',
+                            style: TextStyle(
+                              fontFamily: 'Inter',
+                              color: _HomeTok.mutedText,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                     IconButton(
+                      visualDensity: VisualDensity.compact,
                       icon: const Icon(Icons.close_rounded, color: _HomeTok.medText),
                       onPressed: () => Navigator.pop(context),
                     ),
                   ],
                 ),
-                const Divider(color: _HomeTok.border),
-                _buildSortOption('distance', 'Nearest (Distance)', Icons.near_me_rounded, currentSort),
-                _buildSortOption('alphabetical', 'A-Z Order', Icons.sort_by_alpha_rounded, currentSort),
-                _buildSortOption('alphabetical_desc', 'Z-A Order', Icons.sort_by_alpha_rounded, currentSort),
-                _buildSortOption('reviews', 'Top Rated', Icons.star_rounded, currentSort),
                 const SizedBox(height: 12),
+                ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxHeight: MediaQuery.sizeOf(context).height * 0.55,
+                  ),
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: _sortOptions.length,
+                    separatorBuilder: (_, _) => const SizedBox(height: 8),
+                    itemBuilder: (context, index) {
+                      final option = _sortOptions[index];
+                      return _buildSortOption(
+                        option.key,
+                        option.label,
+                        option.hint,
+                        option.icon,
+                        selectedKey,
+                      );
+                    },
+                  ),
+                ),
               ],
             ),
           ),
@@ -156,23 +267,87 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
     );
   }
 
-  Widget _buildSortOption(String sortKey, String label, IconData icon, String currentSort) {
+  Widget _buildSortOption(
+    String sortKey,
+    String label,
+    String hint,
+    IconData icon,
+    String currentSort,
+  ) {
     final isSelected = currentSort == sortKey;
-    return ListTile(
-      leading: Icon(icon, color: isSelected ? _HomeTok.primary : _HomeTok.medText),
-      title: Text(
-        label,
-        style: TextStyle(
-          fontFamily: 'Inter',
-          color: isSelected ? _HomeTok.primary : _HomeTok.charcoal,
-          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          ref.read(searchQueryProvider.notifier).setSortBy(sortKey);
+          Navigator.pop(context);
+        },
+        borderRadius: BorderRadius.circular(14),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOut,
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            color: isSelected ? _HomeTok.primary.withValues(alpha: 0.08) : _HomeTok.surface,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: isSelected ? _HomeTok.primary : _HomeTok.border,
+              width: isSelected ? 1.5 : 1,
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? _HomeTok.primary.withValues(alpha: 0.14)
+                      : _HomeTok.white,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  icon,
+                  size: 20,
+                  color: isSelected ? _HomeTok.primary : _HomeTok.medText,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      label,
+                      style: TextStyle(
+                        fontFamily: 'Inter',
+                        color: isSelected ? _HomeTok.primary : _HomeTok.charcoal,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      hint,
+                      style: const TextStyle(
+                        fontFamily: 'Inter',
+                        color: _HomeTok.mutedText,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                isSelected ? Icons.check_circle_rounded : Icons.circle_outlined,
+                size: 22,
+                color: isSelected ? _HomeTok.primary : _HomeTok.border,
+              ),
+            ],
+          ),
         ),
       ),
-      trailing: isSelected ? const Icon(Icons.check_circle_rounded, color: _HomeTok.primary) : null,
-      onTap: () {
-        ref.read(searchQueryProvider.notifier).setSortBy(sortKey);
-        Navigator.pop(context);
-      },
     );
   }
 
@@ -385,13 +560,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
                     focusNode: _searchFocusNode,
                     onVoiceTap: _triggerVoiceSearch,
                     recentSearches: _recentSearches,
-                    onSearchChanged: (val) {
-                      ref.read(searchQueryProvider.notifier).setQuery(val);
-                      setState(() {
-                        _showAutocomplete = val.length >= 3;
-                      });
-                    },
+                    onSearchChanged: _onSearchChangedDebounced,
                     onClear: () {
+                      _searchDebounce?.cancel();
                       _searchController.clear();
                       ref.read(searchQueryProvider.notifier).setQuery('');
                       setState(() {
@@ -406,13 +577,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
                     focusNode: _searchFocusNode,
                     onVoiceTap: _triggerVoiceSearch,
                     recentSearches: _recentSearches,
-                    onSearchChanged: (val) {
-                      ref.read(searchQueryProvider.notifier).setQuery(val);
-                      setState(() {
-                        _showAutocomplete = val.length >= 3;
-                      });
-                    },
+                    onSearchChanged: _onSearchChangedDebounced,
                     onClear: () {
+                      _searchDebounce?.cancel();
                       _searchController.clear();
                       ref.read(searchQueryProvider.notifier).setQuery('');
                       setState(() {
@@ -459,58 +626,72 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
                     categoryIconResolver: _getCategoryIcon,
                     subcategoryIconResolver: _getSubcategoryIcon,
                   ),
-                  loading: () => const SizedBox(
-                    height: 120,
-                    child: Center(
-                      child: CircularProgressIndicator(color: _HomeTok.primary),
+                  loading: () => const CategoryChipsSkeleton(),
+                  error: (err, stack) => Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                    child: AppStateWidget.error(
+                      message: AppErrorFormatter.format(err),
+                      onRetry: () => ref.invalidate(categoriesProvider),
                     ),
                   ),
-                  error: (err, stack) => const SizedBox.shrink(),
                 ),
               ),
 
-              // ─── 5. SORT BUTTON ───
+              // ─── 5. SORT CONTROL ───
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                   child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
-                        'Verified Businesses',
-                        style: TextStyle(
-                          fontFamily: 'Inter',
-                          color: _HomeTok.charcoal,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w800,
+                      const Expanded(
+                        child: Text(
+                          'Verified Businesses',
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            color: _HomeTok.charcoal,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                          ),
                         ),
                       ),
-                      GestureDetector(
-                        onTap: () => _openSortBottomSheet(queryState.sortBy),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: _HomeTok.primary.withValues(alpha: 0.08),
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(
-                              color: _HomeTok.primary.withValues(alpha: 0.25),
-                              width: 1.2,
-                            ),
-                          ),
-                          child: const Row(
-                            children: [
-                              Icon(Icons.swap_vert_rounded, color: _HomeTok.primary, size: 16),
-                              SizedBox(width: 4),
-                              Text(
-                                'Sort ⇅',
-                                style: TextStyle(
-                                  fontFamily: 'Inter',
-                                  color: _HomeTok.primary,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
-                                ),
+                      const SizedBox(width: 8),
+                      Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: () => _openSortBottomSheet(queryState.sortBy),
+                          borderRadius: BorderRadius.circular(12),
+                          child: Container(
+                            constraints: const BoxConstraints(maxWidth: 168),
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: _HomeTok.primary.withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: _HomeTok.primary.withValues(alpha: 0.28),
+                                width: 1.2,
                               ),
-                            ],
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.swap_vert_rounded, color: _HomeTok.primary, size: 16),
+                                const SizedBox(width: 4),
+                                Flexible(
+                                  child: Text(
+                                    _sortLabelFor(queryState.sortBy),
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontFamily: 'Inter',
+                                      color: _HomeTok.primary,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 2),
+                                const Icon(Icons.keyboard_arrow_down_rounded, color: _HomeTok.primary, size: 16),
+                              ],
+                            ),
                           ),
                         ),
                       ),
@@ -523,26 +704,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
               searchResultsAsync.when(
                 data: (businesses) {
                   if (businesses.isEmpty) {
-                    return const SliverToBoxAdapter(
-                      child: Padding(
-                        padding: EdgeInsets.all(50.0),
-                        child: Center(
-                          child: Column(
-                            children: [
-                              Icon(Icons.search_off_rounded, color: _HomeTok.mutedText, size: 48),
-                              SizedBox(height: 15),
-                              Text(
-                                'No local businesses found.',
-                                style: TextStyle(
-                                  fontFamily: 'Inter',
-                                  color: _HomeTok.medText,
-                                  fontSize: 14,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                            ],
-                          ),
-                        ),
+                    return SliverToBoxAdapter(
+                      child: AppStateWidget.empty(
+                        title: 'No businesses nearby',
+                        description:
+                            'Try widening your search, changing the category, or clearing filters.',
+                        icon: Icons.search_off_rounded,
+                        onActionPressed: () {
+                          ref.read(searchQueryProvider.notifier).setQuery('');
+                          ref.read(searchQueryProvider.notifier).clearCategory();
+                          _searchController.clear();
+                        },
+                        actionLabel: 'Clear filters',
                       ),
                     );
                   }
@@ -552,6 +725,40 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
                     sliver: SliverList(
                       delegate: SliverChildBuilderDelegate(
                         (context, index) {
+                          final feed = ref.read(searchFeedProvider).asData?.value;
+                          final showLoadMore = feed?.hasNextPage == true;
+                          if (showLoadMore && index == businesses.length) {
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              child: Center(
+                                child: feed?.isLoadingMore == true
+                                    ? const SizedBox(
+                                        width: 28,
+                                        height: 28,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2.5,
+                                          color: _HomeTok.primary,
+                                        ),
+                                      )
+                                    : TextButton.icon(
+                                        onPressed: () => ref
+                                            .read(searchFeedProvider.notifier)
+                                            .loadMore(),
+                                        icon: const Icon(Icons.expand_more_rounded,
+                                            color: _HomeTok.primary),
+                                        label: const Text(
+                                          'Load more',
+                                          style: TextStyle(
+                                            fontFamily: 'Inter',
+                                            color: _HomeTok.primary,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ),
+                              ),
+                            );
+                          }
+
                           final business = businesses[index];
                           final isFav = favorites.contains(business.businessId);
 
@@ -568,38 +775,30 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
                             child: _buildBusinessCard(context, ref, business, isFav),
                           );
                         },
-                        childCount: businesses.length,
+                        childCount: businesses.length +
+                            ((ref.watch(searchFeedProvider).asData?.value.hasNextPage ?? false)
+                                ? 1
+                                : 0),
                       ),
                     ),
                   );
                 },
-                loading: () => const SliverToBoxAdapter(
-                  child: Padding(
-                    padding: EdgeInsets.all(50.0),
-                    child: Center(
-                      child: CircularProgressIndicator(color: _HomeTok.primary),
-                    ),
-                  ),
-                ),
+                loading: () => const HomeFeedSkeleton(),
                 error: (err, stack) => SliverToBoxAdapter(
-                  child: Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(20.0),
-                      child: Text(
-                        'Error: $err',
-                        style: const TextStyle(
-                          fontFamily: 'Inter',
-                          color: Colors.redAccent,
+                  child: AppErrorFormatter.isOfflineError(err) || ref.watch(isOfflineProvider)
+                      ? AppStateWidget.offline(
+                          onRetry: () => ref.invalidate(searchFeedProvider),
+                        )
+                      : AppStateWidget.error(
+                          message: AppErrorFormatter.format(err),
+                          onRetry: () => ref.invalidate(searchFeedProvider),
                         ),
-                      ),
-                    ),
-                  ),
                 ),
               ),
 
               // Bottom Spacer
               const SliverToBoxAdapter(
-                child: SizedBox(height: 100),
+                child: SizedBox(height: 120),
               ),
             ],
           ),
@@ -652,19 +851,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
                     decoration: const BoxDecoration(
                       color: Color(0xFFF0EFEA),
                     ),
-                    child: business.photos.isNotEmpty
-                        ? Image.network(
-                            '${Uri.parse(DioClient().dio.options.baseUrl).origin}${business.photos.first}',
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) => Container(
-                              color: const Color(0xFFF0EFEA),
-                              child: const Icon(Icons.storefront_rounded, color: _HomeTok.primary, size: 45),
-                            ),
-                          )
-                        : Container(
-                            color: const Color(0xFFF0EFEA),
-                            child: const Icon(Icons.storefront_rounded, color: _HomeTok.primary, size: 45),
-                          ),
+                    child: OptimizedNetworkImage.business(
+                      imageUrl: business.photos.isNotEmpty ? business.photos.first : null,
+                      height: 150,
+                      width: double.infinity,
+                      iconColor: _HomeTok.primary,
+                      iconSize: 45,
+                    ),
                   ),
                   Positioned.fill(
                     child: Container(

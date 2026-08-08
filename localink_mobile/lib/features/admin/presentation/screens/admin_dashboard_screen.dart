@@ -1,23 +1,26 @@
 import 'package:flutter/material.dart';
+import 'dart:io';
 import 'dart:math' as math;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:file_picker/file_picker.dart' as fp;
+import 'package:path_provider/path_provider.dart';
+import 'package:dio/dio.dart';
 
 import '../../../auth/providers/auth_provider.dart';
 import '../../data/models/admin_business_dto.dart';
 import '../../providers/admin_provider.dart';
-import '../../../shared/presentation/widgets/app_dialog.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/network/signalr_service.dart';
 import '../../../auth/providers/auth_state.dart';
-import '../../../../core/storage/secure_storage_service.dart';
 import '../../../shared/presentation/widgets/app_feedback.dart';
 import '../../../../core/network/app_error_formatter.dart';
+import '../../../../core/widgets/brand_icons.dart';
 
 // Import modular widgets
 import '../widgets/kpi_card.dart';
+import '../widgets/admin_categories_tab.dart';
 import '../widgets/platform_health_widget.dart';
 import '../widgets/ai_insights_panel.dart';
 import '../widgets/business_approval_sheet.dart';
@@ -49,16 +52,16 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF1E1E1E),
-        title: const Text('Approve Permanent Deletion', style: TextStyle(color: Colors.white)),
+        backgroundColor: Colors.white,
+        title: const Text('Approve Permanent Deletion', style: TextStyle(color: Color(0xFF1A1918))),
         content: Text(
           'Are you sure you want to PERMANENTLY DELETE "${business.name}"? This will delete it completely from the database and cannot be undone.\n\nReason: "${business.rejectionComment ?? "No reason specified"}"',
-          style: const TextStyle(color: Colors.white70),
+          style: const TextStyle(color: Color(0xFF5F5C58)),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
+            child: const Text('Cancel', style: TextStyle(color: Color(0xFF5F5C58))),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -104,16 +107,16 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF1E1E1E),
-        title: const Text('Reject Deletion Request', style: TextStyle(color: Colors.white)),
+        backgroundColor: Colors.white,
+        title: const Text('Reject Deletion Request', style: TextStyle(color: Color(0xFF1A1918))),
         content: Text(
           'Are you sure you want to REJECT the deletion request for "${business.name}"? The business status will be restored to Approved.',
-          style: const TextStyle(color: Colors.white70),
+          style: const TextStyle(color: Color(0xFF5F5C58)),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
+            child: const Text('Cancel', style: TextStyle(color: Color(0xFF5F5C58))),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -159,16 +162,16 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF1E1E1E),
-        title: const Text('Approve Business', style: TextStyle(color: Colors.white)),
+        backgroundColor: Colors.white,
+        title: const Text('Approve Business', style: TextStyle(color: Color(0xFF1A1918))),
         content: Text(
           'Are you sure you want to approve "${business.name}"?',
-          style: const TextStyle(color: Colors.white70),
+          style: const TextStyle(color: Color(0xFF5F5C58)),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
+            child: const Text('Cancel', style: TextStyle(color: Color(0xFF5F5C58))),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -220,8 +223,8 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF1E1E1E),
-        title: const Text('Reject Business', style: TextStyle(color: Colors.white)),
+        backgroundColor: Colors.white,
+        title: const Text('Reject Business', style: TextStyle(color: Color(0xFF1A1918))),
         content: Form(
           key: formKey,
           child: Column(
@@ -230,21 +233,21 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
             children: [
               Text(
                 'Provide a reason for rejecting "${business.name}":',
-                style: const TextStyle(color: Colors.white70, fontSize: 13),
+                style: const TextStyle(color: Color(0xFF5F5C58), fontSize: 13),
               ),
               const SizedBox(height: 12),
               TextFormField(
                 controller: reasonController,
-                style: const TextStyle(color: Colors.white),
+                style: const TextStyle(color: Color(0xFF1A1918)),
                 maxLines: 3,
                 decoration: InputDecoration(
                   hintText: 'Enter rejection reason (required)...',
-                  hintStyle: const TextStyle(color: Colors.white24, fontSize: 12),
+                  hintStyle: const TextStyle(color: Color(0xFF9F9B96), fontSize: 12),
                   filled: true,
                   fillColor: Colors.black26,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: Colors.white24),
+                    borderSide: const BorderSide(color: Color(0xFFEAE8E3)),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
@@ -264,7 +267,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
+            child: const Text('Cancel', style: TextStyle(color: Color(0xFF5F5C58))),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -321,16 +324,16 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF1E1E1E),
-        title: const Text('Approve Closure Request', style: TextStyle(color: Colors.white)),
+        backgroundColor: Colors.white,
+        title: const Text('Approve Closure Request', style: TextStyle(color: Color(0xFF1A1918))),
         content: Text(
           'Are you sure you want to approve temporary closure for "${business.name}" for ${business.temporaryClosureDays ?? 0} days?\n\nReason: "${business.temporaryClosureReason ?? "No reason specified"}"',
-          style: const TextStyle(color: Colors.white70),
+          style: const TextStyle(color: Color(0xFF5F5C58)),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
+            child: const Text('Cancel', style: TextStyle(color: Color(0xFF5F5C58))),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -379,16 +382,16 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF1E1E1E),
-        title: const Text('Reject Closure Request', style: TextStyle(color: Colors.white)),
+        backgroundColor: Colors.white,
+        title: const Text('Reject Closure Request', style: TextStyle(color: Color(0xFF1A1918))),
         content: Text(
           'Are you sure you want to reject the temporary closure request for "${business.name}"?',
-          style: const TextStyle(color: Colors.white70),
+          style: const TextStyle(color: Color(0xFF5F5C58)),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
+            child: const Text('Cancel', style: TextStyle(color: Color(0xFF5F5C58))),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -436,7 +439,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
   Future<void> _handleExport() async {
     final statusChoice = await showModalBottomSheet<String>(
       context: context,
-      backgroundColor: const Color(0xFF1E1E1E),
+      backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
@@ -449,27 +452,27 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
               padding: EdgeInsets.all(16),
               child: Text(
                 'Select Report Type to Export',
-                style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                style: TextStyle(color: Color(0xFF1A1918), fontSize: 16, fontWeight: FontWeight.bold),
               ),
             ),
             ListTile(
               leading: const Icon(Icons.list, color: Color(0xFFFF7A00)),
-              title: const Text('All Businesses', style: TextStyle(color: Colors.white)),
+              title: const Text('All Businesses', style: TextStyle(color: Color(0xFF1A1918))),
               onTap: () => Navigator.pop(context, 'All'),
             ),
             ListTile(
               leading: const Icon(Icons.check_circle_outline, color: Colors.green),
-              title: const Text('Approved Businesses Only', style: TextStyle(color: Colors.white)),
+              title: const Text('Approved Businesses Only', style: TextStyle(color: Color(0xFF1A1918))),
               onTap: () => Navigator.pop(context, 'Approved'),
             ),
             ListTile(
               leading: const Icon(Icons.pending_actions, color: Colors.amber),
-              title: const Text('Pending Businesses Only', style: TextStyle(color: Colors.white)),
+              title: const Text('Pending Businesses Only', style: TextStyle(color: Color(0xFF1A1918))),
               onTap: () => Navigator.pop(context, 'Pending'),
             ),
             ListTile(
               leading: const Icon(Icons.cancel_outlined, color: Colors.redAccent),
-              title: const Text('Rejected Businesses Only', style: TextStyle(color: Colors.white)),
+              title: const Text('Rejected Businesses Only', style: TextStyle(color: Color(0xFF1A1918))),
               onTap: () => Navigator.pop(context, 'Rejected'),
             ),
             const SizedBox(height: 8),
@@ -480,15 +483,26 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
 
     if (statusChoice == null) return;
 
-    final token = await SecureStorageService.getToken();
-    final baseUrl = DioClient().dio.options.baseUrl;
-    final originUrl = Uri.parse(baseUrl).origin;
-    final exportUrl = '$originUrl/api/v1/admin/export?status=$statusChoice&access_token=$token';
-    
     try {
-      final launched = await launchUrl(Uri.parse(exportUrl), mode: LaunchMode.externalApplication);
+      final dio = DioClient().dio;
+      final response = await dio.get<List<int>>(
+        'admin/export',
+        queryParameters: {'status': statusChoice},
+        options: Options(
+          responseType: ResponseType.bytes,
+          headers: {'Accept': 'application/octet-stream'},
+        ),
+      );
+
+      final dir = await getTemporaryDirectory();
+      final file = File('${dir.path}/businesses_$statusChoice.xlsx');
+      await file.writeAsBytes(response.data ?? []);
+
+      final launched = await launchUrl(Uri.file(file.path), mode: LaunchMode.externalApplication);
       if (!launched && mounted) {
-        AppFeedback.showError(context, 'Could not launch export download link.');
+        AppFeedback.showError(context, 'Export saved but could not open: ${file.path}');
+      } else if (mounted) {
+        AppFeedback.showSuccess(context, 'Export downloaded.');
       }
     } catch (e) {
       if (mounted) {
@@ -537,13 +551,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                   ),
                   child: Row(
                     children: [
-                      SizedBox(
-                        width: 44,
-                        height: 44,
-                        child: CustomPaint(
-                          painter: EmblemPainter(),
-                        ),
-                      ),
+                      BrandIcons.omChip(size: 44),
                       const SizedBox(width: 15),
                       const Expanded(
                         child: Column(
@@ -803,7 +811,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                 icon: const Icon(Icons.upload_file, size: 16),
                 label: const Text('Bulk Import (CSV)'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF1E1E1E),
+                  backgroundColor: Colors.white,
                   foregroundColor: const Color(0xFFFF7A00),
                   side: const BorderSide(color: Color(0xFFFF7A00)),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -993,77 +1001,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
   }
 
   Widget _buildCategoriesTab() {
-    return FutureBuilder(
-      future: DioClient().dio.get('categories'),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator(color: Color(0xFFFF7A00)));
-        }
-        if (snapshot.hasError || !snapshot.hasData) {
-          return const Center(child: Text('Failed to load categories', style: TextStyle(color: Colors.white54)));
-        }
-        final data = snapshot.data!.data as List? ?? [];
-
-        final iconMap = <String, IconData>{
-          'restaurant': Icons.restaurant, 'food': Icons.restaurant, 'cafe': Icons.local_cafe,
-          'health': Icons.health_and_safety, 'wellness': Icons.spa, 'beauty': Icons.spa,
-          'service': Icons.build, 'auto': Icons.directions_car, 'car': Icons.directions_car,
-          'shop': Icons.shopping_bag, 'retail': Icons.shopping_bag, 'store': Icons.store,
-          'education': Icons.school, 'travel': Icons.flight, 'real estate': Icons.home,
-          'legal': Icons.gavel, 'it': Icons.computer, 'tech': Icons.computer,
-          'market': Icons.campaign, 'entertainment': Icons.movie, 'religious': Icons.temple_hindu,
-          'finance': Icons.account_balance, 'pet': Icons.pets, 'security': Icons.security,
-          'gym': Icons.fitness_center, 'medical': Icons.medical_services,
-        };
-
-        IconData getIconForCategory(String name) {
-          final lowerName = name.toLowerCase();
-          for (final key in iconMap.keys) {
-            if (lowerName.contains(key)) return iconMap[key]!;
-          }
-          return Icons.category_outlined;
-        }
-
-        return GridView.builder(
-          padding: const EdgeInsets.all(15),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-            childAspectRatio: 1.3,
-          ),
-          itemCount: data.length,
-          itemBuilder: (context, index) {
-            final cat = data[index];
-            final name = cat['name'] ?? cat['categoryName'] ?? 'Category';
-            return Container(
-              decoration: BoxDecoration(
-                color: const Color(0xFF161616),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(getIconForCategory(name), color: const Color(0xFFFF7A00), size: 28),
-                  const SizedBox(height: 10),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                    child: Text(
-                      name,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      },
-    );
+    return const AdminCategoriesTab();
   }
 
   Widget _buildAnalyticsTab(AsyncValue<List<AdminBusinessDto>> businessesAsync) {
@@ -1105,7 +1043,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
               children: [
                 const Text(
                   'Real-Time Charts',
-                  style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                  style: TextStyle(color: Color(0xFF1A1918), fontSize: 16, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 15),
                 businessesAsync.when(
@@ -2221,28 +2159,6 @@ class EmblemPainter extends CustomPainter {
     flagPath.close();
 
     canvas.drawPath(flagPath, flagPaint);
-
-    final poleLinePaint = Paint()
-      ..color = const Color(0xFF0C0C0C)
-      ..strokeWidth = 1.5;
-    canvas.drawLine(Offset(poleX, center.dy - radius + 4), Offset(poleX, center.dy + radius - 4), poleLinePaint);
-
-    final textPainter = TextPainter(
-      text: const TextSpan(
-        text: 'ॐ',
-        style: TextStyle(color: Colors.black, fontSize: 8, fontWeight: FontWeight.bold),
-      ),
-      textDirection: TextDirection.ltr,
-    );
-    textPainter.layout();
-
-    double clothCenterX = poleX + ((tipX - poleX) * 0.33);
-    double clothCenterY = (clothTopY + clothBottomY) / 2;
-
-    textPainter.paint(
-      canvas,
-      Offset(clothCenterX - (textPainter.width / 2), clothCenterY - (textPainter.height / 2)),
-    );
   }
 
   @override
@@ -2314,16 +2230,6 @@ class TempleHeaderPainter extends CustomPainter {
       ..color = const Color(0xFFFF7A00)
       ..style = PaintingStyle.fill;
     canvas.drawPath(flagPath, flagPaint);
-
-    final textPainter = TextPainter(
-      text: const TextSpan(
-        text: 'ॐ',
-        style: TextStyle(color: Colors.black, fontSize: 6, fontWeight: FontWeight.bold),
-      ),
-      textDirection: TextDirection.ltr,
-    );
-    textPainter.layout();
-    textPainter.paint(canvas, Offset(mainSpirePeakX + 2, mainSpirePeakY - 22));
   }
 
   Paint flagRulesWorkaround(Paint p) => p;

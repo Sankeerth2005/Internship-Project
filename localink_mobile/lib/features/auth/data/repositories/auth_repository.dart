@@ -34,6 +34,44 @@ class AuthRepository {
     }
   }
 
+  Future<AuthResponse> googleSignIn(String idToken) async {
+    try {
+      final response = await dio.post('auth/google', data: {'idToken': idToken});
+      if (response.data['success'] == true) {
+        return AuthResponse.fromJson(response.data['data']);
+      } else {
+        throw Exception(response.data['message'] ?? 'Google sign-in failed');
+      }
+    } on DioException catch (e) {
+      throw Exception(_handleDioError(e));
+    }
+  }
+
+  Future<AuthResponse> refresh(String refreshToken) async {
+    try {
+      final response = await dio.post(
+        'auth/refresh',
+        data: {'refreshToken': refreshToken},
+      );
+      if (response.data['success'] == true) {
+        return AuthResponse.fromJson(response.data['data']);
+      } else {
+        throw Exception(response.data['message'] ?? 'Session refresh failed');
+      }
+    } on DioException catch (e) {
+      throw Exception(_handleDioError(e));
+    }
+  }
+
+  Future<void> logout(String? refreshToken) async {
+    if (refreshToken == null || refreshToken.isEmpty) return;
+    try {
+      await dio.post('auth/logout', data: {'refreshToken': refreshToken});
+    } catch (_) {
+      // Local logout must succeed even if network revoke fails
+    }
+  }
+
   String _handleDioError(DioException error) {
     final data = error.response?.data;
     if (data is Map) {

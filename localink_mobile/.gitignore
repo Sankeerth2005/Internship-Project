@@ -44,3 +44,13 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 /android/build/
+
+# Release signing — never commit
+*.keystore
+*.jks
+key.properties
+
+# Secrets — never commit
+.env
+.env.*
+!.env.example

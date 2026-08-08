@@ -1,14 +1,15 @@
 using Microsoft.EntityFrameworkCore;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Configuration;
 using localink_be.Data;
 using localink_be.Models.Entities;
+using localink_be.Options;
 using localink_be.Services.Interfaces;
 
 namespace localink_be.Services.Implementations
@@ -16,103 +17,40 @@ namespace localink_be.Services.Implementations
     public class PhotoService : IPhotoService
     {
         private readonly AppDbContext _db;
-        private readonly IWebHostEnvironment _env;
-        private readonly Microsoft.Extensions.Logging.ILogger<PhotoService> _logger;
-        private readonly IConfiguration _configuration;
+        private readonly ILogger<PhotoService> _logger;
+        private readonly IImageOptimizationService _optimizer;
+        private readonly IUploadStorageService _storage;
+        private readonly UploadSettings _uploadSettings;
 
-        public PhotoService(AppDbContext db, IWebHostEnvironment env, Microsoft.Extensions.Logging.ILogger<PhotoService> logger, IConfiguration configuration)
+        private static readonly HashSet<string> AllowedExtensions = new(StringComparer.OrdinalIgnoreCase)
+        {
+            ".jpg", ".jpeg", ".png", ".gif", ".webp", ".heic", ".heif", ".bmp"
+        };
+
+        private static readonly HashSet<string> AllowedMimeTypes = new(StringComparer.OrdinalIgnoreCase)
+        {
+            "image/jpeg", "image/png", "image/gif", "image/webp",
+            "image/heic", "image/heif", "image/bmp", "application/octet-stream"
+        };
+
+        public PhotoService(
+            AppDbContext db,
+            ILogger<PhotoService> logger,
+            IImageOptimizationService optimizer,
+            IUploadStorageService storage,
+            IOptions<UploadSettings> uploadSettings)
         {
             _db = db;
-            _env = env;
             _logger = logger;
-            _configuration = configuration;
-        }
-
-        private string GetUploadsRootPath()
-        {
-            // Use persistent path from config if available, otherwise fall back to wwwroot/uploads
-            var configPath = _configuration["UploadSettings:UploadsPath"];
-            if (!string.IsNullOrEmpty(configPath))
-            {
-                var uploadsDir = Path.Combine(configPath, "uploads");
-                if (!Directory.Exists(uploadsDir))
-                {
-                    Directory.CreateDirectory(uploadsDir);
-                }
-                return Path.GetFullPath(uploadsDir);
-            }
-
-            var webRoot = _env.WebRootPath;
-            if (string.IsNullOrEmpty(webRoot))
-            {
-                webRoot = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
-            }
-            var uploadsDir2 = Path.Combine(webRoot, "uploads");
-            if (!Directory.Exists(uploadsDir2))
-            {
-                Directory.CreateDirectory(uploadsDir2);
-            }
-            return Path.GetFullPath(uploadsDir2);
-        }
-
-        private readonly List<string> _allowedExtensions = new() { ".jpg", ".jpeg", ".png", ".gif", ".webp" };
-        private readonly List<string> _allowedMimeTypes = new() { "image/jpeg", "image/png", "image/gif", "image/webp" };
-
-        private bool ValidateImageMagicBytes(Stream stream)
-        {
-            byte[] header = new byte[8];
-            int bytesRead = stream.Read(header, 0, 8);
-            stream.Position = 0; // Reset position
-
-            if (bytesRead < 4) return false;
-
-            // PNG
-            if (header[0] == 0x89 && header[1] == 0x50 && header[2] == 0x4E && header[3] == 0x47)
-                return true;
-
-            // JPEG
-            if (header[0] == 0xFF && header[1] == 0xD8 && header[2] == 0xFF)
-                return true;
-
-            // GIF
-            if (header[0] == 0x47 && header[1] == 0x49 && header[2] == 0x46 && header[3] == 0x38)
-                return true;
-
-            // WEBP
-            if (header[0] == 0x52 && header[1] == 0x49 && header[2] == 0x46 && header[3] == 0x46)
-                return true;
-
-            return false;
-        }
-
-        private bool ValidateImageMagicBytes(byte[] bytes)
-        {
-            if (bytes == null || bytes.Length < 4) return false;
-
-            // PNG
-            if (bytes[0] == 0x89 && bytes[1] == 0x50 && bytes[2] == 0x4E && bytes[3] == 0x47)
-                return true;
-
-            // JPEG
-            if (bytes[0] == 0xFF && bytes[1] == 0xD8 && bytes[2] == 0xFF)
-                return true;
-
-            // GIF
-            if (bytes[0] == 0x47 && bytes[1] == 0x49 && bytes[2] == 0x46 && bytes[3] == 0x38)
-                return true;
-
-            // WEBP
-            if (bytes[0] == 0x52 && bytes[1] == 0x49 && bytes[2] == 0x46 && bytes[3] == 0x46)
-                return true;
-
-            return false;
+            _optimizer = optimizer;
+            _storage = storage;
+            _uploadSettings = uploadSettings.Value;
         }
 
         public async Task<BusinessPhoto?> UploadPhotoAsync(long businessId, IFormFile file, long currentUserId, bool isAdmin)
         {
             if (file == null || file.Length == 0) return null;
 
-            // 1. Verify Ownership
             var business = await _db.Businesses.FindAsync(businessId);
             if (business == null)
             {
@@ -126,62 +64,50 @@ namespace localink_be.Services.Implementations
                 throw new UnauthorizedAccessException("You do not own this business.");
             }
 
-            // 2. Size Validation (Max 5MB)
-            if (file.Length > 5 * 1024 * 1024)
-            {
-                _logger.LogWarning("Upload photo rejected: File size {Length} exceeds limit", file.Length);
-                throw new ArgumentException("File size exceeds 5MB limit.");
-            }
+            ValidateUploadHeaders(file);
 
-            // 3. Extension Validation
-            var ext = Path.GetExtension(file.FileName)?.ToLower();
-            if (string.IsNullOrEmpty(ext) || !_allowedExtensions.Contains(ext))
+            try
             {
-                _logger.LogWarning("Upload photo rejected: Invalid file extension {Extension}", ext);
-                throw new ArgumentException("Invalid file extension.");
-            }
+                await using var stream = file.OpenReadStream();
+                var optimized = await _optimizer.OptimizeAndSaveAsync(
+                    stream,
+                    file.FileName,
+                    ImageUploadCategory.Business);
 
-            // 4. MIME Type Validation
-            var contentType = file.ContentType?.ToLower();
-            if (string.IsNullOrEmpty(contentType) || !_allowedMimeTypes.Contains(contentType))
-            {
-                _logger.LogWarning("Upload photo rejected: Invalid MIME type {MimeType}", contentType);
-                throw new ArgumentException("Invalid MIME type.");
-            }
+                var maxOrder = await _db.BusinessPhotos
+                    .Where(p => p.BusinessId == businessId)
+                    .Select(p => (int?)p.DisplayOrder)
+                    .MaxAsync() ?? -1;
 
-            // 5. Magic Bytes Check
-            using (var checkStream = file.OpenReadStream())
-            {
-                if (!ValidateImageMagicBytes(checkStream))
+                var now = DateTime.UtcNow;
+                var photo = new BusinessPhoto
                 {
-                    _logger.LogWarning("Upload photo rejected: Magic bytes validation failed for business {BusinessId}", businessId);
-                    throw new ArgumentException("Invalid image file format (magic bytes check failed).");
-                }
+                    BusinessId = businessId,
+                    ImageUrl = optimized.RelativePath,
+                    IsPrimary = maxOrder < 0,
+                    DisplayOrder = maxOrder + 1,
+                    CreatedAt = now,
+                    UpdatedAt = now
+                };
+
+                _db.BusinessPhotos.Add(photo);
+                await _db.SaveChangesAsync();
+
+                _logger.LogInformation(
+                    "Successfully uploaded optimized photo for BusinessId={BusinessId}, PhotoId={PhotoId}, Path={Path}, Ratio={Ratio}%",
+                    businessId, photo.PhotoId, optimized.RelativePath, optimized.CompressionRatio);
+
+                return photo;
             }
-
-            var uploadsPath = GetUploadsRootPath();
-            if (!Directory.Exists(uploadsPath)) Directory.CreateDirectory(uploadsPath);
-            var fileName = $"{Guid.NewGuid()}{ext}";
-            var filePath = Path.Combine(uploadsPath, fileName);
-
-            using (var stream = new FileStream(filePath, FileMode.Create)) 
-            { 
-                await file.CopyToAsync(stream); 
+            catch (ArgumentException)
+            {
+                throw;
             }
-
-            var photo = new BusinessPhoto 
-            { 
-                BusinessId = businessId, 
-                ImageUrl = $"/uploads/{fileName}", 
-                IsPrimary = false, 
-                CreatedAt = DateTime.UtcNow 
-            };
-
-            _db.BusinessPhotos.Add(photo);
-            await _db.SaveChangesAsync();
-
-            _logger.LogInformation("Successfully uploaded photo for BusinessId={BusinessId}, PhotoId={PhotoId}", businessId, photo.PhotoId);
-            return photo;
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Upload failure for BusinessId={BusinessId}, File={FileName}", businessId, file.FileName);
+                throw;
+            }
         }
 
         public async Task<List<BusinessPhoto>> GetPhotosAsync(long businessId)
@@ -189,6 +115,8 @@ namespace localink_be.Services.Implementations
             return await _db.BusinessPhotos
                 .Where(p => p.BusinessId == businessId)
                 .OrderByDescending(p => p.IsPrimary)
+                .ThenBy(p => p.DisplayOrder)
+                .ThenBy(p => p.CreatedAt)
                 .ToListAsync();
         }
 
@@ -197,28 +125,16 @@ namespace localink_be.Services.Implementations
             var photo = await _db.BusinessPhotos.FindAsync(photoId);
             if (photo == null) return false;
 
-            // Verify Ownership
             var business = await _db.Businesses.FindAsync(photo.BusinessId);
             if (business != null && !isAdmin && business.UserId != currentUserId)
             {
-                _logger.LogWarning("Unauthorized delete photo attempt by user {UserId} for business {BusinessId}, PhotoId {PhotoId}", 
+                _logger.LogWarning(
+                    "Unauthorized delete photo attempt by user {UserId} for business {BusinessId}, PhotoId {PhotoId}",
                     currentUserId, photo.BusinessId, photoId);
                 throw new UnauthorizedAccessException("You do not own the business associated with this photo.");
             }
 
-            var relativePath = photo.ImageUrl.Replace("/uploads/", "").Replace("/", Path.DirectorySeparatorChar.ToString());
-            var filePath = Path.Combine(GetUploadsRootPath(), relativePath);
-            if (File.Exists(filePath))
-            {
-                try
-                {
-                    File.Delete(filePath);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Failed to delete file from disk: {Path}", filePath);
-                }
-            }
+            _storage.TryDeleteRelativePath(photo.ImageUrl);
 
             _db.BusinessPhotos.Remove(photo);
             await _db.SaveChangesAsync();
@@ -231,50 +147,29 @@ namespace localink_be.Services.Implementations
         {
             if (file == null || file.Length == 0) return null;
 
-            // Size Validation (Max 5MB)
-            if (file.Length > 5 * 1024 * 1024)
+            ValidateUploadHeaders(file);
+
+            var category = MapFolderToCategory(folderName);
+            try
             {
-                _logger.LogWarning("Upload image rejected: File size {Length} exceeds limit", file.Length);
-                throw new ArgumentException("File size exceeds 5MB limit.");
-            }
+                await using var stream = file.OpenReadStream();
+                var optimized = await _optimizer.OptimizeAndSaveAsync(
+                    stream,
+                    file.FileName,
+                    category,
+                    SanitizeFolder(folderName));
 
-            // Extension Validation
-            var ext = Path.GetExtension(file.FileName)?.ToLower();
-            if (string.IsNullOrEmpty(ext) || !_allowedExtensions.Contains(ext))
+                return optimized.RelativePath;
+            }
+            catch (ArgumentException)
             {
-                _logger.LogWarning("Upload image rejected: Invalid file extension {Extension}", ext);
-                throw new ArgumentException("Invalid file extension.");
+                throw;
             }
-
-            // MIME Type Validation
-            var contentType = file.ContentType?.ToLower();
-            if (string.IsNullOrEmpty(contentType) || !_allowedMimeTypes.Contains(contentType))
+            catch (Exception ex)
             {
-                _logger.LogWarning("Upload image rejected: Invalid MIME type {MimeType}", contentType);
-                throw new ArgumentException("Invalid MIME type.");
+                _logger.LogError(ex, "UploadImageAsync failure. Folder={Folder}, File={FileName}", folderName, file.FileName);
+                throw;
             }
-
-            // Magic Bytes Check
-            using (var checkStream = file.OpenReadStream())
-            {
-                if (!ValidateImageMagicBytes(checkStream))
-                {
-                    _logger.LogWarning("Upload image rejected: Magic bytes validation failed");
-                    throw new ArgumentException("Invalid image file format (magic bytes check failed).");
-                }
-            }
-
-            var uploadsPath = Path.Combine(GetUploadsRootPath(), folderName);
-            if (!Directory.Exists(uploadsPath)) Directory.CreateDirectory(uploadsPath);
-            var fileName = $"{Guid.NewGuid()}{ext}";
-            var filePath = Path.Combine(uploadsPath, fileName);
-
-            using (var stream = new FileStream(filePath, FileMode.Create))
-            {
-                await file.CopyToAsync(stream);
-            }
-
-            return $"/uploads/{folderName}/{fileName}";
         }
 
         public async Task SavePhotoAsync(string photoBase64, long businessId)
@@ -284,7 +179,13 @@ namespace localink_be.Services.Implementations
             byte[] bytes;
             try
             {
-                bytes = Convert.FromBase64String(photoBase64);
+                // Support data-URI prefixes from Flutter / web clients
+                var payload = photoBase64;
+                var comma = photoBase64.IndexOf(',');
+                if (photoBase64.StartsWith("data:", StringComparison.OrdinalIgnoreCase) && comma > 0)
+                    payload = photoBase64[(comma + 1)..];
+
+                bytes = Convert.FromBase64String(payload);
             }
             catch (FormatException)
             {
@@ -292,50 +193,56 @@ namespace localink_be.Services.Implementations
                 throw new ArgumentException("Invalid base64 string");
             }
 
-            // Size check (5MB)
-            if (bytes.Length > 5 * 1024 * 1024)
+            if (bytes.Length > _uploadSettings.MaxUploadBytes)
             {
-                throw new ArgumentException("Base64 image size exceeds 5MB");
+                _logger.LogWarning("Base64 image rejected: size {Length} exceeds limit {Limit}", bytes.Length, _uploadSettings.MaxUploadBytes);
+                throw new ArgumentException($"Image size exceeds {_uploadSettings.MaxUploadBytes / (1024 * 1024)}MB limit.");
             }
 
-            // Magic bytes check
-            if (!ValidateImageMagicBytes(bytes))
+            try
             {
-                throw new ArgumentException("Invalid image magic bytes in base64");
+                var optimized = await _optimizer.OptimizeAndSaveAsync(
+                    bytes,
+                    "business-photo.jpg",
+                    ImageUploadCategory.Business);
+
+                var existingPhotos = await _db.BusinessPhotos
+                    .Where(p => p.BusinessId == businessId)
+                    .ToListAsync();
+
+                foreach (var p in existingPhotos)
+                {
+                    p.IsPrimary = false;
+                    p.UpdatedAt = DateTime.UtcNow;
+                }
+
+                var now = DateTime.UtcNow;
+                var photo = new BusinessPhoto
+                {
+                    BusinessId = businessId,
+                    ImageUrl = optimized.RelativePath,
+                    IsPrimary = true,
+                    DisplayOrder = 0,
+                    CreatedAt = now,
+                    UpdatedAt = now
+                };
+
+                _db.BusinessPhotos.Add(photo);
+                await _db.SaveChangesAsync();
+
+                _logger.LogInformation(
+                    "Saved optimized base64 photo for BusinessId={BusinessId}, Ratio={Ratio}%",
+                    businessId, optimized.CompressionRatio);
             }
-
-            var uploadsPath = GetUploadsRootPath();
-            if (!Directory.Exists(uploadsPath))
-                Directory.CreateDirectory(uploadsPath);
-
-            var fileName = $"{Guid.NewGuid()}.jpg";
-            var filePath = Path.Combine(uploadsPath, fileName);
-
-            await File.WriteAllBytesAsync(filePath, bytes);
-
-            var imageUrl = $"/uploads/{fileName}";
-
-            // Set all existing photos to not primary
-            var existingPhotos = await _db.BusinessPhotos
-                .Where(p => p.BusinessId == businessId)
-                .ToListAsync();
-            foreach (var p in existingPhotos)
+            catch (ArgumentException)
             {
-                p.IsPrimary = false;
+                throw;
             }
-
-            var photo = new BusinessPhoto
+            catch (Exception ex)
             {
-                BusinessId = businessId,
-                ImageUrl = imageUrl,
-                IsPrimary = true,
-                CreatedAt = DateTime.UtcNow
-            };
-
-            _db.BusinessPhotos.Add(photo);
-            await _db.SaveChangesAsync();
-
-            _logger.LogInformation("Saved base64 photo for BusinessId={BusinessId}", businessId);
+                _logger.LogError(ex, "SavePhotoAsync failure for BusinessId={BusinessId}", businessId);
+                throw;
+            }
         }
 
         public async Task<string?> SaveReviewPhotoAsync(string photoBase64)
@@ -345,7 +252,12 @@ namespace localink_be.Services.Implementations
             byte[] bytes;
             try
             {
-                bytes = Convert.FromBase64String(photoBase64);
+                var payload = photoBase64;
+                var comma = photoBase64.IndexOf(',');
+                if (photoBase64.StartsWith("data:", StringComparison.OrdinalIgnoreCase) && comma > 0)
+                    payload = photoBase64[(comma + 1)..];
+
+                bytes = Convert.FromBase64String(payload);
             }
             catch (FormatException)
             {
@@ -353,29 +265,73 @@ namespace localink_be.Services.Implementations
                 throw new ArgumentException("Invalid base64 string");
             }
 
-            // Size check (5MB)
-            if (bytes.Length > 5 * 1024 * 1024)
+            if (bytes.Length > _uploadSettings.MaxUploadBytes)
+                throw new ArgumentException($"Image size exceeds {_uploadSettings.MaxUploadBytes / (1024 * 1024)}MB limit.");
+
+            try
             {
-                throw new ArgumentException("Base64 image size exceeds 5MB");
+                var optimized = await _optimizer.OptimizeAndSaveAsync(
+                    bytes,
+                    "review-photo.jpg",
+                    ImageUploadCategory.Review);
+
+                return optimized.RelativePath;
+            }
+            catch (ArgumentException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "SaveReviewPhotoAsync failure");
+                throw;
+            }
+        }
+
+        private void ValidateUploadHeaders(IFormFile file)
+        {
+            if (file.Length > _uploadSettings.MaxUploadBytes)
+            {
+                _logger.LogWarning("Upload rejected: File size {Length} exceeds limit {Limit}", file.Length, _uploadSettings.MaxUploadBytes);
+                throw new ArgumentException($"File size exceeds {_uploadSettings.MaxUploadBytes / (1024 * 1024)}MB limit.");
             }
 
-            // Magic bytes check
-            if (!ValidateImageMagicBytes(bytes))
+            var ext = Path.GetExtension(file.FileName)?.ToLowerInvariant();
+            // Allow missing extension — magic-byte + ImageSharp validation is authoritative.
+            if (!string.IsNullOrEmpty(ext) && !AllowedExtensions.Contains(ext))
             {
-                throw new ArgumentException("Invalid image magic bytes in base64");
+                _logger.LogWarning("Upload rejected: Invalid file extension {Extension}", ext);
+                throw new ArgumentException("Invalid file extension.");
             }
 
-            var uploadsPath = Path.Combine(GetUploadsRootPath(), "reviews");
-            if (!Directory.Exists(uploadsPath))
-                Directory.CreateDirectory(uploadsPath);
+            var contentType = file.ContentType?.ToLowerInvariant();
+            if (!string.IsNullOrEmpty(contentType) && !AllowedMimeTypes.Contains(contentType))
+            {
+                // Some phones send odd MIME types; still attempt if extension looks fine.
+                if (string.IsNullOrEmpty(ext) || !AllowedExtensions.Contains(ext))
+                {
+                    _logger.LogWarning("Upload rejected: Invalid MIME type {MimeType}", contentType);
+                    throw new ArgumentException("Invalid MIME type.");
+                }
 
-            var fileName = $"{Guid.NewGuid()}.jpg";
-            var filePath = Path.Combine(uploadsPath, fileName);
+                _logger.LogInformation("Accepting upload with atypical MIME {MimeType} based on extension {Ext}", contentType, ext);
+            }
+        }
 
-            await File.WriteAllBytesAsync(filePath, bytes);
+        private static ImageUploadCategory MapFolderToCategory(string folderName)
+        {
+            var f = (folderName ?? string.Empty).Trim().ToLowerInvariant();
+            if (f.Contains("avatar")) return ImageUploadCategory.Avatar;
+            if (f.Contains("catalog")) return ImageUploadCategory.Catalog;
+            if (f.Contains("review")) return ImageUploadCategory.Review;
+            if (f.Contains("business")) return ImageUploadCategory.Business;
+            return ImageUploadCategory.Generic;
+        }
 
-            _logger.LogInformation("Saved base64 review photo to {Path}", filePath);
-            return $"/uploads/reviews/{fileName}";
+        private static string SanitizeFolder(string folderName)
+        {
+            var cleaned = (folderName ?? "misc").Trim().Replace('\\', '/').Trim('/');
+            return string.IsNullOrEmpty(cleaned) ? "misc" : cleaned.ToLowerInvariant();
         }
     }
 }

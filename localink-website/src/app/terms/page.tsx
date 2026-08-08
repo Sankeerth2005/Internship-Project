@@ -1,60 +1,137 @@
-import Navbar from '@/components/Navbar'
-import Footer from '@/components/Footer'
-import SectionHeader from '@/components/SectionHeader'
+import type { Metadata } from 'next'
+import LegalLayout from '@/components/LegalLayout'
+import { site } from '@/constants/colors'
 
-export default function Terms() {
+export const metadata: Metadata = {
+  title: 'Terms of Service',
+  description: 'Terms and conditions for using Vocal for Sanatan.',
+  alternates: { canonical: 'https://vocalforsanatan.com/terms' },
+}
+
+export default function TermsPage() {
   return (
-    <main className="min-h-screen">
-      <Navbar />
-      
-      <section className="pt-32 pb-20 mesh-gradient">
-        <div className="container-custom">
-          <SectionHeader
-            title="Terms & Conditions"
-            subtitle="Terms of Service"
-            description="Last updated: January 2025"
-            align="center"
-          />
-        </div>
-      </section>
+    <LegalLayout eyebrow="Legal" title="Terms of Service" updated="8 August 2026">
+      <p>
+        These Terms of Service (&quot;Terms&quot;) govern your access to and use of Vocal for
+        Sanatan&apos;s website, mobile app (<code>{site.packageId}</code>), and related services
+        (the &quot;Service&quot;). By creating an account or using the Service, you agree to these
+        Terms and our <a href="/privacy">Privacy Policy</a>.
+      </p>
 
-      <section className="py-20">
-        <div className="container-custom max-w-4xl">
-          <div className="prose prose-lg max-w-none">
-            <h2>1. Acceptance of Terms</h2>
-            <p>By accessing or using Vocal For Sanatan, you agree to be bound by these Terms and Conditions. If you do not agree to these terms, please do not use our service.</p>
+      <h2>1. Eligibility</h2>
+      <p>
+        You must be at least 13 years old (or the age of digital consent in your region) and able to
+        form a binding contract to use the Service. If you use the Service on behalf of a business,
+        you represent that you have authority to bind that business.
+      </p>
 
-            <h2>2. Changes to Terms</h2>
-            <p>We reserve the right to modify these terms at any time. We will notify users of any material changes by posting the new terms on this page.</p>
+      <h2>2. Accounts</h2>
+      <ul>
+        <li>Provide accurate registration information and keep it updated</li>
+        <li>Keep your credentials confidential and notify us of unauthorized use</li>
+        <li>You are responsible for activity under your account</li>
+        <li>We may suspend or terminate accounts that violate these Terms</li>
+      </ul>
 
-            <h2>3. User Accounts</h2>
-            <p>You are responsible for maintaining the confidentiality of your account and password. You agree to accept responsibility for all activities that occur under your account or password.</p>
+      <h2>3. Roles</h2>
+      <p>
+        The Service supports customers, business owners, and administrators. Business owners are
+        responsible for the accuracy and legality of their listings, photos, hours, and contact
+        details.
+      </p>
 
-            <h2>4. Acceptable Use</h2>
-            <p>You agree to use Vocal For Sanatan only for lawful purposes. You may not use the service to harass, abuse, or harm others, or to post or transmit any content that is illegal, harmful, or violates the rights of others.</p>
+      <h2>4. Acceptable use</h2>
+      <p>You agree not to:</p>
+      <ul>
+        <li>Violate any law or third-party rights</li>
+        <li>Harass, abuse, defraud, or impersonate others</li>
+        <li>Post false, misleading, illegal, or infringing content</li>
+        <li>Scrape, reverse engineer, or disrupt the Service or its security</li>
+        <li>Spam users or misuse chat, reviews, or AI features</li>
+        <li>Upload malware or attempt unauthorized access</li>
+      </ul>
 
-            <h2>5. Business Listings</h2>
-            <p>Business owners are responsible for the accuracy of their listings. Vocal For Sanatan reserves the right to remove any listing that violates our policies or is deemed inappropriate.</p>
+      <h2>5. User content</h2>
+      <p>
+        You retain ownership of content you submit (reviews, messages, photos, listing text). You
+        grant us a worldwide, non-exclusive, royalty-free license to host, display, and distribute
+        that content as needed to operate and promote the Service. You represent that you have the
+        rights to grant this license.
+      </p>
 
-            <h2>7. Intellectual Property</h2>
-            <p>All content on Vocal For Sanatan, including text, graphics, logos, and software, is the property of Vocal For Sanatan or its content suppliers and is protected by intellectual property laws.</p>
+      <h2>6. Business listings</h2>
+      <p>
+        We may review, approve, reject, or remove listings that violate these Terms, appear
+        fraudulent, or harm users. Listing on Vocal for Sanatan does not create a partnership or
+        employment relationship.
+      </p>
 
-            <h2>8. Disclaimer of Warranties</h2>
-            <p>Vocal For Sanatan is provided on an &quot;as is&quot; and &quot;as available&quot; basis. We make no warranties, expressed or implied, and hereby disclaim all warranties.</p>
+      <h2>7. AI features</h2>
+      <p>
+        AI search and related features may generate suggestions based on your input. Outputs can be
+        inaccurate or incomplete. Always verify important information directly with the business.
+      </p>
 
-            <h2>9. Limitation of Liability</h2>
-            <p>In no event shall Vocal For Sanatan be liable for any indirect, incidental, special, consequential, or punitive damages arising out of your access to or use of the service.</p>
+      <h2>8. Third-party services</h2>
+      <p>
+        The Service may integrate maps, sign-in providers, and other third parties. Their terms and
+        privacy policies apply to your use of those features.
+      </p>
 
-            <h2>10. Governing Law</h2>
-            <p>These terms shall be governed by and construed in accordance with the laws of India, without regard to its conflict of law provisions.</p>
+      <h2>9. Intellectual property</h2>
+      <p>
+        The Vocal for Sanatan name, branding, software, and site content (excluding user content) are
+        owned by us or our licensors and protected by applicable IP laws. You may not copy or
+        exploit them without written permission.
+      </p>
 
-            <h2>11. Contact Information</h2>
-            <p>For any questions regarding these terms, please contact us at legal@vocalforsanatan.com.</p>
-          </div>
-        </div>
-      </section>
+      <h2>10. Disclaimers</h2>
+      <p>
+        THE SERVICE IS PROVIDED &quot;AS IS&quot; AND &quot;AS AVAILABLE&quot; WITHOUT WARRANTIES OF
+        ANY KIND, EXPRESS OR IMPLIED, INCLUDING MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE,
+        AND NON-INFRINGEMENT. We do not guarantee uninterrupted availability or the accuracy of
+        business listings provided by third parties.
+      </p>
 
-      <Footer />
-    </main>
+      <h2>11. Limitation of liability</h2>
+      <p>
+        TO THE MAXIMUM EXTENT PERMITTED BY LAW, WE SHALL NOT BE LIABLE FOR INDIRECT, INCIDENTAL,
+        SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES, OR ANY LOSS OF PROFITS, DATA, OR GOODWILL,
+        ARISING FROM YOUR USE OF THE SERVICE.
+      </p>
+
+      <h2>12. Indemnity</h2>
+      <p>
+        You agree to indemnify and hold us harmless from claims arising out of your content, your
+        use of the Service, or your violation of these Terms.
+      </p>
+
+      <h2>13. Termination</h2>
+      <p>
+        You may stop using the Service and delete your account at any time (see{' '}
+        <a href="/delete-account">Delete Account</a>). We may suspend or terminate access if you
+        breach these Terms or if we discontinue the Service.
+      </p>
+
+      <h2>14. Governing law</h2>
+      <p>
+        These Terms are governed by the laws of {site.region}, without regard to conflict-of-law
+        principles. Courts in {site.region} shall have exclusive jurisdiction, subject to mandatory
+        consumer protections that may apply in your location.
+      </p>
+
+      <h2>15. Changes</h2>
+      <p>
+        We may update these Terms by posting a revised version on this page. Continued use after
+        the effective date constitutes acceptance.
+      </p>
+
+      <h2>16. Contact</h2>
+      <p>
+        Legal: <a href={`mailto:${site.legalEmail}`}>{site.legalEmail}</a>
+        <br />
+        Support: <a href={`mailto:${site.supportEmail}`}>{site.supportEmail}</a>
+      </p>
+    </LegalLayout>
   )
 }

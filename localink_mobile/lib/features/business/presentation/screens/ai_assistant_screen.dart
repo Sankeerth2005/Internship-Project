@@ -3,8 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../../core/network/dio_client.dart';
 import 'package:dio/dio.dart';
+import '../../../ai/data/repositories/ai_repository.dart';
+import '../../../../core/network/app_error_formatter.dart';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
@@ -108,11 +109,10 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
         'file': await MultipartFile.fromFile(file.path, filename: 'voice_query.m4a'),
       });
 
-      final response = await DioClient().dio.post('ai/transcribe', data: formData);
-      final text = response.data['data'] as String?;
-      
-      if (text != null && text.trim().isNotEmpty) {
-        _textController.text = text.trim();
+      final text = await ref.read(aiRepositoryProvider).transcribe(formData);
+
+      if (text != null && text.isNotEmpty) {
+        _textController.text = text;
         _sendMessage();
       } else {
         setState(() => _isLoading = false);
@@ -126,7 +126,7 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
       debugPrint('Transcription error: $e');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Transcription failed. Check connection.')),
+        SnackBar(content: Text(AppErrorFormatter.format(e))),
       );
     }
   }
@@ -174,15 +174,10 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
       
       final historyJson = jsonEncode(recentHistory);
 
-      final response = await DioClient().dio.post(
-        'ai/chat-search',
-        data: {
-          'message': query,
-          'chatHistoryJson': historyJson,
-        },
+      final reply = await ref.read(aiRepositoryProvider).chatSearch(
+        message: query,
+        chatHistoryJson: historyJson,
       );
-
-      final reply = response.data['data'] as String? ?? 'I am having trouble answering right now. Please try again.';
       setState(() {
         _messages.add({'role': 'assistant', 'content': reply});
         _isLoading = false;
@@ -250,7 +245,7 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
           Expanded(
             child: ListView.builder(
               controller: _scrollController,
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(16).copyWith(bottom: 120),
               itemCount: _messages.length,
               itemBuilder: (context, idx) {
                 final msg = _messages[idx];

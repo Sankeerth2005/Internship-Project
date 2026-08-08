@@ -6,6 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/auth_state.dart';
+import '../../../../core/widgets/brand_icons.dart';
+import '../../../../core/auth/role_routes.dart';
 
 // ─── DESIGN TOKENS ────────────────────────────────────────────────────────────
 // All values aligned to the 4dp grid from DESIGN_SYSTEM.md
@@ -174,27 +176,32 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   }
 
   void _scheduleNavigation() {
-    // ── PRESERVED NAVIGATION LOGIC (DO NOT MODIFY) ────────────────────────
-    Timer(const Duration(milliseconds: 3200), () {
-      if (mounted) {
-        HapticFeedback.mediumImpact();
-        ref.read(splashShownProvider.notifier).setShown(true);
-        final authState = ref.read(authProvider);
-        if (authState is AuthAuthenticated) {
-          final role = authState.userType.toLowerCase().trim();
-          if (role == 'admin') {
-            context.go('/admin-dashboard');
-          } else if (role == 'businessowner' || role == 'client') {
-            context.go('/business-dashboard');
-          } else {
-            context.go('/home');
-          }
-        } else {
-          context.go('/welcome');
-        }
+    // Wait for auth restore from secure storage before routing.
+    // Avoid treating AuthInitial (still loading) as logged out.
+    Timer(const Duration(milliseconds: 3200), () async {
+      if (!mounted) return;
+
+      AuthState authState = ref.read(authProvider);
+      var attempts = 0;
+      while (attempts < 20) {
+        // Use a local so AuthInitial promotion does not poison ref.read typing.
+        final pending = authState;
+        if (pending is! AuthInitial) break;
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+        if (!mounted) return;
+        authState = ref.read(authProvider);
+        attempts++;
+      }
+
+      if (!mounted) return;
+      HapticFeedback.mediumImpact();
+      ref.read(splashShownProvider.notifier).setShown(true);
+      if (authState is AuthAuthenticated) {
+        context.go(RoleRoutes.homeForRole(authState.userType));
+      } else {
+        context.go('/welcome');
       }
     });
-    // ─────────────────────────────────────────────────────────────────────
   }
 
   @override
@@ -507,21 +514,13 @@ class _LogoStack extends StatelessWidget {
             padding: const EdgeInsets.all(16),
             child: ClipOval(
               child: Image.asset(
-                'assets/images/splash_screen.png',
+                BrandIcons.splashAsset,
                 fit: BoxFit.cover,
                 errorBuilder: (context, error, stackTrace) => Image.asset(
-                  'assets/images/splash_logo.png',
+                  BrandIcons.splashLogoAsset,
                   fit: BoxFit.cover,
-                  errorBuilder: (context, error2, stackTrace2) => const Center(
-                    child: Text(
-                      'ॐ',
-                      style: TextStyle(
-                        color: Color(0xFFFF6600),
-                        fontSize: 58,
-                        fontWeight: FontWeight.bold,
-                        height: 1.0,
-                      ),
-                    ),
+                  errorBuilder: (context, error2, stackTrace2) => Center(
+                    child: BrandIcons.om(size: 58),
                   ),
                 ),
               ),

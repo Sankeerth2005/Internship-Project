@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:signalr_netcore/signalr_client.dart';
 import 'dio_client.dart';
+import '../storage/secure_storage_service.dart';
 import '../../main.dart';
 
 class SignalRService {
@@ -37,10 +38,18 @@ class SignalRService {
       return;
     }
 
-    final baseUrl = DioClient().dio.options.baseUrl;
-    final url = baseUrl.replaceAll('/api/v1/', '/notifications');
+    final url = '${DioClient.backendOrigin}/notifications';
 
-    _hubConnection = HubConnectionBuilder().withUrl(url).build();
+    _hubConnection = HubConnectionBuilder()
+        .withUrl(
+          url,
+          options: HttpConnectionOptions(
+            accessTokenFactory: () async =>
+                await SecureStorageService.getToken() ?? '',
+          ),
+        )
+        .withAutomaticReconnect()
+        .build();
 
     _hubConnection!.onclose(({error}) {
       debugPrint('SignalR: Connection closed. Error: $error');

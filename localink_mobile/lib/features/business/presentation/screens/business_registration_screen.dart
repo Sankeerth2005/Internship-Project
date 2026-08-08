@@ -9,6 +9,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:dio/dio.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../../core/network/dio_client.dart';
+import '../../../../core/widgets/optimized_network_image.dart';
 import '../../../../core/config/app_config.dart';
 import '../../../shared/presentation/widgets/app_feedback.dart';
 import '../../../../core/network/app_error_formatter.dart';
@@ -324,9 +325,10 @@ class _BusinessRegistrationScreenState extends ConsumerState<BusinessRegistratio
         return;
       }
       if (_latitude == null || _longitude == null || _latitude == 0.0 || _longitude == 0.0) {
-        AppFeedback.showWarning(context, 'Valid map coordinates are required. Pin your store on the map.');
+        AppFeedback.showWarning(context, 'Valid map coordinates are required. Pin your business on the map.');
         return;
       }
+
       if (!_formKey.currentState!.validate()) {
         return;
       }
@@ -712,7 +714,7 @@ class _BusinessRegistrationScreenState extends ConsumerState<BusinessRegistratio
         scrolledUnderElevation: 0,
         centerTitle: true,
         title: Text(
-          widget.businessToEdit != null ? 'Edit Store Details' : 'List New Business',
+          widget.businessToEdit != null ? 'Edit Business Details' : 'List New Business',
           style: const TextStyle(
             fontFamily: 'Inter',
             color: _RegTok.textHigh,
@@ -862,7 +864,7 @@ class _BusinessRegistrationScreenState extends ConsumerState<BusinessRegistratio
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Store Category & Brand',
+          'Business Category & Brand',
           style: TextStyle(color: _RegTok.textHigh, fontSize: 16, fontWeight: FontWeight.w900),
         ),
         const SizedBox(height: 16),
@@ -876,7 +878,11 @@ class _BusinessRegistrationScreenState extends ConsumerState<BusinessRegistratio
             items: categories.map((cat) {
               return DropdownMenuItem<int>(
                 value: cat.categoryId,
-                child: Text(cat.categoryName),
+                child: Text(
+                  cat.categoryName,
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                ),
               );
             }).toList(),
             onChanged: (catId) {
@@ -919,7 +925,7 @@ class _BusinessRegistrationScreenState extends ConsumerState<BusinessRegistratio
         TextFormField(
           controller: _nameController,
           style: const TextStyle(color: _RegTok.textHigh, fontSize: 13),
-          decoration: _inputDecoration('Business / Store Name', Icons.storefront_rounded),
+          decoration: _inputDecoration('Business Name', Icons.storefront_rounded),
           validator: (value) {
             if (value == null || value.trim().isEmpty) return 'Business Name is required';
             return null;
@@ -931,7 +937,7 @@ class _BusinessRegistrationScreenState extends ConsumerState<BusinessRegistratio
           controller: _descController,
           style: const TextStyle(color: _RegTok.textHigh, fontSize: 13),
           maxLines: 4,
-          decoration: _inputDecoration('Store Overview Description', Icons.description_rounded),
+          decoration: _inputDecoration('Business Overview Description', Icons.description_rounded),
           validator: (value) {
             if (value == null || value.trim().isEmpty) return 'Description is required';
             if (value.trim().length < 10) return 'Must be at least 10 characters';
@@ -1124,7 +1130,7 @@ class _BusinessRegistrationScreenState extends ConsumerState<BusinessRegistratio
                 initialValue: _selectedCountry,
                 style: const TextStyle(color: _RegTok.textHigh, fontSize: 13),
                 decoration: _inputDecoration('Country', Icons.public_rounded),
-                items: _countries.map((c) => DropdownMenuItem(value: c, child: Text(c.name))).toList(),
+                items: _countries.map((c) => DropdownMenuItem(value: c, child: Text(c.name, overflow: TextOverflow.ellipsis, maxLines: 1))).toList(),
                 onChanged: (Country? val) {
                   setState(() {
                     _selectedCountry = val;
@@ -1142,7 +1148,7 @@ class _BusinessRegistrationScreenState extends ConsumerState<BusinessRegistratio
                   initialValue: _selectedState,
                   style: const TextStyle(color: _RegTok.textHigh, fontSize: 13),
                   decoration: _inputDecoration('State', Icons.map_rounded),
-                  items: _states.map((s) => DropdownMenuItem(value: s, child: Text(s.name))).toList(),
+                  items: _states.map((s) => DropdownMenuItem(value: s, child: Text(s.name, overflow: TextOverflow.ellipsis, maxLines: 1))).toList(),
                   onChanged: (StateModel? val) {
                     setState(() {
                       _selectedState = val;
@@ -1161,7 +1167,7 @@ class _BusinessRegistrationScreenState extends ConsumerState<BusinessRegistratio
                   initialValue: _selectedCity,
                   style: const TextStyle(color: _RegTok.textHigh, fontSize: 13),
                   decoration: _inputDecoration('City', Icons.location_city_rounded),
-                  items: _cities.map((c) => DropdownMenuItem(value: c, child: Text(c.name))).toList(),
+                  items: _cities.map((c) => DropdownMenuItem(value: c, child: Text(c.name, overflow: TextOverflow.ellipsis, maxLines: 1))).toList(),
                   onChanged: (CityModel? val) {
                     setState(() {
                       _selectedCity = val;
@@ -1277,16 +1283,12 @@ class _BusinessRegistrationScreenState extends ConsumerState<BusinessRegistratio
           ),
         ] else if (widget.businessToEdit != null && widget.businessToEdit!.photos.isNotEmpty) ...[
           const SizedBox(height: 20),
-          Container(
+          OptimizedNetworkImage.business(
+            imageUrl: widget.businessToEdit!.photos.first,
             height: 160,
             width: double.infinity,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              image: DecorationImage(
-                image: NetworkImage('${Uri.parse(DioClient().dio.options.baseUrl).origin}${widget.businessToEdit!.photos.first}'),
-                fit: BoxFit.cover,
-              ),
-            ),
+            borderRadius: BorderRadius.circular(16),
+            iconColor: _RegTok.primary,
           ),
         ],
       ],
@@ -1341,7 +1343,7 @@ class _BusinessRegistrationScreenState extends ConsumerState<BusinessRegistratio
           controller: _emailController,
           keyboardType: TextInputType.emailAddress,
           style: const TextStyle(color: _RegTok.textHigh, fontSize: 13),
-          decoration: _inputDecoration('Store Email Address', Icons.email_rounded),
+          decoration: _inputDecoration('Business Email Address', Icons.email_rounded),
           validator: (value) {
             if (value == null || value.trim().isEmpty) return 'Email is required';
             return null;
@@ -1506,7 +1508,13 @@ class _BusinessRegistrationScreenState extends ConsumerState<BusinessRegistratio
               _photoBase64 != null
                   ? Image.memory(base64Decode(_photoBase64!), height: 130, width: double.infinity, fit: BoxFit.cover)
                   : (widget.businessToEdit != null && widget.businessToEdit!.photos.isNotEmpty)
-                      ? Image.network('${Uri.parse(DioClient().dio.options.baseUrl).origin}${widget.businessToEdit!.photos.first}', height: 130, width: double.infinity, fit: BoxFit.cover)
+                      ? OptimizedNetworkImage.business(
+                          imageUrl: widget.businessToEdit!.photos.first,
+                          height: 130,
+                          width: double.infinity,
+                          iconColor: _RegTok.primary,
+                          iconSize: 40,
+                        )
                       : Container(
                           height: 130,
                           color: _RegTok.surface,
@@ -1563,7 +1571,7 @@ class _BusinessRegistrationScreenState extends ConsumerState<BusinessRegistratio
                     ),
                     const SizedBox(height: 14),
 
-                    const Text('About Store', style: TextStyle(color: _RegTok.textHigh, fontSize: 12, fontWeight: FontWeight.bold)),
+                    const Text('About Business', style: TextStyle(color: _RegTok.textHigh, fontSize: 12, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 4),
                     Text(
                       _descController.text.isEmpty ? 'Enter a detailed description to attract users.' : _descController.text,
@@ -1697,7 +1705,7 @@ class _BusinessRegistrationScreenState extends ConsumerState<BusinessRegistratio
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                'Enter keywords describing your store (e.g. coffee, cozy, vegan, wifi):',
+                'Enter keywords describing your business (e.g. coffee, cozy, vegan, wifi):',
                 style: TextStyle(color: _RegTok.textMedium, fontSize: 12),
               ),
               const SizedBox(height: 12),

@@ -46,13 +46,13 @@ public class BusinessPincodeController : ControllerBase
                         : null
             });
         }
-        catch (Exception ex)
+        catch (JsonException)
         {
-            return StatusCode(500, new
-            {
-                message = "Business pincode validation failed",
-                error = ex.Message
-            });
+            return StatusCode(500, new { message = "Business pincode validation failed" });
+        }
+        catch (InvalidOperationException)
+        {
+            return StatusCode(502, new { message = "Business pincode validation failed" });
         }
     }
 }

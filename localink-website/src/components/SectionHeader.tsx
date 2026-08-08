@@ -1,55 +1,33 @@
-'use client'
-
-import { ReactNode } from 'react'
 import { cn } from '@/lib/utils'
-import { motion } from 'framer-motion'
 
 interface SectionHeaderProps {
+  eyebrow?: string
   title: string
-  subtitle?: string
   description?: string
+  align?: 'left' | 'center'
   className?: string
-  align?: 'left' | 'center' | 'right'
 }
 
-export default function SectionHeader({ title, subtitle, description, className, align = 'center' }: SectionHeaderProps) {
-  const alignClasses = {
-    left: 'text-left',
-    center: 'text-center',
-    right: 'text-right',
-  }
-
+export default function SectionHeader({
+  eyebrow,
+  title,
+  description,
+  align = 'center',
+  className,
+}: SectionHeaderProps) {
   return (
-    <motion.div
-      className={cn('mb-12', alignClasses[align], className)}
-      initial={{ opacity: 0, y: 20 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true }}
-      transition={{ duration: 0.5 }}
+    <div
+      className={cn(
+        'max-w-2xl',
+        align === 'center' ? 'mx-auto text-center' : 'text-left',
+        className
+      )}
     >
-      {subtitle && (
-        <motion.span
-          className="inline-block text-primary font-semibold text-sm uppercase tracking-wider mb-3"
-          initial={{ opacity: 0 }}
-          whileInView={{ opacity: 1 }}
-          viewport={{ once: true }}
-          transition={{ delay: 0.1 }}
-        >
-          {subtitle}
-        </motion.span>
+      {eyebrow && (
+        <p className="mb-2 text-xs font-bold uppercase tracking-[0.2em] text-primary">{eyebrow}</p>
       )}
-      <h2 className="heading-lg mb-4">{title}</h2>
-      {description && (
-        <motion.p
-          className="text-body max-w-2xl mx-auto"
-          initial={{ opacity: 0 }}
-          whileInView={{ opacity: 1 }}
-          viewport={{ once: true }}
-          transition={{ delay: 0.2 }}
-        >
-          {description}
-        </motion.p>
-      )}
-    </motion.div>
+      <h2 className="heading-lg">{title}</h2>
+      {description && <p className="mt-2 text-body">{description}</p>}
+    </div>
   )
 }

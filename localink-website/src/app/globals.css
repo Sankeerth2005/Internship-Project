@@ -3,95 +3,109 @@
 @tailwind utilities;
 
 @layer base {
-  :root {
-    --font-inter: 'Inter', system-ui, sans-serif;
-    --font-plus-jakarta-sans: 'Plus Jakarta Sans', system-ui, sans-serif;
-  }
-  
   * {
     @apply border-border;
   }
-  
+
+  html {
+    scroll-behavior: smooth;
+  }
+
   body {
-    @apply bg-background text-text;
-    background-color: #080707;
+    @apply bg-background text-text antialiased overflow-x-hidden;
+    background-color: #f9f8f6;
+  }
+
+  ::selection {
+    background: rgba(255, 102, 0, 0.2);
+    color: #1a1918;
   }
 }
 
 @layer utilities {
-  .glass {
-    background: rgba(17, 15, 15, 0.7);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border: 1px solid rgba(255, 255, 255, 0.05);
-  }
-  
-  .glass-dark {
-    background: rgba(8, 7, 7, 0.85);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border: 1px solid rgba(255, 255, 255, 0.03);
-  }
-  
-  .glass-glow {
-    box-shadow: 0 0 25px -5px rgba(255, 102, 0, 0.15);
-    border: 1px solid rgba(255, 102, 0, 0.15);
-  }
-
   .gradient-text {
-    @apply bg-gradient-to-r from-primary via-primary-glow to-amber-400 bg-clip-text text-transparent;
-  }
-  
-  .gradient-bg {
-    @apply bg-gradient-to-br from-primary via-primary-glow to-primary;
-  }
-  
-  .mesh-gradient {
-    background: 
-      radial-gradient(at 20% 15%, rgba(255, 102, 0, 0.12) 0px, transparent 40%),
-      radial-gradient(at 80% 10%, rgba(255, 160, 71, 0.08) 0px, transparent 40%),
-      radial-gradient(at 50% 50%, rgba(255, 102, 0, 0.06) 0px, transparent 50%),
-      radial-gradient(at 10% 85%, rgba(255, 102, 0, 0.08) 0px, transparent 40%),
-      radial-gradient(at 90% 90%, rgba(255, 160, 71, 0.1) 0px, transparent 40%);
-    background-color: #080707;
+    @apply bg-gradient-to-r from-primary via-primary-glow to-primary-dark bg-clip-text text-transparent;
+    background-size: 200% auto;
   }
 
-  .spotlight {
+  .atmosphere {
+    background:
+      radial-gradient(ellipse 70% 55% at 15% 10%, rgba(255, 102, 0, 0.16), transparent 55%),
+      radial-gradient(ellipse 55% 45% at 88% 20%, rgba(255, 158, 79, 0.14), transparent 50%),
+      radial-gradient(ellipse 40% 35% at 70% 90%, rgba(30, 130, 76, 0.06), transparent 45%),
+      linear-gradient(180deg, #ffffff 0%, #f9f8f6 100%);
+  }
+
+  .grain {
+    position: relative;
+  }
+
+  .grain::before {
+    content: '';
     pointer-events: none;
     position: absolute;
-    width: 600px;
-    height: 600px;
-    background: radial-gradient(circle, rgba(255, 102, 0, 0.07) 0%, rgba(255, 102, 0, 0) 70%);
-    border-radius: 50%;
-    filter: blur(40px);
+    inset: 0;
+    opacity: 0.03;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    mix-blend-mode: multiply;
+    z-index: 0;
+  }
+
+  .mesh-grid {
+    background-image:
+      linear-gradient(rgba(26, 25, 24, 0.035) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(26, 25, 24, 0.035) 1px, transparent 1px);
+    background-size: 48px 48px;
+    mask-image: radial-gradient(ellipse 80% 70% at 50% 40%, black, transparent);
+  }
+
+  .legal-prose h2 {
+    @apply font-display text-2xl font-bold text-text mt-12 mb-4 tracking-tight;
+  }
+
+  .legal-prose h3 {
+    @apply font-display text-lg font-semibold text-text mt-8 mb-3;
+  }
+
+  .legal-prose p,
+  .legal-prose li {
+    @apply text-text-muted leading-relaxed text-base;
+  }
+
+  .legal-prose ul {
+    @apply list-disc pl-5 space-y-2 my-4;
+  }
+
+  .legal-prose a {
+    @apply text-primary font-semibold underline-offset-2 hover:underline;
   }
 }
 
 @layer components {
   .container-custom {
-    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+    @apply w-full max-w-[1600px] mx-auto px-5 sm:px-8 lg:px-12 xl:px-16;
   }
-  
-  .section-padding {
-    @apply py-24 lg:py-36;
+
+  .container-narrow {
+    @apply w-full max-w-3xl mx-auto px-5 sm:px-8;
   }
-  
+
+  .section-pad {
+    @apply py-14 lg:py-20;
+  }
+
   .heading-xl {
-    @apply font-display text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight;
+    @apply font-display text-4xl sm:text-5xl lg:text-6xl xl:text-[4.25rem] font-bold tracking-tight text-text leading-[1.05];
   }
-  
+
   .heading-lg {
-    @apply font-display text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight;
+    @apply font-display text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-text;
   }
-  
+
   .heading-md {
-    @apply font-display text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight;
+    @apply font-display text-2xl sm:text-3xl font-bold tracking-tight text-text;
   }
-  
-  .heading-sm {
-    @apply font-display text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight;
-  }
-  
+
   .text-body {
     @apply text-base sm:text-lg text-text-muted leading-relaxed;
   }

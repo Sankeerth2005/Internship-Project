@@ -1,114 +1,95 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { Menu, X } from 'lucide-react'
+import { AnimatePresence, motion } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import { navigation } from '@/constants/navigation'
-import { Menu, X } from 'lucide-react'
-import { motion, AnimatePresence } from 'framer-motion'
+import BrandLogo from '@/components/BrandLogo'
 
 export default function Navbar() {
-  const [isOpen, setIsOpen] = useState(false)
+  const [open, setOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
 
   useEffect(() => {
-    const handleScroll = () => {
-      setScrolled(window.scrollY > 20)
-    }
-    window.addEventListener('scroll', handleScroll)
-    return () => window.removeEventListener('scroll', handleScroll)
+    const onScroll = () => setScrolled(window.scrollY > 12)
+    onScroll()
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
   }, [])
 
   return (
-    <motion.nav
+    <header
       className={cn(
-        'fixed top-0 left-0 right-0 z-50 transition-all duration-500',
-        scrolled ? 'glass border-b border-white/5 shadow-2xl py-3' : 'bg-transparent py-5'
+        'fixed inset-x-0 top-0 z-50 transition-all duration-400',
+        scrolled
+          ? 'bg-white/90 backdrop-blur-xl border-b border-border shadow-soft py-2'
+          : 'bg-transparent py-3'
       )}
-      initial={{ y: -100 }}
-      animate={{ y: 0 }}
-      transition={{ duration: 0.5 }}
     >
-      <div className="container-custom">
-        <div className="flex items-center justify-between">
-          {/* Logo */}
-          <Link href="/" className="flex items-center gap-2.5 group">
-            <motion.div
-              className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary-glow flex items-center justify-center shadow-[0_0_20px_rgba(255,102,0,0.35)]"
-              whileHover={{ rotate: 8, scale: 1.05 }}
+      <nav className="container-custom flex items-center justify-between" aria-label="Primary">
+        <BrandLogo size="md" />
+
+        <div className="hidden lg:flex items-center gap-7">
+          {navigation.main.map((item) => (
+            <Link
+              key={item.name}
+              href={item.href}
+              className="text-sm font-semibold text-text-muted hover:text-primary transition-colors"
             >
-              <span className="text-white font-black text-xl">V</span>
-            </motion.div>
-            <span className="text-xl font-display font-extrabold text-text group-hover:text-primary transition-colors tracking-tight">
-              Vocal For Sanatan
-            </span>
-          </Link>
-
-          {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center gap-8">
-            {navigation.main.map((item) => (
-              <Link
-                key={item.name}
-                href={item.href}
-                className="text-text-muted hover:text-text transition-colors font-semibold text-sm tracking-wide"
-              >
-                {item.name}
-              </Link>
-            ))}
-            <Link href="/download">
-              <motion.button
-                className="bg-primary text-white px-7 py-2.5 rounded-button font-bold shadow-button hover:shadow-[0_0_25px_rgba(255,102,0,0.5)] hover:bg-primary-glow transition-all"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                Download
-              </motion.button>
+              {item.name}
             </Link>
-          </div>
-
-          {/* Mobile Menu Button */}
-          <button
-            className="md:hidden p-2 text-text-muted hover:text-text transition-colors"
-            onClick={() => setIsOpen(!isOpen)}
-            aria-label="Toggle menu"
+          ))}
+          <Link
+            href="/download"
+            className="rounded-button bg-primary px-5 py-2.5 text-sm font-bold text-white shadow-button hover:bg-primary-dark transition-colors"
           >
-            {isOpen ? <X size={24} /> : <Menu size={24} />}
-          </button>
+            Get the app
+          </Link>
         </div>
-      </div>
 
-      {/* Mobile Menu */}
+        <button
+          type="button"
+          className="lg:hidden p-2 text-text-muted hover:text-text"
+          aria-label={open ? 'Close menu' : 'Open menu'}
+          aria-expanded={open}
+          onClick={() => setOpen((v) => !v)}
+        >
+          {open ? <X size={24} /> : <Menu size={24} />}
+        </button>
+      </nav>
+
       <AnimatePresence>
-        {isOpen && (
+        {open && (
           <motion.div
-            className="md:hidden glass border-t border-white/5 shadow-2xl"
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.3 }}
+            className="lg:hidden overflow-hidden border-t border-border bg-white/95 backdrop-blur-xl"
           >
-            <div className="container-custom py-6">
-              <div className="flex flex-col gap-5">
-                {navigation.main.map((item) => (
-                  <Link
-                    key={item.name}
-                    href={item.href}
-                    className="text-text-muted hover:text-text transition-colors font-semibold py-2 text-base"
-                    onClick={() => setIsOpen(false)}
-                  >
-                    {item.name}
-                  </Link>
-                ))}
-                <Link href="/download" onClick={() => setIsOpen(false)}>
-                  <button className="w-full bg-primary text-white px-6 py-3.5 rounded-button font-bold shadow-button">
-                    Download App
-                  </button>
+            <div className="container-custom flex flex-col gap-3 py-5">
+              {navigation.main.map((item) => (
+                <Link
+                  key={item.name}
+                  href={item.href}
+                  className="text-base font-semibold text-text-muted hover:text-primary py-1"
+                  onClick={() => setOpen(false)}
+                >
+                  {item.name}
                 </Link>
-              </div>
+              ))}
+              <Link
+                href="/download"
+                onClick={() => setOpen(false)}
+                className="mt-1 rounded-button bg-primary px-5 py-3 text-center text-sm font-bold text-white"
+              >
+                Get the app
+              </Link>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
-    </motion.nav>
+    </header>
   )
 }

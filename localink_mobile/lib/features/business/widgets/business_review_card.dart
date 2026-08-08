@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../../../core/network/dio_client.dart';
+import '../../../../core/widgets/optimized_network_image.dart';
 import '../data/models/business_models.dart';
 
 class BusinessReviewCard extends StatelessWidget {
@@ -40,6 +40,8 @@ class BusinessReviewCard extends StatelessWidget {
                   fontSize: 13,
                   fontWeight: FontWeight.bold,
                 ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
               Row(
                 children: List.generate(5, (index) {
@@ -60,34 +62,22 @@ class BusinessReviewCard extends StatelessWidget {
               fontSize: 13,
               height: 1.45,
             ),
+            maxLines: 5,
+            overflow: TextOverflow.ellipsis,
           ),
           if (review.imageUrl != null && review.imageUrl!.isNotEmpty) ...[
             const SizedBox(height: 12),
-            ClipRRect(
+            OptimizedNetworkImage(
+              imageUrl: review.imageUrl,
+              width: double.infinity,
+              height: 180,
+              fit: BoxFit.cover,
               borderRadius: BorderRadius.circular(12),
-              child: Image.network(
-                review.imageUrl!.startsWith('http')
-                    ? review.imageUrl!
-                    : '${DioClient.backendOrigin}${review.imageUrl}',
-                width: double.infinity,
-                height: 180,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  return Container(
-                    height: 100,
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF0EFEA),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Icon(
-                      Icons.broken_image_rounded,
-                      color: Color(0xFF9F9B96),
-                      size: 24,
-                    ),
-                  );
-                },
-              ),
+              errorIcon: Icons.broken_image_rounded,
+              errorIconColor: const Color(0xFF9F9B96),
+              errorIconSize: 24,
+              memCacheWidth: 900,
+              memCacheHeight: 360,
             ),
           ],
         ],

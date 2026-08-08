@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/network/dio_client.dart';
+import '../../../../core/widgets/optimized_network_image.dart';
 
 class AiFeedCard extends StatefulWidget {
   final Map<String, dynamic> item;
@@ -16,6 +17,19 @@ class AiFeedCard extends StatefulWidget {
 
 class _AiFeedCardState extends State<AiFeedCard> {
   double _scale = 1.0;
+
+  String _locationLabel() {
+    final city = (widget.item['city'] ?? '').toString();
+    final rawDistance = widget.item['distance'];
+    final distance = rawDistance is num ? rawDistance.toDouble() : null;
+    if (distance != null && distance > 0) {
+      final distText = distance < 1
+          ? '${(distance * 1000).round()} m'
+          : '${distance.toStringAsFixed(1)} km';
+      return city.isNotEmpty ? '$city · $distText' : distText;
+    }
+    return city;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -55,20 +69,11 @@ class _AiFeedCardState extends State<AiFeedCard> {
                     topLeft: Radius.circular(16),
                     topRight: Radius.circular(16),
                   ),
-                  child: Image.network(
-                    photoUrl,
+                  child: OptimizedNetworkImage.business(
+                    imageUrl: photoUrl,
                     height: 140,
                     width: double.infinity,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) => Container(
-                      height: 140,
-                      color: const Color(0xFFF0EFEA),
-                      child: const Icon(
-                        Icons.storefront_rounded,
-                        color: Color(0xFFFF6600),
-                        size: 40,
-                      ),
-                    ),
+                    iconSize: 40,
                   ),
                 )
               else
@@ -101,6 +106,8 @@ class _AiFeedCardState extends State<AiFeedCard> {
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 6),
                     Text(
@@ -118,11 +125,15 @@ class _AiFeedCardState extends State<AiFeedCard> {
                       children: [
                         const Icon(Icons.location_on, color: Color(0xFFFF6600), size: 12),
                         const SizedBox(width: 4),
-                        Text(
-                          widget.item['city'] ?? '',
-                          style: const TextStyle(
-                            color: Color(0xFF9F9B96),
-                            fontSize: 11,
+                        Flexible(
+                          child: Text(
+                            _locationLabel(),
+                            style: const TextStyle(
+                              color: Color(0xFF9F9B96),
+                              fontSize: 11,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                         const Spacer(),

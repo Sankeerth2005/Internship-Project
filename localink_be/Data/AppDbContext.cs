@@ -9,6 +9,7 @@ namespace localink_be.Data
             : base(options) { }
 
         public DbSet<User> Users { get; set; }
+        public DbSet<RefreshToken> RefreshTokens { get; set; }
         public DbSet<Category> Categories { get; set; }
         public DbSet<Subcategory> Subcategories { get; set; }
 
@@ -45,6 +46,7 @@ namespace localink_be.Data
             ConfigureBusinessPhoto(modelBuilder);
             ConfigureBusinessHours(modelBuilder);
             ConfigureUser(modelBuilder);
+            ConfigureRefreshToken(modelBuilder);
             ConfigureBusinessReview(modelBuilder);
             ConfigureFavorite(modelBuilder);
             ConfigureTranslationCache(modelBuilder);
@@ -111,7 +113,8 @@ namespace localink_be.Data
         {
             modelBuilder.Entity<BusinessContact>(entity =>
             {
-                entity.ToTable("business_contact");
+                // DB trigger syncs geo_location from lat/lng; EF must not use OUTPUT without INTO.
+                entity.ToTable("business_contact", tb => tb.HasTrigger("trg_business_contact_sync_geo_location"));
 
                 entity.Property(c => c.ContactId).HasColumnName("contact_id");
                 entity.Property(c => c.BusinessId).HasColumnName("business_id");
@@ -128,6 +131,9 @@ namespace localink_be.Data
                 entity.Property(c => c.UpdatedAt).HasColumnName("updated_at");
                 entity.Property(c => c.Latitude).HasColumnName("latitude");
                 entity.Property(c => c.Longitude).HasColumnName("longitude");
+                entity.Property(c => c.GeoLocation)
+                    .HasColumnName("geo_location")
+                    .HasColumnType("geography");
 
                 entity.HasIndex(c => c.BusinessId);
             });
@@ -143,8 +149,14 @@ namespace localink_be.Data
                 entity.Property(p => p.BusinessId).HasColumnName("business_id");
                 entity.Property(p => p.ImageUrl).HasColumnName("image_url");
                 entity.Property(p => p.IsPrimary).HasColumnName("is_primary");
+                entity.Property(p => p.DisplayOrder).HasColumnName("display_order").HasDefaultValue(0);
+                entity.Property(p => p.CreatedAt).HasColumnName("created_at");
+                entity.Property(p => p.UpdatedAt).HasColumnName("updated_at");
+
+                entity.Ignore(p => p.RelativePath);
 
                 entity.HasIndex(p => p.BusinessId);
+                entity.HasIndex(p => new { p.BusinessId, p.DisplayOrder });
             });
         }
 
@@ -176,8 +188,38 @@ namespace localink_be.Data
                 entity.Property(u => u.PasswordResetOtp).HasColumnName("password_reset_otp");
                 entity.Property(u => u.OtpExpiry).HasColumnName("otp_expiry");
                 entity.Property(u => u.OtpAttempts).HasColumnName("otp_attempts");
+                entity.Property(u => u.AuthProvider).HasColumnName("auth_provider");
+                entity.Property(u => u.ProviderId).HasColumnName("provider_id");
+                entity.Property(u => u.CreatedAt).HasColumnName("created_at");
+                entity.Property(u => u.UpdatedAt).HasColumnName("updated_at");
 
                 entity.HasIndex(u => u.PhoneNumber).IsUnique();
+                entity.HasIndex(u => u.Email).IsUnique();
+            });
+        }
+
+        private void ConfigureRefreshToken(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<RefreshToken>(entity =>
+            {
+                entity.ToTable("refresh_tokens");
+                entity.HasKey(t => t.Id);
+                entity.Property(t => t.Id).HasColumnName("id");
+                entity.Property(t => t.UserId).HasColumnName("user_id");
+                entity.Property(t => t.TokenHash).HasColumnName("token_hash").HasMaxLength(128);
+                entity.Property(t => t.CreatedAt).HasColumnName("created_at");
+                entity.Property(t => t.ExpiresAt).HasColumnName("expires_at");
+                entity.Property(t => t.RevokedAt).HasColumnName("revoked_at");
+                entity.Property(t => t.ReplacedByTokenHash).HasColumnName("replaced_by_token_hash").HasMaxLength(128);
+                entity.Property(t => t.DeviceInfo).HasColumnName("device_info").HasMaxLength(64);
+
+                entity.HasIndex(t => t.TokenHash).IsUnique();
+                entity.HasIndex(t => t.UserId);
+
+                entity.HasOne(t => t.User)
+                    .WithMany()
+                    .HasForeignKey(t => t.UserId)
+                    .OnDelete(DeleteBehavior.Cascade);
             });
         }
 

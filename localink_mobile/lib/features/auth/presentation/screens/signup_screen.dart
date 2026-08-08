@@ -3,6 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/auth/google_sign_in_helper.dart';
+import '../../../../core/auth/role_routes.dart';
+import '../../../../core/widgets/brand_icons.dart';
+import '../../../../core/validation/app_validators.dart';
 import '../../data/models/register_request.dart';
 import '../../data/models/location_models.dart';
 import '../../data/repositories/location_repository.dart';
@@ -74,7 +78,8 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   String _activeFocusField = '';
 
   // Role type
-  String _selectedType = 'user'; // 'user' or 'client'
+  /// UI selection: `consumer` or `owner`. API receives `client` / `businessowner`.
+  String _selectedType = 'consumer';
 
   // Location data lists and selections
   List<Country> _countries = [];
@@ -315,7 +320,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
 
     try {
       final request = RegisterRequest(
-        userType: _selectedType == 'client' ? 'businessowner' : 'client',
+        userType: _selectedType == 'owner' ? 'businessowner' : 'client',
         name: _nameController.text.trim(),
         email: _emailController.text.trim(),
         phone: _phoneController.text.trim(),
@@ -336,10 +341,10 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
           AppDialog.showSuccess(
             context: context,
             title: 'Account Created!',
-            message: 'Redirecting to login dashboard...',
+            message: 'Redirecting to login...',
           ).then((_) {
             if (mounted) {
-              context.pop();
+              context.go('/login');
             }
           });
         }
@@ -369,26 +374,9 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     return null;
   }
 
-  String? _validateEmail(String? v) {
-    if (v == null || v.trim().isEmpty) return 'Email is required';
-    final trimmed = v.trim();
-    if (trimmed.length > 256) return 'Email cannot exceed 256 characters';
-    if (!RegExp(
-      r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
-    ).hasMatch(trimmed)) {
-      return 'Invalid email format';
-    }
-    return null;
-  }
+  String? _validateEmail(String? v) => AppValidators.email(v);
 
-  String? _validatePhone(String? v) {
-    if (v == null || v.trim().isEmpty) return 'Phone number is required';
-    final trimmed = v.trim();
-    if (!RegExp(r'^[0-9]{7,15}$').hasMatch(trimmed)) {
-      return 'Phone number must be between 7 and 15 digits';
-    }
-    return null;
-  }
+  String? _validatePhone(String? v) => AppValidators.phone(v);
 
   String? _validatePincode(String? v) {
     if (v == null || v.trim().isEmpty) return null; // Optional field
@@ -407,22 +395,10 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     return null;
   }
 
-  String? _validatePassword(String? v) {
-    if (v == null || v.isEmpty) return 'Password is required';
-    if (v.length < 8 || v.length > 128) return 'Password must be between 8 and 128 characters';
-    if (!RegExp(
-      r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$',
-    ).hasMatch(v)) {
-      return 'Must contain uppercase, lowercase, number & special char (@\$!%*?&)';
-    }
-    return null;
-  }
+  String? _validatePassword(String? v) => AppValidators.password(v);
 
-  String? _validateConfirmPassword(String? v) {
-    if (v == null || v.isEmpty) return 'Please confirm your password';
-    if (v != _passwordController.text) return 'Passwords do not match';
-    return null;
-  }
+  String? _validateConfirmPassword(String? v) =>
+      AppValidators.confirmPassword(v, _passwordController.text);
 
   @override
   Widget build(BuildContext context) {
@@ -434,14 +410,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
         AppFeedback.showError(context, cleanMsg);
       } else if (next is AuthAuthenticated) {
         HapticFeedback.mediumImpact();
-        final role = next.userType.toLowerCase().trim();
-        if (role == 'admin') {
-          context.go('/admin-dashboard');
-        } else if (role == 'businessowner') {
-          context.go('/business-dashboard');
-        } else {
-          context.go('/home');
-        }
+        context.go(RoleRoutes.homeForRole(next.userType));
       }
     });
 
@@ -635,7 +604,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   Widget _buildStep0AccountType() {
     final cards = [
       (
-        type: 'user',
+        type: 'consumer',
         title: 'Personal Account',
         tagline: 'Discover & connect with local businesses',
         icon: Icons.person_rounded,
@@ -646,12 +615,12 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
         ],
       ),
       (
-        type: 'client',
+        type: 'owner',
         title: 'Business Owner',
-        tagline: 'List your store and grow your customer base',
+        tagline: 'List your business and grow your customer base',
         icon: Icons.storefront_rounded,
         benefits: [
-          'List & promote your store 100% free',
+          'List & promote your business 100% free',
           'Manage hours, photos & location',
           'Receive leads, views & verified ratings',
         ],
@@ -843,14 +812,62 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
         }),
 
         const SizedBox(height: 12),
+        
+        // Google Sign-In Button
+        Container(
+          height: 48,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFFEAE8E3)),
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: _isSubmitting ? null : _signInWithGoogle,
+              borderRadius: BorderRadius.circular(12),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  BrandIcons.google(size: 24),
+                  const SizedBox(width: 12),
+                  const Text(
+                    'Sign up with Google',
+                    style: TextStyle(
+                      fontFamily: 'Inter',
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF1A1918),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
         _buildSignInLink(),
       ],
     );
   }
 
+  Future<void> _signInWithGoogle() async {
+    try {
+      HapticFeedback.lightImpact();
+      final idToken = await GoogleSignInHelper.getIdToken();
+      if (idToken == null) return;
+      await ref.read(authProvider.notifier).googleSignIn(idToken);
+    } catch (e) {
+      if (mounted) {
+        HapticFeedback.heavyImpact();
+        AppFeedback.showError(context, GoogleSignInHelper.friendlyError(e));
+      }
+    }
+  }
+
   // ─── STEP 1: Profile Details (was Step 0) ───
   Widget _buildStep1Profile() {
-    final isClient = _selectedType == 'client';
+    final isOwner = _selectedType == 'owner';
     return Form(
       key: _stepFormKeys[0],
       child: Column(
@@ -869,7 +886,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            isClient
+            isOwner
                 ? 'Register your business on Vocal for Sanatan'
                 : 'Join Vocal for Sanatan to discover local stores',
             style: const TextStyle(
@@ -886,7 +903,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
             isFocused: _activeFocusField == 'name',
             child: AppTextField(
               controller: _nameController,
-              labelText: isClient ? 'Owner / Business Name *' : 'Name *',
+              labelText: isOwner ? 'Owner / Business Name *' : 'Name *',
               hintText: 'Enter full name',
               prefixIcon: Icons.person_outline_rounded,
               validator: _validateName,
@@ -1497,5 +1514,4 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     );
   }
 }
-
 

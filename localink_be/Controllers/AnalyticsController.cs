@@ -1,6 +1,8 @@
 using System;
 using System.Linq;
+using System.Security.Claims;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using localink_be.Data;
@@ -22,74 +24,100 @@ namespace localink_be.Controllers
             _aiService = aiService;
         }
 
+        private long? TryGetUserId()
+        {
+            var idClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            return long.TryParse(idClaim, out var id) ? id : null;
+        }
+
+        private bool IsAdmin() =>
+            User.IsInRole("admin") ||
+            string.Equals(User.FindFirst(ClaimTypes.Role)?.Value, "admin", StringComparison.OrdinalIgnoreCase);
+
+        private async Task<bool> OwnsBusinessAsync(long businessId)
+        {
+            if (IsAdmin()) return true;
+            var userId = TryGetUserId();
+            if (userId == null) return false;
+            return await _db.Businesses.AnyAsync(b => b.BusinessId == businessId && b.UserId == userId);
+        }
+
         [HttpPost("business/{id}/view")]
+        [AllowAnonymous]
         public async Task<IActionResult> IncrementView(long id)
         {
-            var business = await _db.Businesses.AnyAsync(b => b.BusinessId == id);
-            if (!business) return NotFound("Business not found");
+            var exists = await _db.Businesses.AnyAsync(b => b.BusinessId == id);
+            if (!exists) return NotFound("Business not found");
 
-            var metric = await _db.BusinessMetrics.FirstOrDefaultAsync(m => m.BusinessId == id);
-            if (metric == null)
+            var rows = await _db.Database.ExecuteSqlInterpolatedAsync(
+                $"UPDATE business_metric SET views = views + 1, updated_at = {DateTime.UtcNow} WHERE business_id = {id}");
+            if (rows == 0)
             {
-                metric = new BusinessMetric
+                _db.BusinessMetrics.Add(new BusinessMetric
                 {
                     BusinessId = id,
                     Views = 1,
                     UpdatedAt = DateTime.UtcNow
-                };
-                _db.BusinessMetrics.Add(metric);
-            }
-            else
-            {
-                metric.Views++;
-                metric.UpdatedAt = DateTime.UtcNow;
+                });
+                try
+                {
+                    await _db.SaveChangesAsync();
+                }
+                catch (DbUpdateException)
+                {
+                    await _db.Database.ExecuteSqlInterpolatedAsync(
+                        $"UPDATE business_metric SET views = views + 1, updated_at = {DateTime.UtcNow} WHERE business_id = {id}");
+                }
             }
 
-            await _db.SaveChangesAsync();
-            return Ok(new { success = true, views = metric.Views });
+            var views = await _db.BusinessMetrics.Where(m => m.BusinessId == id).Select(m => m.Views).FirstOrDefaultAsync();
+            return Ok(new { success = true, views });
         }
 
         [HttpPost("business/{id}/click")]
+        [AllowAnonymous]
         public async Task<IActionResult> IncrementClick(long id)
         {
-            var business = await _db.Businesses.AnyAsync(b => b.BusinessId == id);
-            if (!business) return NotFound("Business not found");
+            var exists = await _db.Businesses.AnyAsync(b => b.BusinessId == id);
+            if (!exists) return NotFound("Business not found");
 
-            var metric = await _db.BusinessMetrics.FirstOrDefaultAsync(m => m.BusinessId == id);
-            if (metric == null)
+            var rows = await _db.Database.ExecuteSqlInterpolatedAsync(
+                $"UPDATE business_metric SET contact_clicks = contact_clicks + 1, updated_at = {DateTime.UtcNow} WHERE business_id = {id}");
+            if (rows == 0)
             {
-                metric = new BusinessMetric
+                _db.BusinessMetrics.Add(new BusinessMetric
                 {
                     BusinessId = id,
                     ContactClicks = 1,
                     UpdatedAt = DateTime.UtcNow
-                };
-                _db.BusinessMetrics.Add(metric);
-            }
-            else
-            {
-                metric.ContactClicks++;
-                metric.UpdatedAt = DateTime.UtcNow;
+                });
+                try
+                {
+                    await _db.SaveChangesAsync();
+                }
+                catch (DbUpdateException)
+                {
+                    await _db.Database.ExecuteSqlInterpolatedAsync(
+                        $"UPDATE business_metric SET contact_clicks = contact_clicks + 1, updated_at = {DateTime.UtcNow} WHERE business_id = {id}");
+                }
             }
 
-            await _db.SaveChangesAsync();
-            return Ok(new { success = true, clicks = metric.ContactClicks });
+            var clicks = await _db.BusinessMetrics.Where(m => m.BusinessId == id).Select(m => m.ContactClicks).FirstOrDefaultAsync();
+            return Ok(new { success = true, clicks });
         }
 
+        [Authorize(Roles = "client,businessowner,admin")]
         [HttpGet("business/{id}")]
         public async Task<IActionResult> GetMetrics(long id)
         {
+            if (!await OwnsBusinessAsync(id))
+                return Forbid();
+
             var business = await _db.Businesses.FirstOrDefaultAsync(b => b.BusinessId == id);
             if (business == null) return NotFound("Business not found");
 
             var metric = await _db.BusinessMetrics.FirstOrDefaultAsync(m => m.BusinessId == id);
             var favoritesCount = await _db.Favorites.CountAsync(f => f.BusinessId == id);
-
-            if (metric != null && metric.FavoritesCount != favoritesCount)
-            {
-                metric.FavoritesCount = favoritesCount;
-                await _db.SaveChangesAsync();
-            }
 
             return Ok(new
             {
@@ -104,9 +132,13 @@ namespace localink_be.Controllers
             });
         }
 
+        [Authorize(Roles = "client,businessowner,admin")]
         [HttpPost("ai-insights/{id}")]
         public async Task<IActionResult> GetAiInsights(long id)
         {
+            if (!await OwnsBusinessAsync(id))
+                return Forbid();
+
             var business = await _db.Businesses.FirstOrDefaultAsync(b => b.BusinessId == id);
             if (business == null) return NotFound("Business not found");
 
@@ -120,6 +152,7 @@ namespace localink_be.Controllers
             return Ok(new { success = true, data = insights });
         }
 
+        [Authorize(Roles = "admin")]
         [HttpGet("heatmap")]
         public async Task<IActionResult> GetHeatmapData()
         {
@@ -165,6 +198,7 @@ namespace localink_be.Controllers
             });
         }
 
+        [Authorize(Roles = "admin")]
         [HttpGet("insights")]
         public async Task<IActionResult> GetInsights()
         {

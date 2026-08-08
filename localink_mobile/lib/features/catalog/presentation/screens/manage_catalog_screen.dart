@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
-import '../../../../core/network/dio_client.dart';
+import '../../../../core/widgets/optimized_network_image.dart';
 import '../../data/models/catalog_models.dart';
 import '../providers/catalog_provider.dart';
 import '../../../shared/presentation/widgets/app_button.dart';
@@ -307,9 +307,13 @@ class _ManageCatalogScreenState extends ConsumerState<ManageCatalogScreen> {
                       child: selectedImage != null
                           ? Image.file(selectedImage!, fit: BoxFit.cover)
                           : (item?.imageUrl?.isNotEmpty ?? false)
-                              ? Image.network(
-                                  DioClient.resolveUrl(item!.imageUrl)!,
+                              ? OptimizedNetworkImage(
+                                  imageUrl: item!.imageUrl,
                                   fit: BoxFit.cover,
+                                  height: 120,
+                                  width: double.infinity,
+                                  memCacheWidth: 800,
+                                  memCacheHeight: 240,
                                 )
                               : const Center(child: Text('Tap to add image', style: TextStyle(color: _CatTok.textMedium))),
                     ),
@@ -452,11 +456,15 @@ class _ManageCatalogScreenState extends ConsumerState<ManageCatalogScreen> {
                   children: catalog.items.map((item) {
                     return ListTile(
                       leading: (item.imageUrl?.isNotEmpty ?? false)
-                          ? Image.network(
-                              DioClient.resolveUrl(item.imageUrl)!,
+                          ? OptimizedNetworkImage(
+                              imageUrl: item.imageUrl,
                               width: 50,
                               height: 50,
                               fit: BoxFit.cover,
+                              borderRadius: BorderRadius.circular(6),
+                              memCacheWidth: 100,
+                              memCacheHeight: 100,
+                              errorIcon: Icons.inventory_2_rounded,
                             )
                           : const Icon(Icons.inventory_2_rounded, size: 40),
                       title: Text(item.name),

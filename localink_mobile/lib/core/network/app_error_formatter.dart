@@ -1,6 +1,18 @@
 import 'package:dio/dio.dart';
 
 class AppErrorFormatter {
+  static bool isOfflineError(dynamic error) {
+    if (error is! DioException) return false;
+    if (error.type == DioExceptionType.connectionError) return true;
+    if (error.type == DioExceptionType.unknown) {
+      final message = error.message ?? '';
+      return message.contains('SocketException') ||
+          message.contains('Network is unreachable') ||
+          message.contains('Failed host lookup');
+    }
+    return false;
+  }
+
   static String format(dynamic error) {
     if (error == null) return 'An unexpected error occurred. Please try again.';
 
@@ -12,7 +24,7 @@ class AppErrorFormatter {
         case DioExceptionType.receiveTimeout:
           return 'The server took too long to respond. Please try again later.';
         case DioExceptionType.connectionError:
-          return 'Server is unreachable. Please verify your internet connection or try again later.';
+          return 'No internet connection. Please check your network and try again.';
         case DioExceptionType.cancel:
           return 'Request was cancelled.';
         case DioExceptionType.badCertificate:
@@ -46,14 +58,16 @@ class AppErrorFormatter {
         case DioExceptionType.unknown:
         default:
           final message = error.message;
-          if (message != null && message.contains('SocketException')) {
+          if (message != null &&
+              (message.contains('SocketException') ||
+                  message.contains('Network is unreachable') ||
+                  message.contains('Failed host lookup'))) {
             return 'No internet connection. Please check your network and try again.';
           }
           return message ?? 'An unknown connection error occurred. Please try again.';
       }
     }
 
-    // Standard Exceptions/Errors
     final errString = error.toString();
     if (errString.startsWith('Exception: ')) {
       return errString.substring(11);

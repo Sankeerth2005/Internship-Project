@@ -6,10 +6,22 @@ part 'auth_response.g.dart';
 class AuthResponse {
   @JsonKey(name: 'token')
   final String token;
+
+  @JsonKey(name: 'refreshToken')
+  final String? refreshToken;
+
+  @JsonKey(name: 'expiresIn')
+  final int? expiresIn;
+
   @JsonKey(name: 'user')
   final UserDto user;
 
-  AuthResponse({required this.token, required this.user});
+  AuthResponse({
+    required this.token,
+    this.refreshToken,
+    this.expiresIn,
+    required this.user,
+  });
 
   factory AuthResponse.fromJson(Map<String, dynamic> json) =>
       _$AuthResponseFromJson(json);

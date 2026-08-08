@@ -32,6 +32,28 @@ namespace localink_be.Controllers
             throw new UnauthorizedAccessException("Invalid token");
         }
 
+        private bool IsAdmin() =>
+            User.IsInRole("admin") ||
+            string.Equals(User.FindFirst(ClaimTypes.Role)?.Value, "admin", StringComparison.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// Starts (or resumes) a conversation between the current user and a business.
+        /// Used by both clients to open a chat from a business detail page.
+        /// </summary>
+        [HttpPost("start/{businessId}")]
+        public async Task<IActionResult> StartConversation(long businessId)
+        {
+            var conversation = await _chatService.GetOrCreateConversationAsync(GetCurrentUserId(), businessId);
+            return Ok(new
+            {
+                conversation.Id,
+                conversation.BusinessId,
+                BusinessName = conversation.Business?.BusinessName,
+                BusinessImage = (string?)null,
+                conversation.LastMessageAt
+            });
+        }
+
         [HttpGet("user")]
         public async Task<IActionResult> GetUserConversations()
         {
@@ -50,46 +72,78 @@ namespace localink_be.Controllers
         [HttpGet("business/{businessId}")]
         public async Task<IActionResult> GetBusinessConversations(long businessId)
         {
-            var conversations = await _chatService.GetBusinessConversationsAsync(businessId);
-            return Ok(conversations.Select(c => new
+            try
             {
-                c.Id,
-                c.UserId,
-                UserName = c.User?.FullName,
-                c.LastMessageAt
-            }));
+                var conversations = await _chatService.GetBusinessConversationsAsync(
+                    businessId, GetCurrentUserId(), IsAdmin());
+                return Ok(conversations.Select(c => new
+                {
+                    c.Id,
+                    c.UserId,
+                    UserName = c.User?.FullName,
+                    c.LastMessageAt
+                }));
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Forbid();
+            }
         }
 
         [HttpGet("messages/{conversationId}")]
-        public async Task<IActionResult> GetMessages(long conversationId)
-        {
-            var messages = await _chatService.GetMessagesAsync(conversationId);
-            return Ok(messages);
-        }
-
-        [HttpPost("read/{conversationId}")]
-        public async Task<IActionResult> MarkAsRead(long conversationId, [FromQuery] string role)
-        {
-            if (role != "User" && role != "Owner") return BadRequest("Invalid role");
-            await _chatService.MarkMessagesAsReadAsync(conversationId, role);
-            return Ok(new { success = true });
-        }
-
-        [HttpPost("voice/{conversationId}")]
-        public async Task<IActionResult> UploadVoiceMessage(long conversationId, [FromForm] IFormFile file, [FromForm] string role)
+        public async Task<IActionResult> GetMessages(
+            long conversationId,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 50)
         {
             try
             {
-                if (role != "User" && role != "Owner") return BadRequest("Invalid role");
-                
-                var message = await _chatService.SendVoiceMessageAsync(conversationId, role, file);
-                
-                // Broadcast the newly created voice message to the SignalR group
-                await _chatHubContext.Clients.Group($"Conv_{conversationId}").SendAsync("ReceiveMessage", message);
-                
+                var messages = await _chatService.GetMessagesAsync(
+                    conversationId, GetCurrentUserId(), IsAdmin(), page, pageSize);
+                return Ok(messages);
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Forbid();
+            }
+        }
+
+        [HttpPost("read/{conversationId}")]
+        public async Task<IActionResult> MarkAsRead(long conversationId)
+        {
+            try
+            {
+                await _chatService.MarkMessagesAsReadAsync(conversationId, GetCurrentUserId(), IsAdmin());
+                return Ok(new { success = true });
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Forbid();
+            }
+        }
+
+        [HttpPost("voice/{conversationId}")]
+        public async Task<IActionResult> UploadVoiceMessage(long conversationId, [FromForm] IFormFile file)
+        {
+            try
+            {
+                var message = await _chatService.SendVoiceMessageAsync(
+                    conversationId, GetCurrentUserId(), IsAdmin(), file);
+
+                await _chatHubContext.Clients.Group($"Conv_{conversationId}")
+                    .SendAsync("ReceiveMessage", message);
+
                 return Ok(message);
             }
-            catch (Exception ex)
+            catch (UnauthorizedAccessException)
+            {
+                return Forbid();
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (InvalidOperationException ex)
             {
                 return BadRequest(new { message = ex.Message });
             }
