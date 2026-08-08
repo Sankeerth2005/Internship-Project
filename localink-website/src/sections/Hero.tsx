@@ -5,7 +5,12 @@ import {
   ArrowRight,
   MapPin,
   Mic,
+  Search,
   Sparkles,
+  Star,
+  Wifi,
+  Battery,
+  Signal,
   MessageCircle,
   ShieldCheck,
 } from 'lucide-react'
@@ -25,7 +30,7 @@ export default function Hero() {
   return (
     <section className="relative overflow-hidden pt-20 lg:pt-0">
       <div className="grid lg:grid-cols-2 min-h-[calc(100svh-4.5rem)] lg:min-h-[720px]">
-        {/* Left pane */}
+        {/* Left pane — fills half the viewport */}
         <div className="relative flex items-center atmosphere grain px-5 sm:px-8 lg:px-12 xl:px-16 py-10 lg:py-16">
           <div className="pointer-events-none absolute inset-0 mesh-grid opacity-70" aria-hidden />
           <div
@@ -98,7 +103,7 @@ export default function Hero() {
           </motion.div>
         </div>
 
-        {/* Right pane — real app screenshot in phone frame */}
+        {/* Right pane — full-bleed visual */}
         <div className="relative flex items-center justify-center bg-gradient-to-br from-[#FFF4EB] via-[#FFE8D4] to-[#FFD7B0] px-5 sm:px-8 lg:px-10 xl:px-14 py-12 lg:py-16 overflow-hidden">
           <div className="pointer-events-none absolute inset-0 mesh-grid opacity-40" aria-hidden />
           <div
@@ -154,35 +159,99 @@ export default function Hero() {
               animate={{ y: [0, -10, 0] }}
               transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
             >
-              <div className="absolute -inset-8 rounded-[2.5rem] bg-primary/20 blur-2xl" />
-
-              {/* Android phone frame */}
-              <div className="relative">
-                {/* Volume / power buttons */}
-                <span className="absolute -left-[3px] top-24 h-8 w-[3px] rounded-l-sm bg-[#3a3836]" aria-hidden />
-                <span className="absolute -left-[3px] top-36 h-14 w-[3px] rounded-l-sm bg-[#3a3836]" aria-hidden />
-                <span className="absolute -right-[3px] top-32 h-16 w-[3px] rounded-r-sm bg-[#3a3836]" aria-hidden />
-
-                <div className="relative w-[260px] sm:w-[300px] lg:w-[320px] overflow-hidden rounded-[1.65rem] border-[3px] border-[#2C2A28] bg-[#0E0D0C] shadow-phone">
-                  {/* Android top bezel with centered punch-hole */}
-                  <div className="relative flex h-4 items-center justify-center bg-[#0E0D0C]">
-                    <span className="h-2 w-2 rounded-full bg-[#1f1e1d] ring-1 ring-white/10" aria-hidden />
+              <div className="absolute -inset-10 rounded-[3rem] bg-primary/20 blur-2xl" />
+              <div className="relative w-[240px] sm:w-[260px] h-[480px] sm:h-[510px] rounded-[2.4rem] border border-[#1A1918]/20 bg-[#1A1918] p-2 shadow-phone">
+                <div className="absolute left-1/2 top-2.5 z-20 h-4 w-20 -translate-x-1/2 rounded-full bg-black/80" />
+                <div className="flex h-full flex-col overflow-hidden rounded-[2rem] bg-white">
+                  <div className="flex items-center justify-between px-4 pt-3.5 text-[10px] font-bold text-text-muted">
+                    <span>9:41</span>
+                    <div className="flex items-center gap-1">
+                      <Signal className="h-3 w-3" />
+                      <Wifi className="h-3 w-3" />
+                      <Battery className="h-3.5 w-3.5" />
+                    </div>
                   </div>
 
-                  {/* Screen — natural Android aspect from screenshot */}
-                  <div className="bg-white">
-                    <Image
-                      src="/images/app-home.png"
-                      alt="Vocal for Sanatan Android app home screen"
-                      width={472}
-                      height={819}
-                      className="block h-auto w-full"
-                      priority
-                    />
+                  <div className="border-b border-border px-3.5 pb-2.5 pt-1.5">
+                    <div className="mb-2 flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <Image
+                          src="/app-icon-192.png"
+                          alt=""
+                          width={18}
+                          height={18}
+                          className="rounded-[4px] object-cover"
+                        />
+                        <span className="text-xs font-extrabold text-primary">Vocal for Sanatan</span>
+                      </div>
+                      <span className="flex items-center gap-1 text-[10px] text-text-muted">
+                        <MapPin className="h-3 w-3 text-primary" />
+                        Bengaluru
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 rounded-xl border border-border bg-background-surface px-2.5 py-1.5 text-[10px] text-text-soft">
+                      <Search className="h-3.5 w-3.5 text-primary" />
+                      <span className="flex-1">Search business, category...</span>
+                      <Mic className="h-3.5 w-3.5" />
+                    </div>
                   </div>
 
-                  {/* Thin Android bottom chin */}
-                  <div className="h-3 bg-[#0E0D0C]" aria-hidden />
+                  <div className="flex-1 space-y-2.5 overflow-hidden bg-background-surface p-2.5">
+                    <div className="flex gap-1.5">
+                      {['Food', 'Retail', 'Services', 'Health'].map((c, i) => (
+                        <span
+                          key={c}
+                          className={`rounded-full px-2 py-1 text-[9px] font-bold ${
+                            i === 0
+                              ? 'bg-primary/15 text-primary'
+                              : 'border border-border bg-white text-text-muted'
+                          }`}
+                        >
+                          {c}
+                        </span>
+                      ))}
+                    </div>
+
+                    <div className="rounded-2xl border border-border bg-white p-2 shadow-soft">
+                      <div className="mb-1.5 flex aspect-[16/9] items-center justify-center rounded-xl bg-gradient-to-br from-primary/20 via-primary-glow/25 to-success/15">
+                        <Image
+                          src="/app-icon-192.png"
+                          alt=""
+                          width={40}
+                          height={40}
+                          className="rounded-lg object-cover shadow-soft"
+                        />
+                      </div>
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <p className="text-[11px] font-bold text-text">Shree Balaji Sweets</p>
+                          <p className="text-[9px] text-text-muted">Sweet Shop · 1.2 km</p>
+                        </div>
+                        <span className="inline-flex items-center gap-0.5 rounded-md bg-primary/10 px-1.5 py-0.5 text-[9px] font-black text-primary">
+                          4.9 <Star className="h-2.5 w-2.5 fill-primary" />
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-primary/20 bg-white p-2.5 shadow-soft">
+                      <div className="mb-1.5 flex items-center gap-2">
+                        <span className="flex h-5 w-5 items-center justify-center rounded-md bg-primary/15 text-[8px] font-black text-primary">
+                          AI
+                        </span>
+                        <span className="text-[10px] font-bold text-text">Sanatan AI</span>
+                      </div>
+                      <p className="rounded-xl bg-primary/5 px-2 py-1.5 text-[9px] leading-relaxed text-text">
+                        Namaste! Looking for authentic sweets near you?
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-4 border-t border-border bg-white py-2 text-center text-[9px] font-bold text-text-soft">
+                    <span className="text-primary">Explore</span>
+                    <span>AI</span>
+                    <span>Saved</span>
+                    <span>Profile</span>
+                  </div>
                 </div>
               </div>
             </motion.div>
