@@ -8,6 +8,7 @@ interface BrandLogoProps {
   size?: 'sm' | 'md' | 'lg'
   href?: string
   tone?: 'dark' | 'light'
+  priority?: boolean
 }
 
 const sizes = {
@@ -22,11 +23,12 @@ export default function BrandLogo({
   size = 'md',
   href = '/',
   tone = 'dark',
+  priority = false,
 }: BrandLogoProps) {
   const s = sizes[size]
 
   const inner = (
-    <span className={cn('inline-flex items-center gap-2.5 group', className)}>
+    <span className={cn('group inline-flex items-center gap-2.5', className)}>
       <span
         className={cn(
           'relative shrink-0 overflow-hidden rounded-xl border border-border bg-white shadow-soft',
@@ -35,11 +37,12 @@ export default function BrandLogo({
       >
         <Image
           src="/app-icon-192.png"
-          alt="Vocal for Sanatan app icon"
+          alt=""
           width={s.img}
           height={s.img}
           className="h-full w-full object-cover"
-          priority
+          priority={priority}
+          sizes={`${s.img}px`}
         />
       </span>
       {showWordmark && (

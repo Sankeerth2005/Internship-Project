@@ -10,16 +10,18 @@ import DownloadCTA from '@/sections/DownloadCTA'
 
 export default function Home() {
   return (
-    <main className="min-h-screen">
+    <>
       <Navbar />
-      <Hero />
-      <ValueStrip />
-      <Features />
-      <HowItWorks />
-      <Categories />
-      <BusinessCTA />
-      <DownloadCTA />
+      <main id="main-content" className="min-h-screen">
+        <Hero />
+        <ValueStrip />
+        <Features />
+        <HowItWorks />
+        <Categories />
+        <BusinessCTA />
+        <DownloadCTA />
+      </main>
       <Footer />
-    </main>
+    </>
   )
 }

@@ -19,7 +19,7 @@ export const site = {
   shortName: 'Vocal',
   url: 'https://vocalforsanatan.com',
   packageId: 'com.vocalforsanatan.app',
-  supportEmail: 'support@vocalforsanatan.com',
+  supportEmail: 'info@vocalforsanatan.com',
   privacyEmail: 'privacy@vocalforsanatan.com',
   legalEmail: 'legal@vocalforsanatan.com',
   region: 'India',

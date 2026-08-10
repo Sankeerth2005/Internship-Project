@@ -21,23 +21,30 @@ export default function PageShell({
   ctaLabel,
 }: PageShellProps) {
   return (
-    <main className="min-h-screen">
+    <>
       <Navbar />
-      <section className="atmosphere grain pt-28 pb-10 relative overflow-hidden">
-        <div className="pointer-events-none absolute inset-0 mesh-grid opacity-60" aria-hidden />
-        <div className="container-custom relative">
-          <SectionHeader eyebrow={eyebrow} title={title} description={description} align="left" className="max-w-3xl" />
-          {ctaHref && ctaLabel && (
-            <div className="mt-6">
-              <Button href={ctaHref} size="lg">
-                {ctaLabel}
-              </Button>
-            </div>
-          )}
-        </div>
-      </section>
-      {children}
+      <main id="main-content" className="min-h-screen">
+        <section className="relative overflow-hidden bg-[#F7F2EC] pb-10 pt-28">
+          <div className="container-custom relative">
+            <SectionHeader
+              eyebrow={eyebrow}
+              title={title}
+              description={description}
+              align="left"
+              className="max-w-3xl"
+            />
+            {ctaHref && ctaLabel && (
+              <div className="mt-6">
+                <Button href={ctaHref} size="lg">
+                  {ctaLabel}
+                </Button>
+              </div>
+            )}
+          </div>
+        </section>
+        {children}
+      </main>
       <Footer />
-    </main>
+    </>
   )
 }

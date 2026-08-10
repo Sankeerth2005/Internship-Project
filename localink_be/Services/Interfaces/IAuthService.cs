@@ -15,5 +15,7 @@ namespace localink_be.Services.Interfaces
         Task<string> SendResetOtpAsync(string email);
         Task<string> VerifyOtpAndResetPasswordAsync(string email, string otp, string newPassword);
         Task<string> ChangePasswordAsync(long userId, ChangePasswordRequest request);
+        Task<AuthorizedExperiencesDto> GetAuthorizedExperiencesAsync(long userId);
+        Task<SelectExperienceResultDto> SelectExperienceAsync(long userId, string experience);
     }
 }

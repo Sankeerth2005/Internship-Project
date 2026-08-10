@@ -101,7 +101,10 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
                       if (context.canPop()) {
                         context.pop();
                       } else if (auth is AuthAuthenticated) {
-                        context.go(RoleRoutes.homeForRole(auth.userType));
+                        context.go(RoleRoutes.resolvePostAuthRoute(
+                          accountType: auth.userType,
+                          activeExperience: auth.activeExperience,
+                        ));
                       } else {
                         context.go('/login');
                       }

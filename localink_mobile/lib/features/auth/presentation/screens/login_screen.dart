@@ -211,7 +211,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
         }
       } else if (next is AuthAuthenticated) {
         HapticFeedback.mediumImpact();
-        context.go(RoleRoutes.homeForRole(next.userType));
+        context.go(RoleRoutes.resolvePostAuthRoute(
+          accountType: next.userType,
+          activeExperience: next.activeExperience,
+        ));
       }
     });
     // ──────────────────────────────────────────────────────────────────────

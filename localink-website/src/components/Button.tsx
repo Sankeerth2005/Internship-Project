@@ -1,5 +1,3 @@
-'use client'
-
 import Link from 'next/link'
 import { ButtonHTMLAttributes, ReactNode } from 'react'
 import { cn } from '@/lib/utils'
@@ -9,7 +7,7 @@ type Size = 'sm' | 'md' | 'lg'
 
 const variants: Record<Variant, string> = {
   primary:
-    'bg-primary text-white shadow-button hover:bg-primary-dark hover:-translate-y-0.5',
+    'bg-primary text-white shadow-button hover:bg-primary-dark hover:-translate-y-0.5 active:translate-y-0',
   secondary:
     'bg-background-surface text-text border border-border hover:border-primary/40 hover:bg-white',
   outline:
@@ -20,7 +18,7 @@ const variants: Record<Variant, string> = {
 const sizes: Record<Size, string> = {
   sm: 'px-4 py-2 text-sm',
   md: 'px-6 py-3 text-sm sm:text-base',
-  lg: 'px-8 py-3.5 text-base',
+  lg: 'px-8 py-3.5 text-base min-h-12',
 }
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -39,7 +37,7 @@ export default function Button({
   ...props
 }: ButtonProps) {
   const classes = cn(
-    'inline-flex items-center justify-center gap-2 font-bold rounded-button transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:opacity-50',
+    'inline-flex items-center justify-center gap-2 font-bold rounded-button transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:opacity-50',
     variants[variant],
     sizes[size],
     className

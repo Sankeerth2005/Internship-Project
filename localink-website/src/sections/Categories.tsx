@@ -1,7 +1,6 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { AnimatePresence, motion } from 'framer-motion'
 import {
   AirVent,
   Bike,
@@ -132,10 +131,9 @@ export default function Categories() {
   }
 
   return (
-    <section id="categories" className="section-pad bg-white relative overflow-hidden">
-      <div className="pointer-events-none absolute inset-y-0 right-0 w-1/3 bg-gradient-to-l from-primary/5 to-transparent" />
+    <section id="categories" className="section-pad relative overflow-hidden bg-white">
       <div className="container-custom relative">
-        <div className="mb-10 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+        <div className="mb-10">
           <SectionHeader
             eyebrow="Browse"
             title="Explore categories"
@@ -146,14 +144,13 @@ export default function Categories() {
         </div>
 
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-          {catalogCategories.map((item, i) => {
+          {catalogCategories.map((item) => {
             const Icon = resolveIcon(item.icon)
             const isActive = activeId === item.id
             return (
-              <motion.button
+              <button
                 key={item.id}
                 type="button"
-                initial={false}
                 onClick={() => toggle(item.id)}
                 aria-expanded={isActive}
                 aria-controls="category-subcategories"
@@ -163,7 +160,6 @@ export default function Categories() {
                     ? 'border-primary bg-primary/5 shadow-soft ring-2 ring-primary/20'
                     : 'border-border bg-background-surface hover:border-primary/40 hover:bg-white hover:shadow-soft'
                 )}
-                style={{ transitionDelay: `${i * 20}ms` }}
               >
                 <span
                   className={cn(
@@ -173,7 +169,7 @@ export default function Categories() {
                       : 'bg-primary/10 text-primary group-hover:bg-primary group-hover:text-white'
                   )}
                 >
-                  <Icon className="h-5 w-5" />
+                  <Icon className="h-5 w-5" aria-hidden />
                 </span>
                 <div className="min-w-0 flex-1">
                   <h3 className="truncate font-display text-base font-bold text-text">{item.name}</h3>
@@ -184,83 +180,72 @@ export default function Categories() {
                     'h-4 w-4 shrink-0 text-text-soft transition-transform',
                     isActive && 'rotate-180 text-primary'
                   )}
+                  aria-hidden
                 />
-              </motion.button>
+              </button>
             )
           })}
         </div>
 
-        <AnimatePresence mode="wait">
-          {active && (
-            <motion.div
-              key={active.id}
-              id="category-subcategories"
-              initial={{ opacity: 0, height: 0, y: -8 }}
-              animate={{ opacity: 1, height: 'auto', y: 0 }}
-              exit={{ opacity: 0, height: 0, y: -8 }}
-              transition={{ duration: 0.28 }}
-              className="overflow-hidden"
-            >
-              <div className="mt-5 rounded-3xl border border-primary/20 bg-gradient-to-br from-primary/5 via-white to-background-surface p-5 sm:p-6 shadow-soft">
-                <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    {(() => {
-                      const ActiveIcon = resolveIcon(active.icon)
-                      return (
-                        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-white">
-                          <ActiveIcon className="h-5 w-5" />
-                        </span>
-                      )
-                    })()}
-                    <div>
-                      <p className="text-xs font-bold uppercase tracking-[0.16em] text-primary">
-                        Subcategories
-                      </p>
-                      <h4 className="font-display text-xl font-bold text-text">{active.name}</h4>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setActiveId(null)}
-                    className="inline-flex items-center gap-1.5 rounded-full border border-border bg-white px-3 py-1.5 text-xs font-bold text-text-muted hover:text-primary"
-                  >
-                    <X className="h-3.5 w-3.5" />
-                    Close
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-6">
-                  {active.subcategories.map((sub, idx) => {
-                    const SubIcon = resolveIcon(sub.icon)
-                    return (
-                      <motion.div
-                        key={sub.name}
-                        initial={{ opacity: 0, y: 8 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: idx * 0.03 }}
-                        className="flex flex-col items-center gap-2 rounded-2xl border border-border bg-white px-3 py-4 text-center shadow-sm transition hover:border-primary/35 hover:shadow-soft"
-                      >
-                        <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                          <SubIcon className="h-5 w-5" />
-                        </span>
-                        <span className="text-xs font-bold text-text leading-snug">{sub.name}</span>
-                      </motion.div>
-                    )
-                  })}
-                </div>
-
-                <div className="mt-5 flex flex-wrap items-center gap-3">
-                  <Button href="/download" size="md">
-                    Explore in the app
-                  </Button>
-                  <p className="text-xs text-text-soft">
-                    {active.subcategories.length} subcategories in {active.name}
+        {active && (
+          <div
+            id="category-subcategories"
+            className="mt-5 rounded-3xl border border-primary/20 bg-gradient-to-br from-primary/5 via-white to-background-surface p-5 shadow-soft sm:p-6"
+          >
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                {(() => {
+                  const ActiveIcon = resolveIcon(active.icon)
+                  return (
+                    <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-white">
+                      <ActiveIcon className="h-5 w-5" aria-hidden />
+                    </span>
+                  )
+                })()}
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-primary">
+                    Subcategories
                   </p>
+                  <h4 className="font-display text-xl font-bold text-text">{active.name}</h4>
                 </div>
               </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+              <button
+                type="button"
+                onClick={() => setActiveId(null)}
+                className="inline-flex items-center gap-1.5 rounded-full border border-border bg-white px-3 py-1.5 text-xs font-bold text-text-muted hover:text-primary"
+              >
+                <X className="h-3.5 w-3.5" aria-hidden />
+                Close
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-6">
+              {active.subcategories.map((sub) => {
+                const SubIcon = resolveIcon(sub.icon)
+                return (
+                  <div
+                    key={sub.name}
+                    className="flex flex-col items-center gap-2 rounded-2xl border border-border bg-white px-3 py-4 text-center shadow-sm transition hover:border-primary/35 hover:shadow-soft"
+                  >
+                    <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                      <SubIcon className="h-5 w-5" aria-hidden />
+                    </span>
+                    <span className="text-xs font-bold leading-snug text-text">{sub.name}</span>
+                  </div>
+                )
+              })}
+            </div>
+
+            <div className="mt-5 flex flex-wrap items-center gap-3">
+              <Button href="/download" size="md">
+                Explore in the app
+              </Button>
+              <p className="text-xs text-text-soft">
+                {active.subcategories.length} subcategories in {active.name}
+              </p>
+            </div>
+          </div>
+        )}
       </div>
     </section>
   )

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'dart:async';
 import 'dart:math';
 import 'dart:convert';
 import 'package:maplibre_gl/maplibre_gl.dart';
@@ -19,6 +20,7 @@ import '../../data/models/business_models.dart';
 import '../../../auth/data/models/location_models.dart';
 import '../../../auth/providers/location_provider.dart';
 import '../../../auth/data/repositories/location_repository.dart';
+import '../../../auth/providers/auth_provider.dart';
 
 class _RegTok {
   static const Color primary = Color(0xFFFF6600);
@@ -83,6 +85,9 @@ class _BusinessRegistrationScreenState extends ConsumerState<BusinessRegistratio
   bool _manuallySelectedCoordinates = false;
   bool _mapInitialized = false;
   bool _userInteractedWithMap = false;
+  bool _fillingFromGeocode = false;
+  Timer? _reverseGeocodeDebounce;
+  int _reverseGeocodeToken = 0;
 
   // Step 3 Photo
   String? _photoBase64;
@@ -202,6 +207,7 @@ class _BusinessRegistrationScreenState extends ConsumerState<BusinessRegistratio
 
   @override
   void dispose() {
+    _reverseGeocodeDebounce?.cancel();
     _pincodeController.removeListener(_onPincodeChanged);
     _nameController.dispose();
     _descController.dispose();
@@ -215,9 +221,163 @@ class _BusinessRegistrationScreenState extends ConsumerState<BusinessRegistratio
   }
 
   void _onPincodeChanged() {
+    if (_fillingFromGeocode) return;
     final pincode = _pincodeController.text.trim();
     if (pincode.length == 6 && int.tryParse(pincode) != null) {
       _lookupPincode(pincode);
+    }
+  }
+
+  void _scheduleReverseGeocode(double lat, double lon) {
+    _reverseGeocodeDebounce?.cancel();
+    _reverseGeocodeDebounce = Timer(const Duration(milliseconds: 500), () {
+      _reverseGeocodeAndFill(lat, lon);
+    });
+  }
+
+  Country? _matchCountry(String? name) {
+    if (name == null || name.trim().isEmpty || _countries.isEmpty) return null;
+    final n = name.trim().toLowerCase();
+    for (final c in _countries) {
+      if (c.name.toLowerCase() == n) return c;
+    }
+    for (final c in _countries) {
+      final cn = c.name.toLowerCase();
+      if (cn.contains(n) || n.contains(cn)) return c;
+    }
+    return null;
+  }
+
+  StateModel? _matchState(String? name) {
+    if (name == null || name.trim().isEmpty || _states.isEmpty) return null;
+    final clean = name
+        .replaceAll('State of ', '')
+        .replaceAll(' Union Territory', '')
+        .trim()
+        .toLowerCase();
+    for (final s in _states) {
+      if (s.name.toLowerCase() == clean) return s;
+    }
+    for (final s in _states) {
+      final sn = s.name.toLowerCase();
+      if (sn.contains(clean) || clean.contains(sn)) return s;
+    }
+    return null;
+  }
+
+  CityModel? _matchCity(String? name) {
+    if (name == null || name.trim().isEmpty || _cities.isEmpty) return null;
+    final n = name.trim().toLowerCase();
+    for (final c in _cities) {
+      if (c.name.toLowerCase() == n) return c;
+    }
+    for (final c in _cities) {
+      final cn = c.name.toLowerCase();
+      if (cn.contains(n) || n.contains(cn)) return c;
+    }
+    return null;
+  }
+
+  /// Reverse-geocode a map pin / GPS point and autofill address fields.
+  Future<void> _reverseGeocodeAndFill(double lat, double lon) async {
+    if (lat == 0.0 && lon == 0.0) return;
+    final token = ++_reverseGeocodeToken;
+
+    try {
+      final dio = Dio();
+      final response = await dio.get(
+        'https://api.geoapify.com/v1/geocode/reverse',
+        queryParameters: {
+          'lat': lat,
+          'lon': lon,
+          'format': 'json',
+          'apiKey': AppConfig.geoapifyApiKey,
+        },
+      );
+
+      if (!mounted || token != _reverseGeocodeToken) return;
+      if (response.statusCode != 200 || response.data == null) return;
+
+      final results = response.data['results'] as List?;
+      if (results == null || results.isEmpty) return;
+
+      final result = results.first as Map<String, dynamic>;
+      await _applyGeocodeResult(result, token: token);
+    } catch (e) {
+      debugPrint('Error reverse geocoding: $e');
+    }
+  }
+
+  Future<void> _applyGeocodeResult(
+    Map<String, dynamic> result, {
+    required int token,
+  }) async {
+    if (!mounted || token != _reverseGeocodeToken) return;
+
+    final countryName = result['country'] as String?;
+    final stateName = result['state'] as String?;
+    final cityName = result['city'] as String? ??
+        result['town'] as String? ??
+        result['village'] as String? ??
+        result['suburb'] as String? ??
+        result['county'] as String?;
+    final postcode = result['postcode'] as String?;
+    final street = result['street'] as String?;
+    final housenumber = result['housenumber'] as String?;
+    final formatted = result['formatted'] as String?;
+
+    String address = '';
+    if (housenumber != null && housenumber.trim().isNotEmpty) {
+      address += '${housenumber.trim()} ';
+    }
+    if (street != null && street.trim().isNotEmpty) {
+      address += street.trim();
+    }
+    if (address.trim().isEmpty &&
+        formatted != null &&
+        formatted.trim().isNotEmpty) {
+      // Prefer a short street-ish line when structured street is missing.
+      address = formatted.split(',').first.trim();
+    }
+
+    _fillingFromGeocode = true;
+    try {
+      if (address.isNotEmpty) {
+        _addressController.text = address;
+      }
+      if (postcode != null && postcode.trim().isNotEmpty) {
+        _pincodeController.text = postcode.trim();
+      }
+
+      if (_countries.isEmpty) {
+        await _loadCountries();
+      }
+      if (!mounted || token != _reverseGeocodeToken) return;
+
+      final matchedCountry = _matchCountry(countryName);
+      if (matchedCountry == null) {
+        if (mounted) setState(() {});
+        return;
+      }
+
+      setState(() => _selectedCountry = matchedCountry);
+      await _loadStates(matchedCountry.iso2);
+      if (!mounted || token != _reverseGeocodeToken) return;
+
+      final matchedState = _matchState(stateName);
+      if (matchedState == null) {
+        if (mounted) setState(() {});
+        return;
+      }
+
+      setState(() => _selectedState = matchedState);
+      await _loadCities(matchedCountry.iso2, matchedState.iso2);
+      if (!mounted || token != _reverseGeocodeToken) return;
+
+      final matchedCity = _matchCity(cityName);
+      setState(() => _selectedCity = matchedCity);
+    } finally {
+      _fillingFromGeocode = false;
     }
   }
 
@@ -408,12 +568,14 @@ class _BusinessRegistrationScreenState extends ConsumerState<BusinessRegistratio
             .read(myBusinessesProvider.notifier)
             .register(BusinessDto.fromJson(requestJson));
 
+        await ref.read(authProvider.notifier).syncSessionAfterOwnerOnboarding();
+
         if (mounted) {
           AppFeedback.showSuccess(
             context,
             'Business registered successfully! ID: $businessId',
           );
-          context.pop();
+          context.go('/business-dashboard');
         }
       }
     } catch (e) {
@@ -441,6 +603,7 @@ class _BusinessRegistrationScreenState extends ConsumerState<BusinessRegistratio
         _latitude = coordinates.latitude;
         _longitude = coordinates.longitude;
         _manuallySelectedCoordinates = true;
+        _userInteractedWithMap = true;
       });
       _mapController!.animateCamera(
         CameraUpdate.newCameraPosition(
@@ -451,6 +614,7 @@ class _BusinessRegistrationScreenState extends ConsumerState<BusinessRegistratio
         ),
       );
       _addMarker(coordinates);
+      _scheduleReverseGeocode(coordinates.latitude, coordinates.longitude);
     }
   }
 
@@ -562,6 +726,7 @@ class _BusinessRegistrationScreenState extends ConsumerState<BusinessRegistratio
           _latitude = position.latitude;
           _longitude = position.longitude;
           _userInteractedWithMap = false;
+          _manuallySelectedCoordinates = true;
         });
 
         final pos = LatLng(position.latitude, position.longitude);
@@ -571,71 +736,7 @@ class _BusinessRegistrationScreenState extends ConsumerState<BusinessRegistratio
           );
         }
         _addMarker(pos);
-
-        // Reverse geocode to auto-fill address
-        final dio = Dio();
-        final response = await dio.get(
-          'https://api.geoapify.com/v1/geocode/reverse',
-          queryParameters: {
-            'lat': position.latitude,
-            'lon': position.longitude,
-            'format': 'json',
-            'apiKey': AppConfig.geoapifyApiKey,
-          },
-        );
-
-        if (response.statusCode == 200 && response.data != null) {
-          final results = response.data['results'] as List?;
-          if (results != null && results.isNotEmpty) {
-            final result = results.first as Map<String, dynamic>;
-            final countryName = result['country'] as String?;
-            final stateName = result['state'] as String?;
-            final cityName = result['city'] as String? ?? result['town'] as String? ?? result['village'] as String?;
-            final postcode = result['postcode'] as String?;
-            final street = result['street'] as String?;
-            final housenumber = result['housenumber'] as String?;
-
-            String address = '';
-            if (housenumber != null) address += '$housenumber ';
-            if (street != null) address += street;
-
-            setState(() {
-              if (address.isNotEmpty) {
-                _addressController.text = address;
-              }
-              if (postcode != null) {
-                _pincodeController.text = postcode;
-              }
-            });
-
-            if (countryName != null) {
-              final matchedCountry = _countries.firstWhere(
-                (c) => c.name.toLowerCase() == countryName.toLowerCase(),
-                orElse: () => _countries.first,
-              );
-              setState(() => _selectedCountry = matchedCountry);
-              await _loadStates(matchedCountry.iso2);
-
-              if (stateName != null && _states.isNotEmpty) {
-                final cleanStateName = stateName.replaceAll('State of ', '').replaceAll(' Union Territory', '').trim().toLowerCase();
-                final matchedState = _states.firstWhere(
-                  (s) => s.name.toLowerCase().contains(cleanStateName) || cleanStateName.contains(s.name.toLowerCase()),
-                  orElse: () => _states.first,
-                );
-                setState(() => _selectedState = matchedState);
-                await _loadCities(matchedCountry.iso2, matchedState.iso2);
-
-                if (cityName != null && _cities.isNotEmpty) {
-                  final matchedCity = _cities.firstWhere(
-                    (c) => c.name.toLowerCase() == cityName.toLowerCase() || c.name.toLowerCase().contains(cityName.toLowerCase()),
-                    orElse: () => _cities.first,
-                  );
-                  setState(() => _selectedCity = matchedCity);
-                }
-              }
-            }
-          }
-        }
+        await _reverseGeocodeAndFill(position.latitude, position.longitude);
       }
     } catch (e) {
       debugPrint('Error reverse geocoding: $e');
@@ -1047,10 +1148,8 @@ class _BusinessRegistrationScreenState extends ConsumerState<BusinessRegistratio
                         );
                       }
                       _addMarker(LatLng(lat, lon));
-
-                      // Auto-fill address detail fields
-                      _addressController.text = item['name'] as String? ?? item['street'] as String? ?? '';
-                      _pincodeController.text = item['postcode'] as String? ?? '';
+                      // Prefer reverse geocode so country/state/city dropdowns also fill.
+                      await _reverseGeocodeAndFill(lat, lon);
                     }
                   },
                 );
@@ -1102,8 +1201,10 @@ class _BusinessRegistrationScreenState extends ConsumerState<BusinessRegistratio
                         setState(() {
                           _latitude = target.latitude;
                           _longitude = target.longitude;
+                          _manuallySelectedCoordinates = true;
                         });
                         _addMarker(target);
+                        _scheduleReverseGeocode(target.latitude, target.longitude);
                       }
                     }
                   },
@@ -1126,6 +1227,7 @@ class _BusinessRegistrationScreenState extends ConsumerState<BusinessRegistratio
         _loadingCountries
             ? const LinearProgressIndicator(color: _RegTok.primary)
             : DropdownButtonFormField<Country>(
+                key: ValueKey('country-${_selectedCountry?.iso2 ?? 'none'}'),
                 dropdownColor: _RegTok.bg,
                 initialValue: _selectedCountry,
                 style: const TextStyle(color: _RegTok.textHigh, fontSize: 13),
@@ -1144,6 +1246,7 @@ class _BusinessRegistrationScreenState extends ConsumerState<BusinessRegistratio
           _loadingStates
               ? const LinearProgressIndicator(color: _RegTok.primary)
               : DropdownButtonFormField<StateModel>(
+                  key: ValueKey('state-${_selectedState?.iso2 ?? 'none'}'),
                   dropdownColor: _RegTok.bg,
                   initialValue: _selectedState,
                   style: const TextStyle(color: _RegTok.textHigh, fontSize: 13),
@@ -1163,6 +1266,7 @@ class _BusinessRegistrationScreenState extends ConsumerState<BusinessRegistratio
           _loadingCities
               ? const LinearProgressIndicator(color: _RegTok.primary)
               : DropdownButtonFormField<CityModel>(
+                  key: ValueKey('city-${_selectedCity?.name ?? 'none'}'),
                   dropdownColor: _RegTok.bg,
                   initialValue: _selectedCity,
                   style: const TextStyle(color: _RegTok.textHigh, fontSize: 13),

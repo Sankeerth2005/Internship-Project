@@ -197,7 +197,10 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       HapticFeedback.mediumImpact();
       ref.read(splashShownProvider.notifier).setShown(true);
       if (authState is AuthAuthenticated) {
-        context.go(RoleRoutes.homeForRole(authState.userType));
+        context.go(RoleRoutes.resolvePostAuthRoute(
+          accountType: authState.userType,
+          activeExperience: authState.activeExperience,
+        ));
       } else {
         context.go('/welcome');
       }

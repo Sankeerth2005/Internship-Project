@@ -6,6 +6,7 @@ import '../../../core/network/app_error_formatter.dart';
 import '../data/models/login_request.dart';
 import '../data/models/register_request.dart';
 import '../data/models/auth_response.dart';
+import '../data/models/authorized_experiences.dart';
 import '../data/repositories/auth_repository.dart';
 import 'auth_state.dart';
 import 'user_provider.dart';
@@ -54,6 +55,7 @@ class AuthNotifier extends Notifier<AuthState> {
     final refreshToken = await SecureStorageService.getRefreshToken();
     final userType = await SecureStorageService.getUserType();
     final userId = await SecureStorageService.getUserId();
+    final activeExperience = await SecureStorageService.getActiveExperience();
 
     if (userType == null || userId == null) {
       state = const AuthUnauthenticated();
@@ -65,7 +67,11 @@ class AuthNotifier extends Notifier<AuthState> {
     if (refreshToken != null && refreshToken.isNotEmpty) {
       try {
         final refreshed = await _repository.refresh(refreshToken);
-        await _persistSession(refreshed);
+        await _persistSession(
+          refreshed,
+          clearActiveExperience: false,
+          preserveActiveExperience: activeExperience,
+        );
         return;
       } catch (_) {
         await SecureStorageService.clearAuth();
@@ -76,14 +82,22 @@ class AuthNotifier extends Notifier<AuthState> {
 
     if (token != null && token.isNotEmpty) {
       // Legacy session without refresh token — keep until first 401, then logout.
-      state = AuthAuthenticated(userType, userId);
+      state = AuthAuthenticated(
+        userType,
+        userId,
+        activeExperience: activeExperience,
+      );
       return;
     }
 
     state = const AuthUnauthenticated();
   }
 
-  Future<void> _persistSession(AuthResponse response) async {
+  Future<void> _persistSession(
+    AuthResponse response, {
+    required bool clearActiveExperience,
+    String? preserveActiveExperience,
+  }) async {
     final parsedUserId = int.tryParse(response.user.id) ?? 0;
 
     await SecureStorageService.saveToken(response.token);
@@ -93,10 +107,23 @@ class AuthNotifier extends Notifier<AuthState> {
     await SecureStorageService.saveUserType(response.user.userType);
     await SecureStorageService.saveUserId(parsedUserId);
 
+    String? experience;
+    if (clearActiveExperience) {
+      await SecureStorageService.clearActiveExperience();
+      experience = null;
+    } else {
+      experience = preserveActiveExperience ??
+          await SecureStorageService.getActiveExperience();
+    }
+
     ref.read(userRepositoryProvider).clearCache();
     ref.invalidate(userProfileProvider);
     ref.invalidate(myBusinessesProvider);
-    state = AuthAuthenticated(response.user.userType, parsedUserId);
+    state = AuthAuthenticated(
+      response.user.userType,
+      parsedUserId,
+      activeExperience: experience,
+    );
   }
 
   Future<void> login(
@@ -111,7 +138,8 @@ class AuthNotifier extends Notifier<AuthState> {
       );
 
       final response = await _repository.login(request);
-      await _persistSession(response);
+      // Fresh login must show Continue As (do not reuse prior experience).
+      await _persistSession(response, clearActiveExperience: true);
     } catch (e) {
       state = AuthError(AppErrorFormatter.format(e));
     }
@@ -134,9 +162,58 @@ class AuthNotifier extends Notifier<AuthState> {
     state = const AuthLoading();
     try {
       final response = await _repository.googleSignIn(idToken);
-      await _persistSession(response);
+      await _persistSession(response, clearActiveExperience: true);
     } catch (e) {
       state = AuthError(AppErrorFormatter.format(e));
+    }
+  }
+
+  Future<AuthorizedExperiencesDto> loadAuthorizedExperiences() {
+    return _repository.getAuthorizedExperiences();
+  }
+
+  /// Validates experience with the backend, then persists it for session restore.
+  Future<SelectExperienceResultDto> selectExperience(String experience) async {
+    final result = await _repository.selectExperience(experience);
+    final current = state;
+    if (current is! AuthAuthenticated) {
+      throw Exception('Not authenticated');
+    }
+
+    if (result.allowed) {
+      await SecureStorageService.saveActiveExperience(result.experience);
+      state = current.copyWith(activeExperience: result.experience);
+    }
+
+    return result;
+  }
+
+  /// After first business registration, refresh JWT/account type and enter Owner.
+  Future<void> syncSessionAfterOwnerOnboarding() async {
+    final refreshToken = await SecureStorageService.getRefreshToken();
+    if (refreshToken != null && refreshToken.isNotEmpty) {
+      try {
+        final refreshed = await _repository.refresh(refreshToken);
+        await SecureStorageService.saveActiveExperience('businessowner');
+        await _persistSession(
+          refreshed,
+          clearActiveExperience: false,
+          preserveActiveExperience: 'businessowner',
+        );
+        return;
+      } catch (_) {
+        // Fall through to local promotion if refresh fails.
+      }
+    }
+
+    final current = state;
+    if (current is AuthAuthenticated) {
+      await SecureStorageService.saveUserType('businessowner');
+      await SecureStorageService.saveActiveExperience('businessowner');
+      state = current.copyWith(
+        userType: 'businessowner',
+        activeExperience: 'businessowner',
+      );
     }
   }
 

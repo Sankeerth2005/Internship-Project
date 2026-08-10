@@ -410,7 +410,10 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
         AppFeedback.showError(context, cleanMsg);
       } else if (next is AuthAuthenticated) {
         HapticFeedback.mediumImpact();
-        context.go(RoleRoutes.homeForRole(next.userType));
+        context.go(RoleRoutes.resolvePostAuthRoute(
+          accountType: next.userType,
+          activeExperience: next.activeExperience,
+        ));
       }
     });
 

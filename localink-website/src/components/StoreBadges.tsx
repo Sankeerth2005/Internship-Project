@@ -15,55 +15,47 @@ export default function StoreBadges({
   playHref = '/download',
   appleHref = '/download',
 }: StoreBadgesProps) {
-  const icon = size === 'lg' ? 28 : 24
-  const pad = size === 'lg' ? 'px-4 py-3' : 'px-3.5 py-2.5'
-  const title = size === 'lg' ? 'text-base' : 'text-sm'
-  const sub = size === 'lg' ? 'text-[10px]' : 'text-[9px]'
+  const height = size === 'lg' ? 56 : 48
+  // Official badge aspect ratios (trimmed Play asset is ~564×168)
+  const playWidth = Math.round(height * (564 / 168))
+  const appleWidth = Math.round(height * (120 / 40))
 
   return (
-    <div className={cn('flex flex-col sm:flex-row gap-3', className)}>
+    <div className={cn('flex flex-wrap items-center gap-3', className)}>
       <Link
         href={playHref}
-        className={cn(
-          'inline-flex items-center gap-3 rounded-xl bg-[#111111] text-white shadow-soft transition hover:-translate-y-0.5 hover:bg-black',
-          pad
-        )}
+        target={playHref.startsWith('http') ? '_blank' : undefined}
+        rel={playHref.startsWith('http') ? 'noopener noreferrer' : undefined}
+        className="inline-block transition hover:opacity-90 hover:-translate-y-0.5"
+        aria-label="Get it on Google Play"
       >
         <Image
-          src="/google-play.png"
-          alt="Google Play"
-          width={icon}
-          height={icon}
-          className="shrink-0 rounded-md object-contain"
+          src="/badges/google-play-badge.png"
+          alt="Get it on Google Play"
+          width={playWidth}
+          height={height}
+          className="h-auto w-auto"
+          style={{ height, width: 'auto' }}
         />
-        <span className="text-left leading-tight">
-          <span className={cn('block uppercase tracking-wide text-white/70 font-semibold', sub)}>
-            Get it on
-          </span>
-          <span className={cn('block font-bold', title)}>Google Play</span>
-        </span>
       </Link>
 
       <Link
         href={appleHref}
-        className={cn(
-          'inline-flex items-center gap-3 rounded-xl bg-[#111111] text-white shadow-soft transition hover:-translate-y-0.5 hover:bg-black',
-          pad
-        )}
+        target={appleHref.startsWith('http') ? '_blank' : undefined}
+        rel={appleHref.startsWith('http') ? 'noopener noreferrer' : undefined}
+        className="inline-block transition hover:opacity-90 hover:-translate-y-0.5"
+        aria-label="Download on the App Store"
       >
-        <Image
-          src="/app-store.png"
-          alt="App Store"
-          width={icon}
-          height={icon}
-          className="shrink-0 rounded-[7px] object-contain"
+        {/* Official Apple badge SVG */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/badges/app-store-badge.svg"
+          alt="Download on the App Store"
+          width={appleWidth}
+          height={height}
+          className="block"
+          style={{ height, width: 'auto' }}
         />
-        <span className="text-left leading-tight">
-          <span className={cn('block uppercase tracking-wide text-white/70 font-semibold', sub)}>
-            Download on the
-          </span>
-          <span className={cn('block font-bold', title)}>App Store</span>
-        </span>
       </Link>
     </div>
   )

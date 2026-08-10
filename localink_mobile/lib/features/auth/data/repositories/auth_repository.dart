@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import '../models/login_request.dart';
 import '../models/register_request.dart';
 import '../models/auth_response.dart';
+import '../models/authorized_experiences.dart';
 
 class AuthRepository {
   final Dio dio;
@@ -63,6 +64,37 @@ class AuthRepository {
     }
   }
 
+  Future<AuthorizedExperiencesDto> getAuthorizedExperiences() async {
+    try {
+      final response = await dio.get('auth/experiences');
+      if (response.data['success'] == true) {
+        return AuthorizedExperiencesDto.fromJson(
+          Map<String, dynamic>.from(response.data['data'] as Map),
+        );
+      }
+      throw Exception(response.data['message'] ?? 'Failed to load experiences');
+    } on DioException catch (e) {
+      throw Exception(_handleDioError(e));
+    }
+  }
+
+  Future<SelectExperienceResultDto> selectExperience(String experience) async {
+    try {
+      final response = await dio.post(
+        'auth/select-experience',
+        data: {'experience': experience},
+      );
+      if (response.data['success'] == true) {
+        return SelectExperienceResultDto.fromJson(
+          Map<String, dynamic>.from(response.data['data'] as Map),
+        );
+      }
+      throw Exception(response.data['message'] ?? 'Experience selection failed');
+    } on DioException catch (e) {
+      throw Exception(_handleDioError(e));
+    }
+  }
+
   Future<void> logout(String? refreshToken) async {
     if (refreshToken == null || refreshToken.isEmpty) return;
     try {
@@ -78,12 +110,10 @@ class AuthRepository {
       final msg = data['message']?.toString();
       final err = data['error']?.toString();
       final errors = data['errors'];
-      
-      // Extract validation errors from structured response
+
       if (errors != null && errors is List && errors.isNotEmpty) {
         final errorMessages = errors.map((e) {
           if (e is Map) {
-            final field = e['field']?.toString() ?? '';
             final fieldErrors = e['errors'];
             if (fieldErrors is List && fieldErrors.isNotEmpty) {
               return fieldErrors.join(', ');
@@ -95,14 +125,19 @@ class AuthRepository {
           return errorMessages;
         }
       }
-      
-      if (msg != null && msg.isNotEmpty && msg != "Something went wrong") return msg;
+
+      if (msg != null && msg.isNotEmpty && msg != "Something went wrong") {
+        return msg;
+      }
       if (err != null && err.isNotEmpty) return err;
       if (msg != null && msg.isNotEmpty) return msg;
-    } else if (data is String && data.isNotEmpty && !data.contains('<!DOCTYPE')) {
+    } else if (data is String &&
+        data.isNotEmpty &&
+        !data.contains('<!DOCTYPE')) {
       return data;
     }
-    if (error.type == DioExceptionType.connectionTimeout || error.type == DioExceptionType.receiveTimeout) {
+    if (error.type == DioExceptionType.connectionTimeout ||
+        error.type == DioExceptionType.receiveTimeout) {
       return 'Connection timed out. Please check your internet connection.';
     }
     return 'An unexpected error occurred. Please try again.';

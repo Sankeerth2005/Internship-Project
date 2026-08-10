@@ -337,6 +337,20 @@ namespace localink_be.Services.Implementations
 
                 await _db.SaveChangesAsync();
 
+                // Promote consumer accounts to businessowner after first listing so
+                // JWT Role / Continue-As Owner authorization stay consistent.
+                var owner = await _db.Users.FirstOrDefaultAsync(u => u.UserId == userId);
+                if (owner != null)
+                {
+                    var type = (owner.AccountType ?? string.Empty).Trim().ToLowerInvariant();
+                    if (type is "user" or "client")
+                    {
+                        owner.AccountType = "businessowner";
+                        owner.UpdatedAt = DateTime.UtcNow;
+                        await _db.SaveChangesAsync();
+                    }
+                }
+
                 await transaction.CommitAsync();
 
                 // 2. Heavy operations (SMTP Emails & SignalR broadcasts) are executed on a background thread

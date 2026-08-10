@@ -37,7 +37,7 @@ namespace localink_be.Controllers
             return Ok(business);
         }
 
-        [Authorize(Roles = "client,businessowner")]
+        [Authorize(Roles = "user,client,businessowner")]
         [HttpPost("register")]
         public async Task<IActionResult> RegisterBusiness([FromBody] RegisterBusinessDto dto)
         {

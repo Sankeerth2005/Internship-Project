@@ -379,6 +379,86 @@ namespace localink_be.Services.Implementations
             return "Password changed successfully. Please sign in again.";
         }
 
+        public async Task<AuthorizedExperiencesDto> GetAuthorizedExperiencesAsync(long userId)
+        {
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.UserId == userId)
+                ?? throw new UnauthorizedAccessException("User not found");
+
+            var accountType = NormalizeAccountType(user.AccountType);
+            var ownsBusiness = await _context.Businesses.AnyAsync(b => b.UserId == userId);
+            var canOwner = accountType == "businessowner" || accountType == "admin" || ownsBusiness;
+            var canUser = accountType != "admin";
+
+            var experiences = new List<string>();
+            if (canUser) experiences.Add("user");
+            if (canOwner) experiences.Add("businessowner");
+            if (accountType == "admin") experiences.Add("admin");
+
+            return new AuthorizedExperiencesDto
+            {
+                AccountType = accountType,
+                AuthorizedExperiences = experiences,
+                CanContinueAsUser = canUser,
+                CanContinueAsBusinessOwner = canOwner,
+                CanRegisterBusiness = accountType is "user" or "client" or "businessowner"
+            };
+        }
+
+        public async Task<SelectExperienceResultDto> SelectExperienceAsync(long userId, string experience)
+        {
+            var requested = (experience ?? string.Empty).Trim().ToLowerInvariant();
+            if (requested is not ("user" or "businessowner"))
+                throw new ArgumentException("Experience must be user or businessowner");
+
+            var caps = await GetAuthorizedExperiencesAsync(userId);
+
+            if (requested == "user")
+            {
+                if (!caps.CanContinueAsUser)
+                {
+                    return new SelectExperienceResultDto
+                    {
+                        Allowed = false,
+                        Experience = requested,
+                        Destination = "admin",
+                        Message = "This account uses the admin experience."
+                    };
+                }
+
+                return new SelectExperienceResultDto
+                {
+                    Allowed = true,
+                    Experience = "user",
+                    Destination = "user",
+                    Message = null
+                };
+            }
+
+            // businessowner
+            if (caps.CanContinueAsBusinessOwner)
+            {
+                return new SelectExperienceResultDto
+                {
+                    Allowed = true,
+                    Experience = "businessowner",
+                    Destination = "businessowner",
+                    Message = null
+                };
+            }
+
+            // Not authorized for Owner dashboard — reuse existing business registration flow.
+            return new SelectExperienceResultDto
+            {
+                Allowed = false,
+                Experience = "businessowner",
+                Destination = "register-business",
+                Message = "Your account is not authorized for the Business Owner portal yet. Register your business to continue."
+            };
+        }
+
+        private static string NormalizeAccountType(string? accountType) =>
+            (accountType ?? "user").Trim().ToLowerInvariant();
+
         private async Task<object> IssueSessionAsync(User user, bool? isNewUser = null)
         {
             var accessToken = GenerateAccessToken(user);

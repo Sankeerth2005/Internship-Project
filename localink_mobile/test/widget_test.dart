@@ -7,6 +7,17 @@ void main() {
     expect(RoleRoutes.homeForRole('client'), '/home');
     expect(RoleRoutes.homeForRole('businessowner'), '/business-dashboard');
     expect(RoleRoutes.homeForRole('admin'), '/admin-dashboard');
+    expect(
+      RoleRoutes.resolvePostAuthRoute(accountType: 'client'),
+      RoleRoutes.continueAs,
+    );
+    expect(
+      RoleRoutes.resolvePostAuthRoute(
+        accountType: 'client',
+        activeExperience: 'user',
+      ),
+      '/home',
+    );
     expect(AppConfig.backendHost, isNotEmpty);
   });
 }

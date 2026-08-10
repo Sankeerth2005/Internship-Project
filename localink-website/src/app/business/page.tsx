@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import Image from 'next/image'
 import { Check } from 'lucide-react'
 import PageShell from '@/components/PageShell'
 import Button from '@/components/Button'
@@ -14,11 +15,27 @@ export default function BusinessPage() {
   return (
     <PageShell
       eyebrow="Owners"
-      title={siteContent.business.title}
+      title="Manage. Grow. Succeed."
       description={siteContent.business.subtitle}
       ctaHref="/download"
       ctaLabel="Get started in the app"
     >
+      <section className="pb-10">
+        <div className="mx-auto w-full max-w-[1100px] px-3 sm:px-5 lg:px-6">
+          <div className="overflow-hidden rounded-2xl sm:rounded-3xl border border-border bg-[#F7F2EC] shadow-soft">
+            <Image
+              src="/images/marketing/business-suite.webp"
+              alt="Business Suite screens — analytics, controls, details, and catalog"
+              width={1600}
+              height={1065}
+              className="block h-auto w-full select-none"
+              quality={85}
+              sizes="(max-width: 1100px) 100vw, 1100px"
+              priority
+            />
+          </div>
+        </div>
+      </section>
       <section className="pb-24">
         <div className="container-custom grid gap-6 lg:grid-cols-2">
           <div className="rounded-card border border-border bg-white p-8 shadow-soft">

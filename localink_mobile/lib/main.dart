@@ -30,6 +30,7 @@ import 'features/shared/presentation/screens/support_screen.dart';
 import 'features/admin/presentation/screens/admin_dashboard_screen.dart';
 import 'features/auth/presentation/screens/splash_screen.dart';
 import 'features/auth/presentation/screens/welcome_screen.dart';
+import 'features/auth/presentation/screens/continue_as_screen.dart';
 import 'features/chat/presentation/screens/conversations_screen.dart';
 import 'features/chat/presentation/screens/chat_screen.dart';
 import 'features/catalog/presentation/screens/manage_catalog_screen.dart';
@@ -74,14 +75,18 @@ void main() {
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
 
-String _homeForRole(String userType) => RoleRoutes.homeForRole(userType);
+String _postAuthRoute(AuthAuthenticated auth) =>
+    RoleRoutes.resolvePostAuthRoute(
+      accountType: auth.userType,
+      activeExperience: auth.activeExperience,
+    );
 
 bool _isAdminRoute(String location) =>
     location == '/admin-dashboard' || location == '/admin-heatmap';
 
+/// Owner dashboard / management surfaces (excludes business onboarding).
 bool _isOwnerRoute(String location) =>
     location == '/business-dashboard' ||
-    location.startsWith('/register-business') ||
     location.startsWith('/edit-business') ||
     location.startsWith('/analytics/') ||
     location.startsWith('/owner-analytics/') ||
@@ -107,7 +112,7 @@ final routerProvider = Provider<GoRouter>((ref) {
 
       if (currentLocation == '/splash') {
         if (authState is AuthAuthenticated) {
-          return _homeForRole(authState.userType);
+          return _postAuthRoute(authState);
         }
         return '/welcome';
       }
@@ -129,17 +134,39 @@ final routerProvider = Provider<GoRouter>((ref) {
       }
 
       if (authState is AuthAuthenticated) {
+        final postAuth = _postAuthRoute(authState);
+
         if (isPublicRoute && currentLocation != '/privacy-policy') {
-          return _homeForRole(authState.userType);
+          return postAuth;
+        }
+
+        // Authenticated but experience not chosen yet → Continue As only.
+        if (authState.activeExperience == null &&
+            !RoleRoutes.isAdmin(authState.userType) &&
+            currentLocation != RoleRoutes.continueAs &&
+            !currentLocation.startsWith('/register-business')) {
+          return RoleRoutes.continueAs;
+        }
+
+        // Already chose an experience — leave Continue As.
+        if (currentLocation == RoleRoutes.continueAs &&
+            (authState.activeExperience != null ||
+                RoleRoutes.isAdmin(authState.userType))) {
+          return postAuth;
         }
 
         final role = authState.userType;
         if (_isAdminRoute(currentLocation) && !RoleRoutes.isAdmin(role)) {
-          return _homeForRole(role);
+          return postAuth;
         }
-        if (_isOwnerRoute(currentLocation) &&
-            !RoleRoutes.canAccessOwnerRoutes(role)) {
-          return _homeForRole(role);
+        if (_isOwnerRoute(currentLocation) && !RoleRoutes.isAdmin(role)) {
+          final canAccount = RoleRoutes.canAccessOwnerRoutes(role);
+          final choseOwner =
+              RoleRoutes.normalize(authState.activeExperience) ==
+                  'businessowner';
+          if (!canAccount || !choseOwner) {
+            return postAuth;
+          }
         }
       }
 
@@ -153,6 +180,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/welcome',
         builder: (context, state) => const WelcomeScreen(),
+      ),
+      GoRoute(
+        path: '/continue-as',
+        builder: (context, state) => const ContinueAsScreen(),
       ),
       GoRoute(
         path: '/login',

@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Menu, X } from 'lucide-react'
-import { AnimatePresence, motion } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import { navigation } from '@/constants/navigation'
 import BrandLogo from '@/components/BrandLogo'
@@ -19,31 +18,38 @@ export default function Navbar() {
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
 
+  useEffect(() => {
+    document.body.style.overflow = open ? 'hidden' : ''
+    return () => {
+      document.body.style.overflow = ''
+    }
+  }, [open])
+
   return (
     <header
       className={cn(
-        'fixed inset-x-0 top-0 z-50 transition-all duration-400',
-        scrolled
-          ? 'bg-white/90 backdrop-blur-xl border-b border-border shadow-soft py-2'
+        'fixed inset-x-0 top-0 z-50 transition-[background-color,box-shadow,padding] duration-300',
+        scrolled || open
+          ? 'border-b border-border bg-white/95 py-2 shadow-soft backdrop-blur-md'
           : 'bg-transparent py-3'
       )}
     >
       <nav className="container-custom flex items-center justify-between" aria-label="Primary">
-        <BrandLogo size="md" />
+        <BrandLogo size="md" priority />
 
-        <div className="hidden lg:flex items-center gap-7">
+        <div className="hidden items-center gap-7 lg:flex">
           {navigation.main.map((item) => (
             <Link
               key={item.name}
               href={item.href}
-              className="text-sm font-semibold text-text-muted hover:text-primary transition-colors"
+              className="text-sm font-semibold text-text-muted transition-colors hover:text-primary"
             >
               {item.name}
             </Link>
           ))}
           <Link
             href="/download"
-            className="rounded-button bg-primary px-5 py-2.5 text-sm font-bold text-white shadow-button hover:bg-primary-dark transition-colors"
+            className="rounded-button bg-primary px-5 py-2.5 text-sm font-bold text-white shadow-button transition-colors hover:bg-primary-dark"
           >
             Get the app
           </Link>
@@ -51,45 +57,44 @@ export default function Navbar() {
 
         <button
           type="button"
-          className="lg:hidden p-2 text-text-muted hover:text-text"
+          className="rounded-lg p-2 text-text-muted transition-colors hover:bg-primary/5 hover:text-text lg:hidden"
           aria-label={open ? 'Close menu' : 'Open menu'}
           aria-expanded={open}
+          aria-controls="mobile-nav"
           onClick={() => setOpen((v) => !v)}
         >
-          {open ? <X size={24} /> : <Menu size={24} />}
+          {open ? <X size={24} aria-hidden /> : <Menu size={24} aria-hidden />}
         </button>
       </nav>
 
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className="lg:hidden overflow-hidden border-t border-border bg-white/95 backdrop-blur-xl"
-          >
-            <div className="container-custom flex flex-col gap-3 py-5">
-              {navigation.main.map((item) => (
-                <Link
-                  key={item.name}
-                  href={item.href}
-                  className="text-base font-semibold text-text-muted hover:text-primary py-1"
-                  onClick={() => setOpen(false)}
-                >
-                  {item.name}
-                </Link>
-              ))}
-              <Link
-                href="/download"
-                onClick={() => setOpen(false)}
-                className="mt-1 rounded-button bg-primary px-5 py-3 text-center text-sm font-bold text-white"
-              >
-                Get the app
-              </Link>
-            </div>
-          </motion.div>
+      <div
+        id="mobile-nav"
+        hidden={!open}
+        className={cn(
+          'border-t border-border bg-white lg:hidden',
+          open ? 'block' : 'hidden'
         )}
-      </AnimatePresence>
+      >
+        <div className="container-custom flex flex-col gap-1 py-4">
+          {navigation.main.map((item) => (
+            <Link
+              key={item.name}
+              href={item.href}
+              className="rounded-xl px-3 py-3 text-base font-semibold text-text-muted transition-colors hover:bg-primary/5 hover:text-primary"
+              onClick={() => setOpen(false)}
+            >
+              {item.name}
+            </Link>
+          ))}
+          <Link
+            href="/download"
+            onClick={() => setOpen(false)}
+            className="mt-2 rounded-button bg-primary px-5 py-3 text-center text-sm font-bold text-white"
+          >
+            Get the app
+          </Link>
+        </div>
+      </div>
     </header>
   )
 }

@@ -1,5 +1,4 @@
 import 'package:flutter_test/flutter_test.dart';
-
 import 'package:localink_mobile/core/auth/role_routes.dart';
 
 void main() {
@@ -22,7 +21,7 @@ void main() {
     });
   });
 
-  group('RoleRoutes access helpers', () {
+  group('RoleRoutes helpers', () {
     test('isAdmin / isBusinessOwner', () {
       expect(RoleRoutes.isAdmin('admin'), isTrue);
       expect(RoleRoutes.isAdmin('client'), isFalse);
@@ -30,10 +29,60 @@ void main() {
       expect(RoleRoutes.isBusinessOwner('client'), isFalse);
     });
 
-    test('canAccessOwnerRoutes excludes plain client', () {
+    test('canAccessOwnerRoutes', () {
       expect(RoleRoutes.canAccessOwnerRoutes('businessowner'), isTrue);
       expect(RoleRoutes.canAccessOwnerRoutes('admin'), isTrue);
       expect(RoleRoutes.canAccessOwnerRoutes('client'), isFalse);
+      expect(RoleRoutes.canAccessOwnerRoutes('user'), isFalse);
+    });
+  });
+
+  group('RoleRoutes.resolvePostAuthRoute', () {
+    test('admin skips continue-as', () {
+      expect(
+        RoleRoutes.resolvePostAuthRoute(accountType: 'admin'),
+        '/admin-dashboard',
+      );
+    });
+
+    test('authenticated without experience goes to continue-as', () {
+      expect(
+        RoleRoutes.resolvePostAuthRoute(accountType: 'user'),
+        RoleRoutes.continueAs,
+      );
+      expect(
+        RoleRoutes.resolvePostAuthRoute(accountType: 'businessowner'),
+        RoleRoutes.continueAs,
+      );
+    });
+
+    test('selected user experience goes to home', () {
+      expect(
+        RoleRoutes.resolvePostAuthRoute(
+          accountType: 'businessowner',
+          activeExperience: 'user',
+        ),
+        '/home',
+      );
+    });
+
+    test('selected owner experience goes to owner dashboard', () {
+      expect(
+        RoleRoutes.resolvePostAuthRoute(
+          accountType: 'businessowner',
+          activeExperience: 'businessowner',
+        ),
+        '/business-dashboard',
+      );
+    });
+  });
+
+  group('RoleRoutes.routeForDestination', () {
+    test('maps backend destination keys', () {
+      expect(RoleRoutes.routeForDestination('user'), '/home');
+      expect(RoleRoutes.routeForDestination('businessowner'), '/business-dashboard');
+      expect(RoleRoutes.routeForDestination('register-business'), '/register-business');
+      expect(RoleRoutes.routeForDestination('admin'), '/admin-dashboard');
     });
   });
 }

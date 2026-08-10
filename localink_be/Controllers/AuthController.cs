@@ -181,5 +181,44 @@ namespace localink_be.Controllers
                 message = result
             });
         }
+
+        // AUTHORIZED POST-AUTH EXPERIENCES (Continue As)
+        [Authorize]
+        [HttpGet("experiences")]
+        public async Task<IActionResult> GetAuthorizedExperiences()
+        {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userIdClaim) || !long.TryParse(userIdClaim, out var userId))
+                return Unauthorized(new { success = false, message = "Unauthorized" });
+
+            var result = await _authService.GetAuthorizedExperiencesAsync(userId);
+
+            return Ok(new
+            {
+                success = true,
+                data = result
+            });
+        }
+
+        // VALIDATE SELECTED EXPERIENCE (backend is source of truth)
+        [Authorize]
+        [HttpPost("select-experience")]
+        public async Task<IActionResult> SelectExperience([FromBody] SelectExperienceRequest request)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(new { success = false, errors = ModelState });
+
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userIdClaim) || !long.TryParse(userIdClaim, out var userId))
+                return Unauthorized(new { success = false, message = "Unauthorized" });
+
+            var result = await _authService.SelectExperienceAsync(userId, request.Experience);
+
+            return Ok(new
+            {
+                success = true,
+                data = result
+            });
+        }
     }
 }

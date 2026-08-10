@@ -13,6 +13,7 @@ class SecureStorageService {
   static const _refreshTokenKey = 'refresh_token';
   static const _userTypeKey = 'user_type';
   static const _userIdKey = 'user_id';
+  static const _activeExperienceKey = 'active_experience';
 
   static Future<void> saveToken(String token) async {
     try {
@@ -99,6 +100,32 @@ class SecureStorageService {
     }
   }
 
+  /// Persisted post-auth experience for this device session ("user" | "businessowner").
+  static Future<void> saveActiveExperience(String experience) async {
+    try {
+      await _storage.write(key: _activeExperienceKey, value: experience);
+    } catch (e) {
+      debugPrint('SecureStorageService: Error writing activeExperience: $e');
+    }
+  }
+
+  static Future<String?> getActiveExperience() async {
+    try {
+      return await _storage.read(key: _activeExperienceKey);
+    } catch (e) {
+      debugPrint('SecureStorageService: Error reading activeExperience: $e');
+      return null;
+    }
+  }
+
+  static Future<void> clearActiveExperience() async {
+    try {
+      await _storage.delete(key: _activeExperienceKey);
+    } catch (e) {
+      debugPrint('SecureStorageService: Error clearing activeExperience: $e');
+    }
+  }
+
   /// Clears only auth-related keys (keeps other secure prefs intact).
   static Future<void> clearAuth() async {
     try {
@@ -107,6 +134,7 @@ class SecureStorageService {
         _storage.delete(key: _refreshTokenKey),
         _storage.delete(key: _userTypeKey),
         _storage.delete(key: _userIdKey),
+        _storage.delete(key: _activeExperienceKey),
       ]);
     } catch (e) {
       debugPrint('SecureStorageService: Error clearing auth: $e');
