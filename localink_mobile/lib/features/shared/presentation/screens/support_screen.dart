@@ -100,7 +100,7 @@ class _SupportScreenState extends State<SupportScreen> {
           onTap: () => FocusScope.of(context).unfocus(),
           child: SingleChildScrollView(
             physics: const BouncingScrollPhysics(),
-            padding: EdgeInsets.only(bottom: 120 + MediaQuery.of(context).padding.bottom),
+            padding: EdgeInsets.only(bottom: 24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [

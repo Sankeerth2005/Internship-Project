@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using localink_be.Data;
+using localink_be.Extensions;
 using localink_be.Models.DTOs;
 using localink_be.Models.Entities;
 using localink_be.Services.Interfaces;
@@ -76,6 +77,7 @@ namespace localink_be.Services.Implementations
             return await _context.Businesses
                 .AsNoTracking()
                 .Where(b => ids.Contains(b.BusinessId))
+                .WhereVisibleToConsumers()
                 .Select(b => new BusinessDto
                 {
                     Id = b.BusinessId,

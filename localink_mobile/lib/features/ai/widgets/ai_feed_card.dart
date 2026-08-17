@@ -22,13 +22,15 @@ class _AiFeedCardState extends State<AiFeedCard> {
     final city = (widget.item['city'] ?? '').toString();
     final rawDistance = widget.item['distance'];
     final distance = rawDistance is num ? rawDistance.toDouble() : null;
-    if (distance != null && distance > 0) {
-      final distText = distance < 1
-          ? '${(distance * 1000).round()} m'
-          : '${distance.toStringAsFixed(1)} km';
+    if (distance != null) {
+      final distText = distance < 0.05
+          ? 'Nearby'
+          : distance < 1
+              ? '${(distance * 1000).round()} m'
+              : '${distance.toStringAsFixed(1)} km';
       return city.isNotEmpty ? '$city · $distText' : distText;
     }
-    return city;
+    return city.isNotEmpty ? city : 'Near you';
   }
 
   @override
@@ -37,6 +39,7 @@ class _AiFeedCardState extends State<AiFeedCard> {
     final photoUrl = photos.isNotEmpty
         ? '${DioClient.backendOrigin}${photos.first}'
         : null;
+    final reason = (widget.item['reason'] ?? '').toString().trim();
 
     return GestureDetector(
       onTapDown: (_) => setState(() => _scale = 0.98),
@@ -109,6 +112,17 @@ class _AiFeedCardState extends State<AiFeedCard> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
+                    if (reason.isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        reason,
+                        style: const TextStyle(
+                          color: Color(0xFFFF6600),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 6),
                     Text(
                       widget.item['description'] ?? '',

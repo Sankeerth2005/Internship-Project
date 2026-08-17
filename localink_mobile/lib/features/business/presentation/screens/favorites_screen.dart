@@ -245,7 +245,7 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
                                 ),
                               )
                             : ListView.builder(
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4).copyWith(bottom: 120),
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4).copyWith(bottom: 16),
                                 itemCount: filteredFavs.length,
                                 itemBuilder: (context, index) {
                                   final business = filteredFavs[index];

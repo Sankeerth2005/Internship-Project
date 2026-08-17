@@ -18,19 +18,33 @@ class RoleRoutes {
     return '/home';
   }
 
-  /// Post-auth destination: Continue As unless an experience (or admin) is resolved.
+  /// Default experience for an existing account (skips Continue As).
+  static String? experienceForAccountType(String? accountType) {
+    final role = normalize(accountType);
+    if (role == 'admin') return null;
+    if (role == 'businessowner') return 'businessowner';
+    return 'user';
+  }
+
+  /// Post-auth destination.
+  /// Continue As when [needsExperienceSelection] is true (new account or
+  /// interactive login/Google sign-in). Session restore skips this.
   static String resolvePostAuthRoute({
     required String? accountType,
     String? activeExperience,
+    bool needsExperienceSelection = false,
   }) {
     final account = normalize(accountType);
     if (account == 'admin') return '/admin-dashboard';
+
+    if (needsExperienceSelection) return continueAs;
 
     final experience = normalize(activeExperience);
     if (experience == 'businessowner') return '/business-dashboard';
     if (experience == 'user' || experience == 'client') return '/home';
 
-    return continueAs;
+    // Existing account with no stored experience → use account type.
+    return homeForRole(accountType);
   }
 
   /// Maps backend select-experience destination keys to app routes.

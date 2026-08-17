@@ -16,8 +16,7 @@ namespace localink_be.Models.DTOs
         public string Email { get; set; } = "";
 
         [Required(ErrorMessage = "Phone number is required")]
-        [RegularExpression(@"^[+]?[0-9]{7,15}$", ErrorMessage = "Phone number must be between 7 and 15 digits, optionally starting with +")]
-        [StringLength(15, ErrorMessage = "Phone number cannot exceed 15 characters")]
+        [RegularExpression(@"^[0-9]{7,15}$", ErrorMessage = "Phone number must be between 7 and 15 digits")]
         public string Phone { get; set; } = "";
 
         [Required(ErrorMessage = "Country code is required")]

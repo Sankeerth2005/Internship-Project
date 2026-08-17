@@ -10,6 +10,7 @@ using localink_be.Data;
 using localink_be.Models.Entities;
 using localink_be.Models.DTOs;
 using localink_be.Services.Interfaces;
+using localink_be.Validation;
 using Google.Apis.Auth;
 
 namespace localink_be.Services.Implementations
@@ -43,6 +44,10 @@ namespace localink_be.Services.Implementations
             if (string.IsNullOrWhiteSpace(request.Password) || request.Password.Length < 8)
                 throw new ArgumentException("Password must be at least 8 characters");
 
+            PhoneNumberGuard.EnsureValid(request.Phone, request.CountryCode, request.Country);
+            var nationalPhone = PhoneNumberGuard.NationalNumber(request.Phone, request.CountryCode);
+            var formattedCountryCode = PhoneNumberGuard.FormatCallingCode(request.CountryCode);
+
             User user = null!;
 
             var strategy = _context.Database.CreateExecutionStrategy();
@@ -55,7 +60,7 @@ namespace localink_be.Services.Implementations
                     if (emailExists)
                         throw new InvalidOperationException("Email already exists");
 
-                    var phoneExists = await _context.Users.AnyAsync(u => u.PhoneNumber == request.Phone);
+                    var phoneExists = await _context.Users.AnyAsync(u => u.PhoneNumber == nationalPhone);
                     if (phoneExists)
                         throw new InvalidOperationException("Phone number already exists");
 
@@ -71,9 +76,9 @@ namespace localink_be.Services.Implementations
                         AccountType = accountType,
                         FullName = request.Name,
                         Email = email,
-                        PhoneNumber = request.Phone,
+                        PhoneNumber = nationalPhone,
                         PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password, 12),
-                        CountryCode = request.CountryCode
+                        CountryCode = formattedCountryCode
                     };
 
                     _context.Users.Add(user);
@@ -82,11 +87,11 @@ namespace localink_be.Services.Implementations
                     var address = new Address
                     {
                         UserId = user.UserId,
-                        Country = request.Country,
-                        State = request.State,
-                        City = request.City,
-                        StreetAddress = request.Street,
-                        Pincode = request.Pincode
+                        Country = request.Country?.Trim() ?? string.Empty,
+                        State = request.State?.Trim() ?? string.Empty,
+                        City = request.City?.Trim() ?? string.Empty,
+                        StreetAddress = request.Street?.Trim() ?? string.Empty,
+                        Pincode = request.Pincode?.Trim() ?? string.Empty
                     };
 
                     _context.Addresses.Add(address);
@@ -459,7 +464,7 @@ namespace localink_be.Services.Implementations
         private static string NormalizeAccountType(string? accountType) =>
             (accountType ?? "user").Trim().ToLowerInvariant();
 
-        private async Task<object> IssueSessionAsync(User user, bool? isNewUser = null)
+        private async Task<object> IssueSessionAsync(User user, bool isNewUser = false)
         {
             var accessToken = GenerateAccessToken(user);
             var (refreshToken, entity) = CreateRefreshTokenEntity(user.UserId);
@@ -469,26 +474,8 @@ namespace localink_be.Services.Implementations
             return BuildAuthResponse(user, accessToken, refreshToken, isNewUser);
         }
 
-        private object BuildAuthResponse(User user, string accessToken, string refreshToken, bool? isNewUser = null)
+        private object BuildAuthResponse(User user, string accessToken, string refreshToken, bool isNewUser = false)
         {
-            if (isNewUser.HasValue)
-            {
-                return new
-                {
-                    token = accessToken,
-                    refreshToken,
-                    expiresIn = GetAccessTokenLifetimeSeconds(),
-                    user = new
-                    {
-                        id = user.UserId.ToString(),
-                        name = user.FullName,
-                        email = user.Email,
-                        userType = user.AccountType,
-                        isNewUser = isNewUser.Value
-                    }
-                };
-            }
-
             return new
             {
                 token = accessToken,
@@ -499,7 +486,8 @@ namespace localink_be.Services.Implementations
                     id = user.UserId.ToString(),
                     name = user.FullName,
                     email = user.Email,
-                    userType = user.AccountType
+                    userType = user.AccountType,
+                    isNewUser
                 }
             };
         }

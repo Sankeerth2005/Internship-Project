@@ -55,7 +55,7 @@ class BusinessRepository {
     int? subcategoryId,
     double? radiusKm,
     int page = 1,
-    int pageSize = 20,
+    int pageSize = 10,
   }) async {
     final response = await _dio.get(
       'businesses',
@@ -191,7 +191,7 @@ class BusinessRepository {
   Future<List<BusinessDto>> voiceSearchText(
     String query, {
     bool openNow = false,
-    int radius = 5,
+    int radius = 25,
     String? category,
     double? lat,
     double? lng,

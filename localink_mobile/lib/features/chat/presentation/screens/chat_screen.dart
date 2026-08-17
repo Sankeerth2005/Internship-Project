@@ -4,9 +4,10 @@ import 'package:intl/intl.dart';
 import 'package:record/record.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:path_provider/path_provider.dart';
-import 'dart:io';
 
 import '../../providers/chat_provider.dart';
+import '../../../../core/audio/voice_session_lifecycle.dart';
+import '../../../shared/presentation/widgets/app_safe_bottom_bar.dart';
 
 import 'widgets/audio_bubble.dart';
 
@@ -26,7 +27,8 @@ class ChatScreen extends ConsumerStatefulWidget {
   ConsumerState<ChatScreen> createState() => _ChatScreenState();
 }
 
-class _ChatScreenState extends ConsumerState<ChatScreen> {
+class _ChatScreenState extends ConsumerState<ChatScreen>
+    with VoiceSessionLifecycleMixin {
   final TextEditingController _textController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final AudioRecorder _audioRecorder = AudioRecorder();
@@ -37,13 +39,30 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   @override
   void initState() {
     super.initState();
+    startVoiceLifecycleWatch();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(chatProvider.notifier).loadMessages(widget.conversationId);
     });
   }
 
   @override
+  Future<void> stopActiveVoiceSession() async {
+    try {
+      if (await _audioRecorder.isRecording()) {
+        await _audioRecorder.stop();
+      }
+    } catch (_) {}
+    if (mounted && _isRecording) {
+      setState(() => _isRecording = false);
+    } else {
+      _isRecording = false;
+    }
+  }
+
+  @override
   void dispose() {
+    stopVoiceLifecycleWatch();
+    stopActiveVoiceSession();
     _textController.dispose();
     _scrollController.dispose();
     _audioRecorder.dispose();
@@ -190,7 +209,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   Widget _buildInputArea() {
-    return Container(
+    return AppSafeBottomBar(
+      fillColor: Colors.white,
+      child: Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -203,6 +224,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         ],
       ),
       child: SafeArea(
+        bottom: false,
         child: Row(
           children: [
             GestureDetector(
@@ -252,6 +274,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             ),
           ],
         ),
+      ),
       ),
     );
   }

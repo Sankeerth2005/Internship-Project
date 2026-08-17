@@ -12,7 +12,13 @@ import 'package:image_picker/image_picker.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/widgets/optimized_network_image.dart';
 import '../../../../core/config/app_config.dart';
+import '../../../../core/validation/app_validators.dart';
+import '../../../../core/async/latest_async_guard.dart';
 import '../../../shared/presentation/widgets/app_feedback.dart';
+import '../../../shared/presentation/widgets/app_safe_bottom_bar.dart';
+import '../../../shared/presentation/widgets/searchable_select_field.dart';
+import '../../../shared/presentation/widgets/searchable_picker_sheet.dart';
+import '../../../shared/presentation/widgets/location_picker_items.dart';
 import '../../../../core/network/app_error_formatter.dart';
 
 import '../../providers/business_provider.dart';
@@ -72,6 +78,13 @@ class _BusinessRegistrationScreenState extends ConsumerState<BusinessRegistratio
   bool _loadingCountries = false;
   bool _loadingStates = false;
   bool _loadingCities = false;
+  String? _pincodeError;
+  bool _pincodeValidating = false;
+  final _pincodeGuard = LatestAsyncGuard();
+  final _statesGuard = LatestAsyncGuard();
+  final _citiesGuard = LatestAsyncGuard();
+  Timer? _pincodeDebounce;
+  CancelToken? _pincodeCancel;
 
   // Autocomplete Recommendations
   final TextEditingController _locationSearchController = TextEditingController();
@@ -208,6 +221,8 @@ class _BusinessRegistrationScreenState extends ConsumerState<BusinessRegistratio
   @override
   void dispose() {
     _reverseGeocodeDebounce?.cancel();
+    _pincodeDebounce?.cancel();
+    _pincodeCancel?.cancel();
     _pincodeController.removeListener(_onPincodeChanged);
     _nameController.dispose();
     _descController.dispose();
@@ -222,10 +237,27 @@ class _BusinessRegistrationScreenState extends ConsumerState<BusinessRegistratio
 
   void _onPincodeChanged() {
     if (_fillingFromGeocode) return;
-    final pincode = _pincodeController.text.trim();
-    if (pincode.length == 6 && int.tryParse(pincode) != null) {
-      _lookupPincode(pincode);
+    _pincodeDebounce?.cancel();
+    _pincodeCancel?.cancel();
+    _pincodeGuard.invalidate();
+    if (_pincodeError != null || _pincodeValidating) {
+      setState(() {
+        _pincodeError = null;
+        _pincodeValidating = false;
+      });
     }
+    final pincode = _pincodeController.text.trim();
+    final formatError = AppValidators.pincode(
+      pincode,
+      required: false,
+      countryName: _selectedCountry?.name,
+      countryIso2: _selectedCountry?.iso2,
+      countryCode: _selectedPhoneCode,
+    );
+    if (pincode.isEmpty || formatError != null) return;
+    _pincodeDebounce = Timer(const Duration(milliseconds: 400), () {
+      _lookupPincode(pincode);
+    });
   }
 
   void _scheduleReverseGeocode(double lat, double lon) {
@@ -382,8 +414,55 @@ class _BusinessRegistrationScreenState extends ConsumerState<BusinessRegistratio
   }
 
   Future<void> _lookupPincode(String pincode) async {
+    final requestId = _pincodeGuard.next();
+    _pincodeCancel?.cancel();
+    _pincodeCancel = CancelToken();
+    if (mounted) setState(() => _pincodeValidating = true);
     try {
-      final res = await _locationRepo.validatePincode(pincode);
+      final res = await _locationRepo.validatePincode(
+        pincode,
+        cancelToken: _pincodeCancel,
+      );
+      if (!mounted || !_pincodeGuard.isLatest(requestId)) return;
+      if (_pincodeController.text.trim() != pincode) return;
+
+      if (!res.isValid) {
+        setState(() {
+          _pincodeError = 'Invalid or unverified pincode';
+          _pincodeValidating = false;
+        });
+        return;
+      }
+
+      String norm(String? s) => (s ?? '').toLowerCase().replaceAll(' ', '');
+      final selCountry = norm(_selectedCountry?.name);
+      final selState = norm(_selectedState?.name);
+      if (res.country != null &&
+          selCountry.isNotEmpty &&
+          !norm(res.country).contains(selCountry) &&
+          !selCountry.contains(norm(res.country))) {
+        setState(() {
+          _pincodeError = 'Pincode country mismatch (${res.country})';
+          _pincodeValidating = false;
+        });
+        return;
+      }
+      if (res.state != null &&
+          selState.isNotEmpty &&
+          !norm(res.state).contains(selState) &&
+          !selState.contains(norm(res.state))) {
+        setState(() {
+          _pincodeError = 'Pincode state mismatch (${res.state})';
+          _pincodeValidating = false;
+        });
+        return;
+      }
+
+      setState(() {
+        _pincodeError = null;
+        _pincodeValidating = false;
+      });
+
       if (res.city != null && res.city!.isNotEmpty) {
         if (res.country != null && res.country!.isNotEmpty) {
           try {
@@ -413,7 +492,20 @@ class _BusinessRegistrationScreenState extends ConsumerState<BusinessRegistratio
           } catch (_) {}
         }
       }
-    } catch (_) {}
+    } on DioException catch (e) {
+      if (CancelToken.isCancel(e)) return;
+      if (!mounted || !_pincodeGuard.isLatest(requestId)) return;
+      setState(() {
+        _pincodeValidating = false;
+        _pincodeError = 'Could not verify pincode. Try again.';
+      });
+    } catch (_) {
+      if (!mounted || !_pincodeGuard.isLatest(requestId)) return;
+      setState(() {
+        _pincodeValidating = false;
+        _pincodeError = 'Could not verify pincode. Try again.';
+      });
+    }
   }
 
   LocationRepository get _locationRepo => ref.read(locationRepositoryProvider);
@@ -422,10 +514,28 @@ class _BusinessRegistrationScreenState extends ConsumerState<BusinessRegistratio
     setState(() => _loadingCountries = true);
     try {
       final countries = await _locationRepo.getCountries();
+      Country? defaultCountry;
+      if (widget.businessToEdit == null) {
+        try {
+          defaultCountry = countries.firstWhere((c) => c.name.toLowerCase() == 'india');
+        } catch (_) {}
+      }
       setState(() {
         _countries = countries;
+        // Default Country: India, Phone Country Code: +91 (new registrations only)
+        if (defaultCountry != null && _selectedCountry == null) {
+          _selectedCountry = defaultCountry;
+          if (defaultCountry.phoneCode != null && defaultCountry.phoneCode!.isNotEmpty) {
+            _selectedPhoneCode = defaultCountry.phoneCode!.replaceAll('+', '').trim();
+          } else {
+            _selectedPhoneCode = '91';
+          }
+        }
         _loadingCountries = false;
       });
+      if (defaultCountry != null && widget.businessToEdit == null) {
+        await _loadStates(defaultCountry.iso2);
+      }
     } catch (e) {
       debugPrint('Error loading countries: $e');
       setState(() => _loadingCountries = false);
@@ -433,39 +543,47 @@ class _BusinessRegistrationScreenState extends ConsumerState<BusinessRegistratio
   }
 
   Future<void> _loadStates(String countryIso2) async {
+    final requestId = _statesGuard.next();
     setState(() {
       _loadingStates = true;
       _states = [];
       _selectedState = null;
       _cities = [];
       _selectedCity = null;
+      _pincodeError = null;
     });
     try {
       final states = await _locationRepo.getStates(countryIso2);
+      if (!mounted || !_statesGuard.isLatest(requestId)) return;
       setState(() {
         _states = states;
         _loadingStates = false;
       });
     } catch (e) {
       debugPrint('Error loading states: $e');
+      if (!mounted || !_statesGuard.isLatest(requestId)) return;
       setState(() => _loadingStates = false);
     }
   }
 
   Future<void> _loadCities(String countryIso2, String stateIso2) async {
+    final requestId = _citiesGuard.next();
     setState(() {
       _loadingCities = true;
       _cities = [];
       _selectedCity = null;
+      _pincodeError = null;
     });
     try {
       final cities = await _locationRepo.getCities(countryIso2, stateIso2);
+      if (!mounted || !_citiesGuard.isLatest(requestId)) return;
       setState(() {
         _cities = cities;
         _loadingCities = false;
       });
     } catch (e) {
       debugPrint('Error loading cities: $e');
+      if (!mounted || !_citiesGuard.isLatest(requestId)) return;
       setState(() => _loadingCities = false);
     }
   }
@@ -482,6 +600,14 @@ class _BusinessRegistrationScreenState extends ConsumerState<BusinessRegistratio
     } else if (_currentStep == 2) {
       if (_selectedCountry == null || _selectedState == null || _selectedCity == null) {
         AppFeedback.showWarning(context, 'Please complete location selection');
+        return;
+      }
+      if (_pincodeError != null) {
+        AppFeedback.showWarning(context, _pincodeError!);
+        return;
+      }
+      if (_pincodeValidating) {
+        AppFeedback.showWarning(context, 'Please wait for pincode verification');
         return;
       }
       if (_latitude == null || _longitude == null || _latitude == 0.0 || _longitude == 0.0) {
@@ -510,6 +636,7 @@ class _BusinessRegistrationScreenState extends ConsumerState<BusinessRegistratio
   }
 
   Future<void> _submitForm() async {
+    if (_isLoading) return;
     if (!_formKey.currentState!.validate()) return;
     if (_latitude == null || _longitude == null || _latitude == 0.0 || _longitude == 0.0) {
       AppFeedback.showError(
@@ -528,7 +655,7 @@ class _BusinessRegistrationScreenState extends ConsumerState<BusinessRegistratio
         categoryId: _selectedCategoryId!,
         subcategoryId: _selectedSubcategoryId!,
         phoneCode: '+$_selectedPhoneCode',
-        phoneNumber: _phoneController.text.trim(),
+        phoneNumber: AppValidators.nationalNumber(_phoneController.text, _selectedPhoneCode),
         email: _emailController.text.trim(),
         website: _websiteController.text.trim(),
         address: _addressController.text.trim(),
@@ -809,6 +936,7 @@ class _BusinessRegistrationScreenState extends ConsumerState<BusinessRegistratio
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: _RegTok.bg,
+      resizeToAvoidBottomInset: true,
       appBar: AppBar(
         backgroundColor: _RegTok.bg,
         elevation: 0,
@@ -1027,10 +1155,7 @@ class _BusinessRegistrationScreenState extends ConsumerState<BusinessRegistratio
           controller: _nameController,
           style: const TextStyle(color: _RegTok.textHigh, fontSize: 13),
           decoration: _inputDecoration('Business Name', Icons.storefront_rounded),
-          validator: (value) {
-            if (value == null || value.trim().isEmpty) return 'Business Name is required';
-            return null;
-          },
+          validator: AppValidators.businessName,
         ),
         const SizedBox(height: 14),
 
@@ -1040,8 +1165,9 @@ class _BusinessRegistrationScreenState extends ConsumerState<BusinessRegistratio
           maxLines: 4,
           decoration: _inputDecoration('Business Overview Description', Icons.description_rounded),
           validator: (value) {
-            if (value == null || value.trim().isEmpty) return 'Description is required';
-            if (value.trim().length < 10) return 'Must be at least 10 characters';
+            final base = AppValidators.description(value, required: true);
+            if (base != null) return base;
+            if (value!.trim().length < 10) return 'Must be at least 10 characters';
             return null;
           },
         ),
@@ -1188,8 +1314,9 @@ class _BusinessRegistrationScreenState extends ConsumerState<BusinessRegistratio
                   initialCameraPosition: CameraPosition(
                     target: (_latitude != null && _longitude != null && _latitude != 0.0 && _longitude != 0.0)
                         ? LatLng(_latitude!, _longitude!)
-                        : const LatLng(12.9716, 77.5946),
-                    zoom: (_latitude != null && _longitude != null) ? 14 : 6,
+                        // India geographic center — not a city pin; user GPS / search should set the real location.
+                        : const LatLng(20.5937, 78.9629),
+                    zoom: (_latitude != null && _longitude != null) ? 14 : 4.5,
                   ),
                   onMapCreated: _onMapCreated,
                   onMapClick: _onMapClick,
@@ -1223,86 +1350,106 @@ class _BusinessRegistrationScreenState extends ConsumerState<BusinessRegistratio
         ),
         const SizedBox(height: 16),
 
-        // Dropdowns for Country, State, City
-        _loadingCountries
-            ? const LinearProgressIndicator(color: _RegTok.primary)
-            : DropdownButtonFormField<Country>(
-                key: ValueKey('country-${_selectedCountry?.iso2 ?? 'none'}'),
-                dropdownColor: _RegTok.bg,
-                initialValue: _selectedCountry,
-                style: const TextStyle(color: _RegTok.textHigh, fontSize: 13),
-                decoration: _inputDecoration('Country', Icons.public_rounded),
-                items: _countries.map((c) => DropdownMenuItem(value: c, child: Text(c.name, overflow: TextOverflow.ellipsis, maxLines: 1))).toList(),
-                onChanged: (Country? val) {
-                  setState(() {
-                    _selectedCountry = val;
-                    if (val != null) _loadStates(val.iso2);
-                  });
-                },
-              ),
+        // Searchable Country / State / City — single-border fields, not nested dropdowns
+        SearchableSelectField<Country>(
+          label: 'Country *',
+          hint: 'Select country',
+          prefixIcon: Icons.public_rounded,
+          items: countryPickerItems(_countries),
+          selected: _selectedCountry,
+          loading: _loadingCountries,
+          searchHint: 'Search countries...',
+          emptyMessage: 'No countries found',
+          validator: (v) => AppValidators.requiredSelection(v, 'Country'),
+          onSelected: (item) {
+            setState(() {
+              _selectedCountry = item.value;
+              final code = item.value.phoneCode?.replaceAll('+', '').trim();
+              if (code != null && code.isNotEmpty) {
+                _selectedPhoneCode = code;
+              }
+              _pincodeError = null;
+            });
+            _loadStates(item.value.iso2);
+          },
+        ),
         const SizedBox(height: 14),
-
-        if (_selectedCountry != null) ...[
-          _loadingStates
-              ? const LinearProgressIndicator(color: _RegTok.primary)
-              : DropdownButtonFormField<StateModel>(
-                  key: ValueKey('state-${_selectedState?.iso2 ?? 'none'}'),
-                  dropdownColor: _RegTok.bg,
-                  initialValue: _selectedState,
-                  style: const TextStyle(color: _RegTok.textHigh, fontSize: 13),
-                  decoration: _inputDecoration('State', Icons.map_rounded),
-                  items: _states.map((s) => DropdownMenuItem(value: s, child: Text(s.name, overflow: TextOverflow.ellipsis, maxLines: 1))).toList(),
-                  onChanged: (StateModel? val) {
-                    setState(() {
-                      _selectedState = val;
-                      if (val != null) _loadCities(_selectedCountry!.iso2, val.iso2);
-                    });
-                  },
-                ),
-          const SizedBox(height: 14),
-        ],
-
-        if (_selectedState != null) ...[
-          _loadingCities
-              ? const LinearProgressIndicator(color: _RegTok.primary)
-              : DropdownButtonFormField<CityModel>(
-                  key: ValueKey('city-${_selectedCity?.name ?? 'none'}'),
-                  dropdownColor: _RegTok.bg,
-                  initialValue: _selectedCity,
-                  style: const TextStyle(color: _RegTok.textHigh, fontSize: 13),
-                  decoration: _inputDecoration('City', Icons.location_city_rounded),
-                  items: _cities.map((c) => DropdownMenuItem(value: c, child: Text(c.name, overflow: TextOverflow.ellipsis, maxLines: 1))).toList(),
-                  onChanged: (CityModel? val) {
-                    setState(() {
-                      _selectedCity = val;
-                      _manuallySelectedCoordinates = false;
-                    });
-                    if (val != null) _geocodeSelectedCity();
-                  },
-                ),
-          const SizedBox(height: 14),
-        ],
+        SearchableSelectField<StateModel>(
+          label: 'State *',
+          hint: _selectedCountry == null ? 'Select country first' : 'Select state',
+          prefixIcon: Icons.map_rounded,
+          items: statePickerItems(_states),
+          selected: _selectedState,
+          loading: _loadingStates,
+          enabled: _selectedCountry != null && !_loadingStates,
+          searchHint: 'Search states...',
+          emptyMessage: 'No states found',
+          validator: (v) => AppValidators.requiredSelection(v, 'State'),
+          onSelected: (item) {
+            setState(() {
+              _selectedState = item.value;
+              _pincodeError = null;
+            });
+            _loadCities(_selectedCountry!.iso2, item.value.iso2);
+          },
+        ),
+        const SizedBox(height: 14),
+        SearchableSelectField<CityModel>(
+          label: 'City *',
+          hint: _selectedState == null ? 'Select state first' : 'Select city',
+          prefixIcon: Icons.location_city_rounded,
+          items: cityPickerItems(_cities),
+          selected: _selectedCity,
+          loading: _loadingCities,
+          enabled: _selectedState != null && !_loadingCities,
+          searchHint: 'Search cities...',
+          emptyMessage: 'No cities found',
+          validator: (v) => AppValidators.requiredSelection(v, 'City'),
+          onSelected: (item) {
+            setState(() {
+              _selectedCity = item.value;
+              _manuallySelectedCoordinates = false;
+              _pincodeError = null;
+            });
+            _geocodeSelectedCity();
+          },
+        ),
+        const SizedBox(height: 14),
 
         TextFormField(
           controller: _addressController,
           style: const TextStyle(color: _RegTok.textHigh, fontSize: 13),
           decoration: _inputDecoration('Street address & Landmark', Icons.home_rounded),
-          validator: (value) {
-            if (value == null || value.trim().isEmpty) return 'Street address is required';
-            return null;
-          },
+          validator: (value) => AppValidators.street(value, required: true, maxLength: 200),
         ),
         const SizedBox(height: 14),
 
         TextFormField(
           controller: _pincodeController,
           style: const TextStyle(color: _RegTok.textHigh, fontSize: 13),
-          decoration: _inputDecoration('Postal Pincode', Icons.pin_drop_rounded),
-          keyboardType: TextInputType.number,
-          validator: (value) {
-            if (value == null || value.trim().isEmpty) return 'Pincode is required';
-            return null;
-          },
+          decoration: _inputDecoration('Postal Pincode', Icons.pin_drop_rounded).copyWith(
+            errorText: _pincodeError,
+            suffixIcon: _pincodeValidating
+                ? const Padding(
+                    padding: EdgeInsets.all(12),
+                    child: SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: _RegTok.primary),
+                    ),
+                  )
+                : null,
+          ),
+          keyboardType: TextInputType.text,
+          inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[A-Za-z0-9\-\s]'))],
+          validator: (value) => AppValidators.pincode(
+            value,
+            required: true,
+            countryName: _selectedCountry?.name,
+            countryIso2: _selectedCountry?.iso2,
+            countryCode: _selectedPhoneCode,
+            asyncError: _pincodeError,
+          ),
         ),
       ],
     );
@@ -1410,19 +1557,31 @@ class _BusinessRegistrationScreenState extends ConsumerState<BusinessRegistratio
         const SizedBox(height: 16),
 
         Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             SizedBox(
-              width: 100,
-              child: DropdownButtonFormField<String>(
-                initialValue: _selectedPhoneCode,
-                decoration: _inputDecoration('Code', Icons.add),
-                dropdownColor: _RegTok.bg,
-                style: const TextStyle(color: _RegTok.textHigh, fontSize: 13),
-                items: _phoneCountryItems.map((pc) {
-                  return DropdownMenuItem(value: pc['code'], child: Text('+${pc['code']}'));
-                }).toList(),
-                onChanged: (val) {
-                  if (val != null) setState(() => _selectedPhoneCode = val);
+              width: 132,
+              child: SearchableSelectField<String>(
+                label: 'Code *',
+                hint: '+91',
+                prefixIcon: Icons.flag_outlined,
+                items: _phoneCountryItems
+                    .map(
+                      (pc) => SearchablePickerItem<String>(
+                        value: pc['code']!,
+                        label: '+${pc['code']}',
+                        leading: pc['flag'],
+                        subtitle: pc['name'],
+                        searchText: '${pc['name']} ${pc['code']} +${pc['code']}',
+                      ),
+                    )
+                    .toList(),
+                selected: _selectedPhoneCode,
+                searchHint: 'Search country codes...',
+                emptyMessage: 'No country codes found',
+                validator: AppValidators.callingCode,
+                onSelected: (item) {
+                  setState(() => _selectedPhoneCode = item.value);
                 },
               ),
             ),
@@ -1433,10 +1592,14 @@ class _BusinessRegistrationScreenState extends ConsumerState<BusinessRegistratio
                 keyboardType: TextInputType.phone,
                 style: const TextStyle(color: _RegTok.textHigh, fontSize: 13),
                 decoration: _inputDecoration('Phone Number', Icons.phone_rounded),
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) return 'Phone number is required';
-                  return null;
-                },
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(RegExp(r'[0-9+\-\s]')),
+                ],
+                validator: (value) => AppValidators.phone(
+                  value,
+                  countryCode: _selectedPhoneCode,
+                  countryName: _selectedCountry?.name,
+                ),
               ),
             ),
           ],
@@ -1448,10 +1611,7 @@ class _BusinessRegistrationScreenState extends ConsumerState<BusinessRegistratio
           keyboardType: TextInputType.emailAddress,
           style: const TextStyle(color: _RegTok.textHigh, fontSize: 13),
           decoration: _inputDecoration('Business Email Address', Icons.email_rounded),
-          validator: (value) {
-            if (value == null || value.trim().isEmpty) return 'Email is required';
-            return null;
-          },
+          validator: AppValidators.email,
         ),
         const SizedBox(height: 14),
 
@@ -1460,6 +1620,7 @@ class _BusinessRegistrationScreenState extends ConsumerState<BusinessRegistratio
           keyboardType: TextInputType.url,
           style: const TextStyle(color: _RegTok.textHigh, fontSize: 13),
           decoration: _inputDecoration('Website URL (Optional)', Icons.language_rounded),
+          validator: AppValidators.website,
         ),
         const SizedBox(height: 24),
 
@@ -1709,53 +1870,56 @@ class _BusinessRegistrationScreenState extends ConsumerState<BusinessRegistratio
   }
 
   Widget _buildBottomNavigation() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-      decoration: const BoxDecoration(
-        color: _RegTok.bg,
-        border: Border(top: BorderSide(color: _RegTok.border)),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          if (_currentStep > 1)
-            GestureDetector(
-              onTap: _previousStep,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                decoration: BoxDecoration(
-                  color: _RegTok.surface,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: _RegTok.border),
-                ),
-                child: const Text('Back', style: TextStyle(color: _RegTok.textMedium, fontWeight: FontWeight.bold, fontSize: 13)),
-              ),
-            )
-          else
-            const SizedBox(width: 70),
-
-          GestureDetector(
-            onTap: _currentStep == 5 ? _submitForm : _nextStep,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 12),
-              decoration: BoxDecoration(
-                color: _RegTok.primary,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: _RegTok.primary.withValues(alpha: 0.15),
-                    blurRadius: 8,
-                    offset: const Offset(0, 4),
+    return AppSafeBottomBar(
+      fillColor: _RegTok.bg,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+        decoration: const BoxDecoration(
+          color: _RegTok.bg,
+          border: Border(top: BorderSide(color: _RegTok.border)),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            if (_currentStep > 1)
+              GestureDetector(
+                onTap: _previousStep,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: _RegTok.surface,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: _RegTok.border),
                   ),
-                ],
-              ),
-              child: Text(
-                _currentStep == 5 ? 'Publish Listing' : 'Next Step',
-                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                  child: const Text('Back', style: TextStyle(color: _RegTok.textMedium, fontWeight: FontWeight.bold, fontSize: 13)),
+                ),
+              )
+            else
+              const SizedBox(width: 70),
+
+            GestureDetector(
+              onTap: _currentStep == 5 ? _submitForm : _nextStep,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 12),
+                decoration: BoxDecoration(
+                  color: _RegTok.primary,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: _RegTok.primary.withValues(alpha: 0.15),
+                      blurRadius: 8,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Text(
+                  _currentStep == 5 ? 'Publish Listing' : 'Next Step',
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

@@ -78,11 +78,15 @@ class LocationRepository {
     }
   }
 
-  Future<PincodeValidationResponse> validatePincode(String postcode) async {
+  Future<PincodeValidationResponse> validatePincode(
+    String postcode, {
+    CancelToken? cancelToken,
+  }) async {
     try {
       final response = await dio.get(
         'BusinessPincode/validate',
         queryParameters: {'postcode': postcode},
+        cancelToken: cancelToken,
       );
       final data = response.data;
       if (data is String) {
@@ -90,6 +94,10 @@ class LocationRepository {
       }
       return PincodeValidationResponse.fromJson(data as Map<String, dynamic>);
     } on DioException catch (e) {
+      if (CancelToken.isCancel(e)) rethrow;
+      if (e.response?.statusCode == 404) {
+        return PincodeValidationResponse();
+      }
       throw Exception(e.message ?? 'Failed to validate pincode');
     }
   }

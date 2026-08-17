@@ -12,15 +12,32 @@ import '../config/app_config.dart';
 class GoogleSignInHelper {
   GoogleSignInHelper._();
 
+  static GoogleSignIn? _cached;
+
   static GoogleSignIn _client() {
-    final webClientId = AppConfig.googleWebClientId;
+    final webClientId = AppConfig.googleWebClientId.trim();
     if (webClientId.isEmpty) {
       throw StateError(
         'Google Sign-In is not configured. Rebuild with GOOGLE_WEB_CLIENT_ID.',
       );
     }
+    if (!webClientId.endsWith('.apps.googleusercontent.com')) {
+      throw StateError(
+        'GOOGLE_WEB_CLIENT_ID looks invalid. Expected a Web OAuth client ID '
+        'ending in .apps.googleusercontent.com.',
+      );
+    }
 
-    return GoogleSignIn(
+    final androidClientId = AppConfig.googleAndroidClientId.trim();
+    if (androidClientId.isNotEmpty &&
+        androidClientId.toLowerCase() == webClientId.toLowerCase()) {
+      throw StateError(
+        'GOOGLE_WEB_CLIENT_ID must be the Web OAuth client, not the Android '
+        'client. Android OAuth clients are selected by package name + SHA-1.',
+      );
+    }
+
+    return _cached ??= GoogleSignIn(
       scopes: const ['email', 'profile', 'openid'],
       serverClientId: webClientId,
       signInOption: SignInOption.standard,
@@ -55,14 +72,21 @@ class GoogleSignInHelper {
       final code = error.code;
       final message = (error.message ?? '').toLowerCase();
 
-      // ApiException: 10 = DEVELOPER_ERROR
+      // ApiException: 10 = DEVELOPER_ERROR (package name / SHA-1 mismatch)
       if (code == 'sign_in_failed' &&
           (message.contains('10:') || message.contains(': 10'))) {
         return 'Google Sign-In is misconfigured (error 10).\n'
-            'In Google Cloud Console create an Android OAuth client with:\n'
-            '• Package: com.vocalforsanatan.app\n'
-            '• SHA-1: 92:BB:BD:1C:6F:D4:B6:AF:57:FB:2C:AA:C3:F6:48:61:08:70:EB:C2\n'
-            'Same project as the Web client ID. Wait a few minutes, then retry.';
+            'In Google Cloud Console → Credentials, create Android OAuth '
+            'client(s) in the SAME project as the Web client ID:\n'
+            '• Package name: com.vocalforsanatan.app\n'
+            '• SHA-1 (Play App signing — required for Play Store): '
+            'ED:D8:12:09:F5:16:C1:88:B4:64:82:56:1B:5A:C5:9A:B0:4F:49:F5\n'
+            '• SHA-1 (upload / local release keystore): '
+            '2D:A9:62:B5:59:B0:67:78:AE:2C:50:5D:04:37:02:F0:75:77:5D:5C\n'
+            '• SHA-1 (debug / flutter run): '
+            '92:BB:BD:1C:6F:D4:B6:AF:57:FB:2C:AA:C3:F6:48:61:08:70:EB:C2\n'
+            'Create one Android client per SHA-1 if needed. '
+            'Wait a few minutes, then retry.';
       }
 
       if (code == 'network_error') {

@@ -286,16 +286,31 @@ class PagedBusinessResult {
 
   factory PagedBusinessResult.fromJson(Map<String, dynamic> json) {
     final rawItems = json['items'] as List? ?? json['Items'] as List? ?? [];
+    int asInt(dynamic v, [int fallback = 0]) {
+      if (v is int) return v;
+      if (v is num) return v.toInt();
+      return int.tryParse(v?.toString() ?? '') ?? fallback;
+    }
+
+    final page = asInt(json['page'] ?? json['Page'], 1);
+    final pageSize = asInt(json['pageSize'] ?? json['PageSize'], 10);
+    final totalCount = asInt(json['totalCount'] ?? json['TotalCount']);
+    var totalPages = asInt(json['totalPages'] ?? json['TotalPages']);
+    if (totalPages == 0 && pageSize > 0) {
+      totalPages = (totalCount / pageSize).ceil();
+    }
+    final hasNext = json['hasNextPage'] ?? json['HasNextPage'];
+    final hasPrev = json['hasPreviousPage'] ?? json['HasPreviousPage'];
     return PagedBusinessResult(
       items: rawItems
           .map((e) => BusinessDto.fromJson(e as Map<String, dynamic>))
           .toList(),
-      page: json['page'] ?? json['Page'] ?? 1,
-      pageSize: json['pageSize'] ?? json['PageSize'] ?? 20,
-      totalCount: json['totalCount'] ?? json['TotalCount'] ?? 0,
-      totalPages: json['totalPages'] ?? json['TotalPages'] ?? 0,
-      hasNextPage: json['hasNextPage'] ?? json['HasNextPage'] ?? false,
-      hasPreviousPage: json['hasPreviousPage'] ?? json['HasPreviousPage'] ?? false,
+      page: page < 1 ? 1 : page,
+      pageSize: pageSize < 1 ? 10 : pageSize,
+      totalCount: totalCount < 0 ? 0 : totalCount,
+      totalPages: totalPages < 0 ? 0 : totalPages,
+      hasNextPage: hasNext is bool ? hasNext : page < totalPages,
+      hasPreviousPage: hasPrev is bool ? hasPrev : page > 1,
       appliedRadiusKm: (json['appliedRadiusKm'] as num?)?.toDouble() ??
           (json['AppliedRadiusKm'] as num?)?.toDouble(),
       sort: json['sort']?.toString() ?? json['Sort']?.toString() ?? 'nearest',

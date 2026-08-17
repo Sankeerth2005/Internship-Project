@@ -79,6 +79,7 @@ String _postAuthRoute(AuthAuthenticated auth) =>
     RoleRoutes.resolvePostAuthRoute(
       accountType: auth.userType,
       activeExperience: auth.activeExperience,
+      needsExperienceSelection: auth.needsExperienceSelection,
     );
 
 bool _isAdminRoute(String location) =>
@@ -140,17 +141,17 @@ final routerProvider = Provider<GoRouter>((ref) {
           return postAuth;
         }
 
-        // Authenticated but experience not chosen yet → Continue As only.
-        if (authState.activeExperience == null &&
+        // Role selection until an experience is chosen for this session.
+        if (authState.needsExperienceSelection &&
             !RoleRoutes.isAdmin(authState.userType) &&
             currentLocation != RoleRoutes.continueAs &&
             !currentLocation.startsWith('/register-business')) {
           return RoleRoutes.continueAs;
         }
 
-        // Already chose an experience — leave Continue As.
+        // Experience chosen (or existing account) — leave Continue As.
         if (currentLocation == RoleRoutes.continueAs &&
-            (authState.activeExperience != null ||
+            (!authState.needsExperienceSelection ||
                 RoleRoutes.isAdmin(authState.userType))) {
           return postAuth;
         }
@@ -514,7 +515,8 @@ class _MisconfiguredReleaseApp extends StatelessWidget {
                 ),
                 const SizedBox(height: 20),
                 const Text(
-                  'Rebuild with scripts/build_manager_apk.ps1 and pass API_HOST '
+                  'Rebuild with scripts/build_play_aab.ps1 (Play Store) or '
+                  'scripts/build_from_env.ps1 and pass API_HOST '
                   '(and API_USE_HTTPS=true for production).',
                   textAlign: TextAlign.center,
                   style: TextStyle(

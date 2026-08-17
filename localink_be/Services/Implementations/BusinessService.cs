@@ -4,10 +4,12 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using localink_be.Data;
+using localink_be.Extensions;
 using localink_be.Models.Entities;
 using localink_be.Models.DTOs;
 using localink_be.Models.Queries;
 using localink_be.Services.Interfaces;
+using localink_be.Validation;
 using Microsoft.AspNetCore.SignalR;
 using localink_be.Hubs;
 using Microsoft.Extensions.Configuration;
@@ -51,6 +53,7 @@ namespace localink_be.Services.Implementations
     {
         return await _db.Businesses
             .Where(b => _db.AdminDashboards.Any(a => a.BusinessId == b.BusinessId && a.Status == BusinessStatus.Approved))
+            .WhereVisibleToConsumers()
             .Select(b => new
             {
                 b.BusinessId,
@@ -185,8 +188,10 @@ namespace localink_be.Services.Implementations
 
         if (contact != null)
         {
-            var normalizedPhone = dto.PhoneNumber?.Trim();
-            var normalizedPhoneCode = dto.PhoneCode?.Trim();
+            var normalizedPhone = PhoneNumberGuard.NationalNumber(dto.PhoneNumber, dto.PhoneCode);
+            var normalizedPhoneCode = PhoneNumberGuard.FormatCallingCode(dto.PhoneCode);
+            PhoneNumberGuard.EnsureValid(normalizedPhone, normalizedPhoneCode, dto.Country);
+            PincodeGuard.EnsureValid(dto.Pincode, dto.Country, required: true);
 
             if (dto.Latitude.HasValue || dto.Longitude.HasValue)
             {
@@ -210,8 +215,8 @@ namespace localink_be.Services.Implementations
                 }
             }
 
-            contact.PhoneCode = dto.PhoneCode ?? string.Empty;
-            contact.PhoneNumber = dto.PhoneNumber ?? string.Empty;
+            contact.PhoneCode = normalizedPhoneCode;
+            contact.PhoneNumber = normalizedPhone;
             contact.Email = dto.Email;
             contact.Website = dto.Website ?? string.Empty;
             contact.City = dto.City;
@@ -578,6 +583,7 @@ namespace localink_be.Services.Implementations
         {
             return await _db.Businesses
                 .Where(b => b.SubcategoryId == subcategoryId && _db.AdminDashboards.Any(a => a.BusinessId == b.BusinessId && a.Status == BusinessStatus.Approved))
+                .WhereVisibleToConsumers()
                 .Select(b => new BusinessDto
                 {
                     Id = b.BusinessId,
@@ -731,7 +737,7 @@ namespace localink_be.Services.Implementations
             var paged = await SearchBusinessesPagedAsync(
                 query, userLat, userLng, sortBy, userPincode, userCity,
                 radiusKm: null, categoryId: null, subcategoryId: null,
-                page: 1, pageSize: 25);
+                page: 1, pageSize: 10);
 
             return paged.Items.ToList();
         }
@@ -747,7 +753,7 @@ namespace localink_be.Services.Implementations
             int? categoryId = null,
             int? subcategoryId = null,
             int page = 1,
-            int pageSize = 20,
+            int pageSize = 10,
             CancellationToken cancellationToken = default)
         {
             return _discoveryService.DiscoverAsync(new BusinessDiscoveryQuery
@@ -783,10 +789,11 @@ namespace localink_be.Services.Implementations
 
                 var query = request.Query?.Trim() ?? string.Empty;
 
-                // Start with base query of APPROVED businesses
+                // Start with base query of APPROVED businesses that are visible to consumers
                 var businessesQuery = _db.Businesses
                     .AsNoTracking()
-                    .Where(b => _db.AdminDashboards.Any(a => a.BusinessId == b.BusinessId && a.Status == BusinessStatus.Approved));
+                    .Where(b => _db.AdminDashboards.Any(a => a.BusinessId == b.BusinessId && a.Status == BusinessStatus.Approved))
+                    .WhereVisibleToConsumers();
 
                 // Apply text search if query provided
                 if (!string.IsNullOrWhiteSpace(query))
@@ -867,29 +874,11 @@ namespace localink_be.Services.Implementations
                         )
                     );
                 }
-                // Apply radius filter if user location provided
-                if (userLat.HasValue && userLng.HasValue && request.Radius > 0)
-                {
-                    // If the radius is 5 (which is the default client-side value),
-                    // expand it to 100km to prevent filtering out businesses in the same city.
-                    var searchRadius = request.Radius == 5 ? 100 : request.Radius;
-                    var radiusDegrees = searchRadius / 111.0; // Rough conversion km to degrees
-
-                    var localQuery = businessesQuery.Where(b =>
-                        _db.BusinessContacts.Any(c =>
-                            c.BusinessId == b.BusinessId &&
-                            c.Latitude.HasValue &&
-                            c.Longitude.HasValue &&
-                            Math.Abs(c.Latitude.Value - userLat.Value) <= radiusDegrees &&
-                            Math.Abs(c.Longitude.Value - userLng.Value) <= radiusDegrees
-                        )
-                    );
-
-                    if (await localQuery.AnyAsync())
-                    {
-                        businessesQuery = localQuery;
-                    }
-                }
+                // Rank by actual distance when the viewer's coordinates are valid.
+                var hasUserLocation = userLat.HasValue && userLng.HasValue
+                    && userLat is >= -90 and <= 90
+                    && userLng is >= -180 and <= 180
+                    && !(userLat == 0 && userLng == 0);
 
                 // Project to DTO with distance calculation
                 var projectedQuery = businessesQuery.Select(b => new BusinessDto
@@ -944,30 +933,32 @@ namespace localink_be.Services.Implementations
                         .Select(p => p.ImageUrl)
                         .ToList(),
                     // Calculate distance using Haversine formula approximation
-                    Distance = userLat.HasValue && userLng.HasValue
+                    Distance = hasUserLocation
                         ? _db.BusinessContacts
-                            .Where(c => c.BusinessId == b.BusinessId && c.Latitude.HasValue && c.Longitude.HasValue)
+                            .Where(c => c.BusinessId == b.BusinessId && c.Latitude.HasValue && c.Longitude.HasValue
+                                && !(c.Latitude == 0 && c.Longitude == 0))
                             .Select(c => (double?)(111.0 * Math.Sqrt(
-                                Math.Pow((c.Latitude ?? 0) - userLat.Value, 2) +
-                                Math.Pow((c.Longitude ?? 0) - userLng.Value, 2) * Math.Cos(userLat.Value * Math.PI / 180.0)
+                                Math.Pow((c.Latitude ?? 0) - userLat!.Value, 2) +
+                                Math.Pow((c.Longitude ?? 0) - userLng!.Value, 2) * Math.Cos(userLat.Value * Math.PI / 180.0)
                             )))
                             .FirstOrDefault()
                         : null
                 });
 
                 // Sort by distance if location provided, otherwise by name
-                var results = await (userLat.HasValue && userLng.HasValue
-                    ? projectedQuery.OrderBy(b => b.Distance ?? double.MaxValue)
+                var results = await (hasUserLocation
+                    ? projectedQuery.OrderBy(b => b.Distance.HasValue ? 0 : 1).ThenBy(b => b.Distance ?? double.MaxValue)
                     : projectedQuery.OrderBy(b => b.Name))
                     .Take(20)
                     .ToListAsync();
 
-                // FALLBACK: If 0 results found, and we had filters, relax them
+                // FALLBACK: relax keyword filters; still rank globally by distance (no km cutoff).
                 if (results.Count == 0 && (!string.IsNullOrEmpty(query) || !string.IsNullOrEmpty(request.Category)))
                 {
                     var fallbackQuery = _db.Businesses
                         .AsNoTracking()
-                        .Where(b => _db.AdminDashboards.Any(a => a.BusinessId == b.BusinessId && a.Status == BusinessStatus.Approved));
+                        .Where(b => _db.AdminDashboards.Any(a => a.BusinessId == b.BusinessId && a.Status == BusinessStatus.Approved))
+                        .WhereVisibleToConsumers();
 
                     var keywords = new List<string>();
                     if (!string.IsNullOrWhiteSpace(query)) keywords.Add(query.ToLower().Trim());
@@ -1021,19 +1012,20 @@ namespace localink_be.Services.Implementations
                         Status = _db.AdminDashboards.Where(a => a.BusinessId == b.BusinessId).Select(a => a.Status.ToString()).FirstOrDefault(),
                         PrimaryImage = _db.BusinessPhotos.Where(p => p.BusinessId == b.BusinessId).OrderByDescending(p => p.IsPrimary).Select(p => p.ImageUrl).FirstOrDefault(),
                         Photos = _db.BusinessPhotos.Where(p => p.BusinessId == b.BusinessId).OrderByDescending(p => p.IsPrimary).Select(p => p.ImageUrl).ToList(),
-                        Distance = userLat.HasValue && userLng.HasValue
+                        Distance = hasUserLocation
                             ? _db.BusinessContacts
-                                .Where(c => c.BusinessId == b.BusinessId && c.Latitude.HasValue && c.Longitude.HasValue)
+                                .Where(c => c.BusinessId == b.BusinessId && c.Latitude.HasValue && c.Longitude.HasValue
+                                    && !(c.Latitude == 0 && c.Longitude == 0))
                                 .Select(c => (double?)(111.0 * Math.Sqrt(
-                                    Math.Pow((c.Latitude ?? 0) - userLat.Value, 2) +
-                                    Math.Pow((c.Longitude ?? 0) - userLng.Value, 2) * Math.Cos(userLat.Value * Math.PI / 180.0)
+                                    Math.Pow((c.Latitude ?? 0) - userLat!.Value, 2) +
+                                    Math.Pow((c.Longitude ?? 0) - userLng!.Value, 2) * Math.Cos(userLat.Value * Math.PI / 180.0)
                                 )))
                                 .FirstOrDefault()
                             : null
                     });
 
-                    results = await (userLat.HasValue && userLng.HasValue
-                        ? projectedFallback.OrderBy(b => b.Distance ?? double.MaxValue)
+                    results = await (hasUserLocation
+                        ? projectedFallback.OrderBy(b => b.Distance.HasValue ? 0 : 1).ThenBy(b => b.Distance ?? double.MaxValue)
                         : projectedFallback.OrderBy(b => b.Name))
                         .Take(20)
                         .ToListAsync();

@@ -5,8 +5,10 @@ import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/network/dio_client.dart';
+import '../../../../core/widgets/skeleton.dart';
 import '../../../shared/presentation/widgets/app_back_button.dart';
 import '../../../ai/widgets/ai_feed_card.dart';
+import '../../providers/category_usage_tracker.dart';
 
 // ─── DESIGN TOKENS ────────────────────────────────────────────────────────────
 class _FeedTok {
@@ -16,6 +18,7 @@ class _FeedTok {
   static const Color border = Color(0xFFEAE8E3);
   static const Color textHigh = Color(0xFF1A1918);
   static const Color textMedium = Color(0xFF5F5C58);
+  static const Color textMuted = Color(0xFF9F9B96);
 }
 
 class ForYouFeedScreen extends ConsumerStatefulWidget {
@@ -34,6 +37,7 @@ class _ForYouFeedScreenState extends ConsumerState<ForYouFeedScreen> {
   String _errorMessage = '';
   bool _locationRequired = false;
   String? _emptyMessage;
+  double? _appliedRadiusKm;
 
   @override
   void initState() {
@@ -58,16 +62,33 @@ class _ForYouFeedScreenState extends ConsumerState<ForYouFeedScreen> {
         return (lat: null, lng: null, denied: true);
       }
 
-      final pos = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.medium,
-          timeLimit: Duration(seconds: 6),
-        ),
-      );
-      return (lat: pos.latitude, lng: pos.longitude, denied: false);
+      // Prefer a fresh high-accuracy fix; fall back to last known if timeout.
+      try {
+        final pos = await Geolocator.getCurrentPosition(
+          locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.high,
+            timeLimit: Duration(seconds: 8),
+          ),
+        );
+        return (lat: pos.latitude, lng: pos.longitude, denied: false);
+      } catch (_) {
+        final last = await Geolocator.getLastKnownPosition();
+        if (last != null) {
+          return (lat: last.latitude, lng: last.longitude, denied: false);
+        }
+        return (lat: null, lng: null, denied: true);
+      }
     } catch (_) {
       return (lat: null, lng: null, denied: true);
     }
+  }
+
+  String _buildCategoryAffinityQuery() {
+    final usage = ref.read(categoryUsageProvider).value ?? {};
+    if (usage.isEmpty) return '';
+    final top = usage.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    return top.take(12).map((e) => '${e.key}:${e.value}').join(',');
   }
 
   Future<void> _loadPersonalizedFeed() async {
@@ -88,6 +109,7 @@ class _ForYouFeedScreenState extends ConsumerState<ForYouFeedScreen> {
         _loading = false;
         _locationRequired = true;
         _recommendations = [];
+        _appliedRadiusKm = null;
         _emptyMessage =
             'Location is required for your For You feed. Enable location to see nearby businesses.';
       });
@@ -95,11 +117,13 @@ class _ForYouFeedScreenState extends ConsumerState<ForYouFeedScreen> {
     }
 
     try {
+      final affinity = _buildCategoryAffinityQuery();
       final response = await DioClient().dio.get(
         'personalization/feed',
         queryParameters: {
           'lat': lat,
           'lng': lng,
+          if (affinity.isNotEmpty) 'categoryAffinity': affinity,
         },
         options: Options(
           headers: {
@@ -121,6 +145,7 @@ class _ForYouFeedScreenState extends ConsumerState<ForYouFeedScreen> {
           _recommendations = items;
           _locationRequired = data['locationRequired'] == true;
           _emptyMessage = data['message'] as String?;
+          _appliedRadiusKm = (data['appliedRadiusKm'] as num?)?.toDouble();
           _loading = false;
         });
       } else {
@@ -163,8 +188,9 @@ class _ForYouFeedScreenState extends ConsumerState<ForYouFeedScreen> {
         ),
         actions: [
           IconButton(
+            tooltip: 'Refresh with current location',
             icon: const Icon(Icons.refresh_rounded, color: _FeedTok.primary),
-            onPressed: _loadPersonalizedFeed,
+            onPressed: _loading ? null : _loadPersonalizedFeed,
           ),
         ],
         bottom: PreferredSize(
@@ -176,12 +202,28 @@ class _ForYouFeedScreenState extends ConsumerState<ForYouFeedScreen> {
         ),
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator(color: _FeedTok.primary))
+          ? const _ForYouSkeleton()
           : _errorMessage.isNotEmpty
               ? Center(
-                  child: Text(
-                    _errorMessage,
-                    style: const TextStyle(color: _FeedTok.textMedium, fontSize: 14),
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          _errorMessage,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(color: _FeedTok.textMedium, fontSize: 14),
+                        ),
+                        const SizedBox(height: 12),
+                        TextButton.icon(
+                          onPressed: _loadPersonalizedFeed,
+                          icon: const Icon(Icons.refresh_rounded),
+                          label: const Text('Retry'),
+                          style: TextButton.styleFrom(foregroundColor: _FeedTok.primary),
+                        ),
+                      ],
+                    ),
                   ),
                 )
               : RefreshIndicator(
@@ -239,6 +281,17 @@ class _ForYouFeedScreenState extends ConsumerState<ForYouFeedScreen> {
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
+                              if (_appliedRadiusKm != null) ...[
+                                const SizedBox(height: 12),
+                                Text(
+                                  'Showing places within ${_appliedRadiusKm!.toStringAsFixed(0)} km of your current location',
+                                  style: TextStyle(
+                                    color: Colors.white.withValues(alpha: 0.9),
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
                             ],
                           ),
                         ),
@@ -250,7 +303,7 @@ class _ForYouFeedScreenState extends ConsumerState<ForYouFeedScreen> {
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
-                                  'Near you · $_preferredCategory',
+                                  'Personalized near you · $_preferredCategory',
                                   style: const TextStyle(
                                     color: _FeedTok.textHigh,
                                     fontSize: 15,
@@ -259,6 +312,15 @@ class _ForYouFeedScreenState extends ConsumerState<ForYouFeedScreen> {
                                 ),
                               ),
                             ],
+                          ),
+                          const SizedBox(height: 4),
+                          const Text(
+                            'Ranked by distance, your interests, popularity, and time of day',
+                            style: TextStyle(
+                              color: _FeedTok.textMuted,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
                           const SizedBox(height: 16),
                         ],
@@ -279,6 +341,27 @@ class _ForYouFeedScreenState extends ConsumerState<ForYouFeedScreen> {
                     ),
                   ),
                 ),
+    );
+  }
+}
+
+class _ForYouSkeleton extends StatelessWidget {
+  const _ForYouSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    final w = MediaQuery.sizeOf(context).width - 32;
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        SkeletonBox(width: w, height: 140, borderRadius: 16),
+        const SizedBox(height: 24),
+        SkeletonBox(width: 180, height: 18, borderRadius: 8),
+        const SizedBox(height: 16),
+        SkeletonBox(width: w, height: 180, borderRadius: 16),
+        const SizedBox(height: 16),
+        SkeletonBox(width: w, height: 180, borderRadius: 16),
+      ],
     );
   }
 }

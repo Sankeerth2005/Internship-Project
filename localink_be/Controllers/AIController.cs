@@ -82,7 +82,22 @@ namespace localink_be.Controllers
             if (string.IsNullOrWhiteSpace(request.Message))
                 return BadRequest(new { success = false, message = "Message is required" });
 
-            var reply = await _aiService.ChatSearchAsync(request.Message, request.ChatHistoryJson ?? "");
+            double? userLat = null;
+            double? userLng = null;
+            if (Request.Headers.ContainsKey("X-User-Latitude")
+                && Request.Headers.ContainsKey("X-User-Longitude")
+                && double.TryParse(Request.Headers["X-User-Latitude"], out var lat)
+                && double.TryParse(Request.Headers["X-User-Longitude"], out var lng))
+            {
+                userLat = lat;
+                userLng = lng;
+            }
+
+            var reply = await _aiService.ChatSearchAsync(
+                request.Message,
+                request.ChatHistoryJson ?? "",
+                userLat,
+                userLng);
             return Ok(new { success = true, data = reply });
         }
 

@@ -65,6 +65,27 @@ void main() {
       expect(AppErrorFormatter.format(err), contains('Invalid credentials'));
     });
 
+    test('surfaces ASP.NET ProblemDetails field errors instead of generic title', () {
+      final err = DioException(
+        requestOptions: RequestOptions(path: 'reviews'),
+        type: DioExceptionType.badResponse,
+        response: Response(
+          requestOptions: RequestOptions(path: 'reviews'),
+          statusCode: 400,
+          data: {
+            'title': 'One or more validation errors occurred.',
+            'errors': {
+              'Comment': ['Comment must be between 5 and 1000 characters'],
+            },
+          },
+        ),
+      );
+      expect(
+        AppErrorFormatter.format(err),
+        'Comment must be between 5 and 1000 characters',
+      );
+    });
+
     test('strips Exception: prefix', () {
       expect(AppErrorFormatter.format(Exception('boom')), 'boom');
     });

@@ -12,7 +12,7 @@ namespace localink_be.Services.Implementations
 
         public double DefaultRadiusKm { get; set; } = 25;
         public double MaxRadiusKm { get; set; } = 100;
-        public int DefaultPageSize { get; set; } = 20;
+        public int DefaultPageSize { get; set; } = 10;
         public int MaxPageSize { get; set; } = 50;
     }
 
@@ -37,13 +37,8 @@ namespace localink_be.Services.Implementations
             if (query.PageSize < 1) query.PageSize = _options.DefaultPageSize;
             if (query.PageSize > _options.MaxPageSize) query.PageSize = _options.MaxPageSize;
 
-            if (query.RadiusKm.HasValue)
-            {
-                if (query.RadiusKm <= 0)
-                    query.RadiusKm = _options.DefaultRadiusKm;
-                else if (query.RadiusKm > _options.MaxRadiusKm)
-                    query.RadiusKm = _options.MaxRadiusKm;
-            }
+            // Distance ranks results; it is never used as a visibility / km cutoff.
+            query.RadiusKm = null;
 
             // Reject clearly invalid coordinates so we fall back to non-spatial ranking
             if (query.Latitude.HasValue && (query.Latitude < -90 || query.Latitude > 90))

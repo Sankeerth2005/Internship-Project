@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'dart:ui';
 
 class MainShell extends ConsumerStatefulWidget {
   final StatefulNavigationShell navigationShell;
@@ -19,6 +18,8 @@ class _MainShellState extends ConsumerState<MainShell> {
   @override
   Widget build(BuildContext context) {
     final currentIndex = widget.navigationShell.currentIndex;
+    final keyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
+
     // Track tab changes by adding to history stack
     if (_tabHistory.isEmpty || _tabHistory.last != currentIndex) {
       _tabHistory.add(currentIndex);
@@ -41,105 +42,82 @@ class _MainShellState extends ConsumerState<MainShell> {
       },
       child: Scaffold(
         backgroundColor: const Color(0xFFFFFFFF),
-        // Use extendBody: true so the Scaffold content flows behind our floating bottom bar
-        extendBody: true,
+        // Fixed bottom navigation (admin-style): stays put while content scrolls.
+        // Hide while keyboard is open so composers (e.g. AI Chat) are not crushed.
+        resizeToAvoidBottomInset: true,
         body: widget.navigationShell,
-        bottomNavigationBar: SafeArea(
-        top: false,
-        child: Container(
-          height: 80,
-          margin: const EdgeInsets.fromLTRB(20, 0, 20, 10),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(28),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFF1A1918).withValues(alpha: 0.08),
-                blurRadius: 24,
-                spreadRadius: 0,
-                offset: const Offset(0, 8),
-              ),
-              BoxShadow(
-                color: const Color(0xFFFF6600).withValues(alpha: 0.06),
-                blurRadius: 18,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(28),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFFFFFF).withValues(alpha: 0.92),
-                  borderRadius: BorderRadius.circular(28),
-                  border: Border.all(
-                    color: const Color(0xFFEAE8E3),
-                    width: 1,
+        bottomNavigationBar: keyboardOpen
+            ? null
+            : SafeArea(
+                top: false,
+                child: Container(
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFFFFFFF),
+                    border: Border(
+                      top: BorderSide(color: Color(0xFFEAE8E3), width: 1),
+                    ),
                   ),
-                ),
-                child: NavigationBarTheme(
-                  data: NavigationBarThemeData(
-                    height: 80,
-                    indicatorColor: const Color(0xFFFF6600).withValues(alpha: 0.12),
-                    labelTextStyle: WidgetStateProperty.resolveWith((states) {
-                      if (states.contains(WidgetState.selected)) {
+                  child: NavigationBarTheme(
+                    data: NavigationBarThemeData(
+                      height: 64,
+                      indicatorColor: const Color(0xFFFF6600).withValues(alpha: 0.12),
+                      labelTextStyle: WidgetStateProperty.resolveWith((states) {
+                        if (states.contains(WidgetState.selected)) {
+                          return const TextStyle(
+                            color: Color(0xFFFF6600),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                            fontFamily: 'Inter',
+                          );
+                        }
                         return const TextStyle(
-                          color: Color(0xFFFF6600),
+                          color: Color(0xFF5F5C58),
                           fontSize: 11,
-                          fontWeight: FontWeight.w800,
+                          fontWeight: FontWeight.normal,
                           fontFamily: 'Inter',
                         );
-                      }
-                      return const TextStyle(
-                        color: Color(0xFF5F5C58),
-                        fontSize: 11,
-                        fontWeight: FontWeight.normal,
-                        fontFamily: 'Inter',
-                      );
-                    }),
-                  ),
-                  child: NavigationBar(
-                    height: 80,
-                    backgroundColor: Colors.transparent,
-                    surfaceTintColor: Colors.transparent,
-                    selectedIndex: widget.navigationShell.currentIndex,
-                    onDestinationSelected: (index) {
-                      widget.navigationShell.goBranch(
-                        index,
-                        initialLocation: index == widget.navigationShell.currentIndex,
-                      );
-                    },
-                    labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-                    destinations: const [
-                      NavigationDestination(
-                        icon: Icon(Icons.home_outlined, size: 24, color: Color(0xFF5F5C58)),
-                        selectedIcon: Icon(Icons.home_rounded, size: 24, color: Color(0xFFFF6600)),
-                        label: 'Home',
-                      ),
-                      NavigationDestination(
-                        icon: Icon(Icons.favorite_border_rounded, size: 24, color: Color(0xFF5F5C58)),
-                        selectedIcon: Icon(Icons.favorite_rounded, size: 24, color: Color(0xFFFF6600)),
-                        label: 'Favorites',
-                      ),
-                      NavigationDestination(
-                        icon: Icon(Icons.forum_outlined, size: 24, color: Color(0xFF5F5C58)),
-                        selectedIcon: Icon(Icons.forum_rounded, size: 24, color: Color(0xFFFF6600)),
-                        label: 'Support',
-                      ),
-                      NavigationDestination(
-                        icon: Icon(Icons.chat_bubble_outline_rounded, size: 24, color: Color(0xFF5F5C58)),
-                        selectedIcon: Icon(Icons.chat_bubble_rounded, size: 24, color: Color(0xFFFF6600)),
-                        label: 'AI Chat',
-                      ),
-                    ],
+                      }),
+                    ),
+                    child: NavigationBar(
+                      height: 64,
+                      backgroundColor: Colors.transparent,
+                      surfaceTintColor: Colors.transparent,
+                      elevation: 0,
+                      selectedIndex: widget.navigationShell.currentIndex,
+                      onDestinationSelected: (index) {
+                        widget.navigationShell.goBranch(
+                          index,
+                          initialLocation: index == widget.navigationShell.currentIndex,
+                        );
+                      },
+                      labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+                      destinations: const [
+                        NavigationDestination(
+                          icon: Icon(Icons.home_outlined, size: 24, color: Color(0xFF5F5C58)),
+                          selectedIcon: Icon(Icons.home_rounded, size: 24, color: Color(0xFFFF6600)),
+                          label: 'Home',
+                        ),
+                        NavigationDestination(
+                          icon: Icon(Icons.favorite_border_rounded, size: 24, color: Color(0xFF5F5C58)),
+                          selectedIcon: Icon(Icons.favorite_rounded, size: 24, color: Color(0xFFFF6600)),
+                          label: 'Favorites',
+                        ),
+                        NavigationDestination(
+                          icon: Icon(Icons.forum_outlined, size: 24, color: Color(0xFF5F5C58)),
+                          selectedIcon: Icon(Icons.forum_rounded, size: 24, color: Color(0xFFFF6600)),
+                          label: 'Support',
+                        ),
+                        NavigationDestination(
+                          icon: Icon(Icons.chat_bubble_outline_rounded, size: 24, color: Color(0xFF5F5C58)),
+                          selectedIcon: Icon(Icons.chat_bubble_rounded, size: 24, color: Color(0xFFFF6600)),
+                          label: 'AI Chat',
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
-            ),
-          ),
-        ),
       ),
-    ),);
+    );
   }
 }

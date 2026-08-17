@@ -15,19 +15,23 @@ class AuthAuthenticated extends AuthState {
   final int userId;
 
   /// Backend-validated experience for this device session: `user` | `businessowner`.
-  /// Null means Continue As has not been completed yet for this login.
   final String? activeExperience;
+
+  /// True only for newly created accounts that must complete Continue As.
+  final bool needsExperienceSelection;
 
   const AuthAuthenticated(
     this.userType,
     this.userId, {
     this.activeExperience,
+    this.needsExperienceSelection = false,
   });
 
   AuthAuthenticated copyWith({
     String? userType,
     int? userId,
     String? activeExperience,
+    bool? needsExperienceSelection,
     bool clearActiveExperience = false,
   }) {
     return AuthAuthenticated(
@@ -36,6 +40,8 @@ class AuthAuthenticated extends AuthState {
       activeExperience: clearActiveExperience
           ? null
           : (activeExperience ?? this.activeExperience),
+      needsExperienceSelection:
+          needsExperienceSelection ?? this.needsExperienceSelection,
     );
   }
 }

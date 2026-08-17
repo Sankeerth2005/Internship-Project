@@ -10,7 +10,7 @@ namespace localink_be.Models.DTOs
         public bool HasNextPage => Page < TotalPages;
         public bool HasPreviousPage => Page > 1;
 
-        /// <summary>Echo of applied radius in km (null when location not used).</summary>
+        /// <summary>Echo of applied radius in km (always null — distance ranks, it does not hide businesses).</summary>
         public double? AppliedRadiusKm { get; set; }
 
         /// <summary>Echo of applied sort key for clients.</summary>

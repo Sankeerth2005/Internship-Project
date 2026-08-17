@@ -1,6 +1,7 @@
 using System.Data;
 using System.Text;
 using localink_be.Data;
+using localink_be.Extensions;
 using localink_be.Models.DTOs;
 using localink_be.Models.Enums;
 using localink_be.Models.Queries;
@@ -37,12 +38,13 @@ namespace localink_be.Repositories.Implementations
             CancellationToken cancellationToken = default)
         {
             var page = query.Page < 1 ? 1 : query.Page;
-            var pageSize = query.PageSize < 1 ? 20 : Math.Min(query.PageSize, maxPageSize);
+            var pageSize = query.PageSize < 1 ? 10 : Math.Min(query.PageSize, maxPageSize);
             var offset = (page - 1) * pageSize;
+            _ = (defaultRadiusKm, maxRadiusKm);
 
             _logger.LogDebug(
-                "Business discovery: sort={Sort} page={Page} size={PageSize} lat={Lat} lng={Lng} radiusDefault={Radius}",
-                query.Sort, page, pageSize, query.Latitude, query.Longitude, defaultRadiusKm);
+                "Business discovery: sort={Sort} page={Page} size={PageSize} lat={Lat} lng={Lng}",
+                query.Sort, page, pageSize, query.Latitude, query.Longitude);
 
             var hasLocation = query.Latitude.HasValue
                               && query.Longitude.HasValue
@@ -50,14 +52,9 @@ namespace localink_be.Repositories.Implementations
                               && query.Longitude is >= -180 and <= 180
                               && !(query.Latitude == 0 && query.Longitude == 0);
 
+            // Radius is never a visibility cutoff. Location only ranks results by distance.
             double? appliedRadiusKm = null;
-            if (hasLocation)
-            {
-                var radius = query.RadiusKm ?? defaultRadiusKm;
-                if (radius <= 0) radius = defaultRadiusKm;
-                appliedRadiusKm = Math.Min(radius, maxRadiusKm);
-            }
-            else if (query.RequireLocation)
+            if (!hasLocation && query.RequireLocation)
             {
                 return EmptyPage(page, pageSize, query.Sort);
             }
@@ -66,8 +63,6 @@ namespace localink_be.Repositories.Implementations
             var searchPattern = search == null ? null : $"%{EscapeLike(search)}%";
             var pincode = string.IsNullOrWhiteSpace(query.UserPincode) ? null : query.UserPincode.Trim();
             var city = string.IsNullOrWhiteSpace(query.UserCity) ? null : query.UserCity.Trim();
-
-            var radiusMeters = appliedRadiusKm.HasValue ? appliedRadiusKm.Value * 1000.0 : (double?)null;
 
             var (countSql, dataSql) = BuildSql(query.Sort, hasLocation, searchPattern != null, query.CategoryId.HasValue, query.SubcategoryId.HasValue);
 
@@ -78,7 +73,7 @@ namespace localink_be.Repositories.Implementations
             await using var countCmd = connection.CreateCommand();
             countCmd.CommandText = countSql;
             countCmd.CommandType = CommandType.Text;
-            BindCommonParameters(countCmd, query, hasLocation, radiusMeters, searchPattern, pincode, city);
+            BindCommonParameters(countCmd, query, hasLocation, searchPattern, search, pincode, city);
 
             var totalCount = Convert.ToInt32(await countCmd.ExecuteScalarAsync(cancellationToken) ?? 0);
 
@@ -88,7 +83,7 @@ namespace localink_be.Repositories.Implementations
                 await using var dataCmd = connection.CreateCommand();
                 dataCmd.CommandText = dataSql;
                 dataCmd.CommandType = CommandType.Text;
-                BindCommonParameters(dataCmd, query, hasLocation, radiusMeters, searchPattern, pincode, city);
+                BindCommonParameters(dataCmd, query, hasLocation, searchPattern, search, pincode, city);
                 AddParameter(dataCmd, "@Offset", offset);
                 AddParameter(dataCmd, "@PageSize", pageSize);
 
@@ -165,13 +160,7 @@ namespace localink_be.Repositories.Implementations
         {
             var filters = new StringBuilder();
             filters.AppendLine("WHERE ad.Status = @ApprovedStatus");
-
-            if (hasLocation)
-            {
-                // Spatial predicate — uses IX_business_contact_geo_location
-                filters.AppendLine("  AND c.geo_location IS NOT NULL");
-                filters.AppendLine("  AND c.geo_location.STDistance(@UserPoint) <= @RadiusMeters");
-            }
+            filters.AppendLine(BusinessVisibilityExtensions.SqlAndNotActivelyTemporarilyClosed);
 
             if (hasCategory)
                 filters.AppendLine("  AND b.category_id = @CategoryId");
@@ -195,11 +184,12 @@ namespace localink_be.Repositories.Implementations
             }
 
             var distanceExpr = hasLocation
-                ? "(c.geo_location.STDistance(@UserPoint) / 1000.0)"
+                ? "CASE WHEN c.geo_location IS NOT NULL THEN (c.geo_location.STDistance(@UserPoint) / 1000.0) ELSE CAST(NULL AS float) END"
                 : "CAST(NULL AS float)";
 
             // Chosen sort mode is primary; distance is only primary for Nearest.
-            var orderBy = BuildOrderBy(sort, hasLocation, distanceExpr);
+            // Search uses relevance first so a weak nearby match cannot bury a true name/category hit.
+            var orderBy = BuildOrderBy(sort, hasLocation, hasSearch, distanceExpr);
 
             var fromJoin = """
                 FROM dbo.business b
@@ -243,7 +233,7 @@ namespace localink_be.Repositories.Implementations
             return (countSql, dataSql);
         }
 
-        private static string BuildOrderBy(BusinessSortMode sort, bool hasLocation, string distanceExpr)
+        private static string BuildOrderBy(BusinessSortMode sort, bool hasLocation, bool hasSearch, string distanceExpr)
         {
             // Soft locality when GPS is absent (pincode/city boost only).
             var localityBoost = hasLocation
@@ -253,7 +243,23 @@ namespace localink_be.Repositories.Implementations
                   CASE WHEN @UserCity IS NOT NULL AND LOWER(c.city) = LOWER(@UserCity) THEN 0 ELSE 1 END ASC,
                   """;
 
-            // Distance as tiebreaker for non-nearest modes (still within radius filter).
+            var relevanceBoost = hasSearch
+                ? """
+                  CASE
+                    WHEN LOWER(b.business_name) = LOWER(@SearchExact) THEN 0
+                    WHEN b.business_name LIKE @Search THEN 1
+                    WHEN (cat.category_name IS NOT NULL AND cat.category_name LIKE @Search)
+                      OR (sub.subcategory_name IS NOT NULL AND sub.subcategory_name LIKE @Search) THEN 2
+                    ELSE 3
+                  END ASC,
+                  """
+                : string.Empty;
+
+            // Missing coordinates are ranked after businesses with a real distance. Never invent coords.
+            var missingGeoLast = hasLocation
+                ? "CASE WHEN c.geo_location IS NULL THEN 1 ELSE 0 END ASC, "
+                : string.Empty;
+
             var distanceTiebreak = hasLocation
                 ? $", {distanceExpr} ASC"
                 : string.Empty;
@@ -261,27 +267,27 @@ namespace localink_be.Repositories.Implementations
             return sort switch
             {
                 BusinessSortMode.NameAsc =>
-                    $"{localityBoost} b.business_name ASC{distanceTiebreak}, b.business_id ASC",
+                    $"{relevanceBoost}{localityBoost}{missingGeoLast} b.business_name ASC{distanceTiebreak}, b.business_id ASC",
 
                 BusinessSortMode.NameDesc =>
-                    $"{localityBoost} b.business_name DESC{distanceTiebreak}, b.business_id ASC",
+                    $"{relevanceBoost}{localityBoost}{missingGeoLast} b.business_name DESC{distanceTiebreak}, b.business_id ASC",
 
                 BusinessSortMode.TopRated =>
-                    $"{localityBoost} ISNULL(rev.AverageRating, 0) DESC, ISNULL(rev.TotalReviews, 0) DESC{distanceTiebreak}, b.business_name ASC",
+                    $"{relevanceBoost}{localityBoost}{missingGeoLast} ISNULL(rev.AverageRating, 0) DESC, ISNULL(rev.TotalReviews, 0) DESC{distanceTiebreak}, b.business_name ASC",
 
                 BusinessSortMode.MostReviewed =>
-                    $"{localityBoost} ISNULL(rev.TotalReviews, 0) DESC, ISNULL(rev.AverageRating, 0) DESC{distanceTiebreak}, b.business_name ASC",
+                    $"{relevanceBoost}{localityBoost}{missingGeoLast} ISNULL(rev.TotalReviews, 0) DESC, ISNULL(rev.AverageRating, 0) DESC{distanceTiebreak}, b.business_name ASC",
 
                 BusinessSortMode.Newest =>
-                    $"{localityBoost} b.created_at DESC{distanceTiebreak}, b.business_id DESC",
+                    $"{relevanceBoost}{localityBoost}{missingGeoLast} b.created_at DESC{distanceTiebreak}, b.business_id DESC",
 
                 BusinessSortMode.MostPopular =>
-                    $"{localityBoost} (ISNULL(met.Views,0) + ISNULL(met.FavoritesCount,0) * 3 + ISNULL(met.ContactClicks,0) * 2) DESC, ISNULL(rev.TotalReviews, 0) DESC{distanceTiebreak}, b.business_name ASC",
+                    $"{relevanceBoost}{localityBoost}{missingGeoLast} (ISNULL(met.Views,0) + ISNULL(met.FavoritesCount,0) * 3 + ISNULL(met.ContactClicks,0) * 2) DESC, ISNULL(rev.TotalReviews, 0) DESC{distanceTiebreak}, b.business_name ASC",
 
-                _ => // Nearest — distance is the primary ranking when GPS is available
+                _ => // Nearest — relevance (when searching) then actual geographic distance
                     hasLocation
-                        ? $"{distanceExpr} ASC, b.business_name ASC, b.business_id ASC"
-                        : $"{localityBoost} b.business_name ASC, b.business_id ASC"
+                        ? $"{relevanceBoost}{missingGeoLast}{distanceExpr} ASC, b.business_name ASC, b.business_id ASC"
+                        : $"{relevanceBoost}{localityBoost} b.business_name ASC, b.business_id ASC"
             };
         }
 
@@ -289,8 +295,8 @@ namespace localink_be.Repositories.Implementations
             System.Data.Common.DbCommand cmd,
             BusinessDiscoveryQuery query,
             bool hasLocation,
-            double? radiusMeters,
             string? searchPattern,
+            string? searchExact,
             string? pincode,
             string? city)
         {
@@ -298,17 +304,8 @@ namespace localink_be.Repositories.Implementations
 
             if (hasLocation)
             {
-                // geography::Point(lat, lng, 4326) — SQL Server lat-first order
                 AddParameter(cmd, "@UserLat", query.Latitude!.Value);
                 AddParameter(cmd, "@UserLng", query.Longitude!.Value);
-                AddParameter(cmd, "@RadiusMeters", radiusMeters!.Value);
-
-                // Inject user point once via SQL variable for plan reuse friendliness
-                // Prepend declaration into command if not already present
-                if (!cmd.CommandText.Contains("@UserPoint", StringComparison.Ordinal))
-                {
-                    // Distance expression already references @UserPoint — declare it
-                }
 
                 cmd.CommandText = """
                     DECLARE @UserPoint geography = geography::Point(@UserLat, @UserLng, 4326);
@@ -322,7 +319,10 @@ namespace localink_be.Repositories.Implementations
                 AddParameter(cmd, "@SubcategoryId", query.SubcategoryId.Value);
 
             if (searchPattern != null)
+            {
                 AddParameter(cmd, "@Search", searchPattern);
+                AddParameter(cmd, "@SearchExact", searchExact ?? string.Empty);
+            }
 
             AddParameter(cmd, "@UserPincode", (object?)pincode ?? DBNull.Value);
             AddParameter(cmd, "@UserCity", (object?)city ?? DBNull.Value);

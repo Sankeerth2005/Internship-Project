@@ -1,15 +1,6 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
+using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
-using Microsoft.Extensions.Options;
-using localink_be.Models.DTOs;
-using localink_be.Models.Enums;
-using localink_be.Models.Queries;
-using localink_be.Services.Implementations;
 using localink_be.Services.Interfaces;
 
 namespace localink_be.Controllers
@@ -19,27 +10,16 @@ namespace localink_be.Controllers
     [EnableRateLimiting("AiPolicy")]
     public class PersonalizationController : ControllerBase
     {
-        private const int FeedPageSize = 20;
-        private const int FeedTake = 5;
+        private readonly IPersonalizationService _personalizationService;
 
-        private readonly IAIService _aiService;
-        private readonly IBusinessDiscoveryService _discoveryService;
-        private readonly BusinessDiscoveryOptions _discoveryOptions;
-
-        public PersonalizationController(
-            IAIService aiService,
-            IBusinessDiscoveryService discoveryService,
-            IOptions<BusinessDiscoveryOptions> discoveryOptions)
+        public PersonalizationController(IPersonalizationService personalizationService)
         {
-            _aiService = aiService;
-            _discoveryService = discoveryService;
-            _discoveryOptions = discoveryOptions.Value;
+            _personalizationService = personalizationService;
         }
 
         /// <summary>
-        /// Location-scoped AI "For You" feed.
-        /// Returns nearby approved businesses only (same radius defaults as discovery).
-        /// When lat/lng are missing, returns an empty feed with locationRequired=true.
+        /// Location-ranked personalized "For You" feed.
+        /// Uses the caller's current coordinates; farther businesses remain eligible.
         /// </summary>
         [HttpGet("feed")]
         public async Task<IActionResult> GetPersonalizedFeed(
@@ -48,48 +28,21 @@ namespace localink_be.Controllers
             [FromQuery] double? latitude,
             [FromQuery] double? longitude,
             [FromQuery] double? radius = null,
+            [FromQuery] string? categoryAffinity = null,
             CancellationToken cancellationToken = default)
         {
-            // Prefer explicit lat/lng; also accept latitude/longitude aliases used elsewhere.
             lat ??= latitude;
             lng ??= longitude;
             ResolveLocationFromHeaders(ref lat, ref lng);
-
-            var hour = DateTime.UtcNow.AddHours(5.5).Hour; // IST
-            string timeOfDay;
-            string preferredCategory;
-
-            if (hour >= 5 && hour < 12)
-            {
-                timeOfDay = "Morning";
-                preferredCategory = "Bakery & Cafe";
-            }
-            else if (hour >= 12 && hour < 17)
-            {
-                timeOfDay = "Afternoon";
-                preferredCategory = "Restaurants & Dining";
-            }
-            else if (hour >= 17 && hour < 22)
-            {
-                timeOfDay = "Evening";
-                preferredCategory = "Services & Wellness";
-            }
-            else
-            {
-                timeOfDay = "Night";
-                preferredCategory = "Dining & Convenience";
-            }
-
-            var greeting = await _aiService.GetPersonalizedWelcomeAsync(preferredCategory, timeOfDay);
 
             if (!IsValidCoordinate(lat, lng))
             {
                 return Ok(new
                 {
                     success = true,
-                    greeting,
-                    timeOfDay,
-                    preferredCategory,
+                    greeting = "Namaste! Enable location to unlock personalized nearby recommendations.",
+                    timeOfDay = ResolveTimeOfDayLabel(),
+                    preferredCategory = "Nearby",
                     locationRequired = true,
                     message = "Enable location to see nearby recommendations for you.",
                     appliedRadiusKm = (double?)null,
@@ -97,74 +50,79 @@ namespace localink_be.Controllers
                 });
             }
 
-            var discovery = await _discoveryService.DiscoverAsync(new BusinessDiscoveryQuery
+            var affinity = ParseCategoryAffinity(categoryAffinity);
+            var userId = TryGetUserId();
+
+            var feed = await _personalizationService.GetFeedAsync(
+                lat!.Value,
+                lng!.Value,
+                radius,
+                userId,
+                affinity,
+                cancellationToken);
+
+            var mapped = feed.Items.Select(b => new
             {
-                Latitude = lat,
-                Longitude = lng,
-                RadiusKm = radius,
-                Sort = BusinessSortMode.Nearest,
-                Page = 1,
-                PageSize = FeedPageSize,
-                RequireLocation = true
-            }, cancellationToken);
-
-            var nearby = discovery.Items ?? Array.Empty<BusinessDto>();
-
-            // Soft preference for time-of-day category among nearby only — never expands radius.
-            var preferred = preferredCategory.ToLowerInvariant();
-            var matching = nearby
-                .Where(b => CategoryMatches(b.CategoryName, preferred))
-                .ToList();
-            var others = nearby
-                .Where(b => !CategoryMatches(b.CategoryName, preferred))
-                .ToList();
-
-            var selected = matching.Concat(others).Take(FeedTake).ToList();
-
-            if (matching.Count == 0 && selected.Count > 0)
-            {
-                preferredCategory = selected[0].CategoryName ?? preferredCategory;
-            }
-
-            var mappedList = selected.Select(b => new
-            {
-                businessId = b.Id,
-                businessName = b.Name,
+                businessId = b.BusinessId,
+                businessName = b.BusinessName,
                 description = b.Description,
-                categoryName = b.CategoryName ?? "",
-                subcategoryName = b.SubcategoryName ?? "",
-                address = b.StreetAddress ?? "",
-                city = b.City ?? "",
-                phone = b.PhoneNumber ?? "",
-                email = b.Email ?? "",
-                photos = b.Photos != null && b.Photos.Count > 0
-                    ? b.Photos
-                    : (b.PrimaryImage != null ? new List<string> { b.PrimaryImage } : new List<string>()),
-                distance = b.Distance.HasValue ? Math.Round(b.Distance.Value, 2) : 0d,
+                categoryName = b.CategoryName,
+                subcategoryName = b.SubcategoryName,
+                address = b.Address,
+                city = b.City,
+                phone = b.Phone,
+                email = b.Email,
+                photos = b.Photos,
+                distance = b.DistanceKm,
                 latitude = b.Latitude,
-                longitude = b.Longitude
+                longitude = b.Longitude,
+                score = b.Score,
+                reason = b.Reason
             }).ToList();
 
             return Ok(new
             {
                 success = true,
-                greeting,
-                timeOfDay,
-                preferredCategory,
+                greeting = feed.Greeting,
+                timeOfDay = feed.TimeOfDay,
+                preferredCategory = feed.PreferredCategory,
                 locationRequired = false,
-                message = mappedList.Count == 0
-                    ? "No businesses found near your location right now."
-                    : (string?)null,
-                appliedRadiusKm = discovery.AppliedRadiusKm ?? _discoveryOptions.DefaultRadiusKm,
-                data = mappedList
+                message = feed.Message,
+                appliedRadiusKm = feed.AppliedRadiusKm,
+                data = mapped
             });
         }
 
-        private static bool CategoryMatches(string? categoryName, string preferredLower)
+        private static Dictionary<int, int>? ParseCategoryAffinity(string? raw)
         {
-            if (string.IsNullOrWhiteSpace(categoryName)) return false;
-            var name = categoryName.ToLowerInvariant();
-            return name.Contains(preferredLower) || preferredLower.Contains(name);
+            if (string.IsNullOrWhiteSpace(raw)) return null;
+            // Format: "12:3,45:1,7:8" (categoryId:weight)
+            var map = new Dictionary<int, int>();
+            foreach (var part in raw.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            {
+                var bits = part.Split(':', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                if (bits.Length != 2) continue;
+                if (!int.TryParse(bits[0], out var id) || !int.TryParse(bits[1], out var weight)) continue;
+                if (id <= 0 || weight <= 0) continue;
+                map[id] = weight;
+            }
+            return map.Count == 0 ? null : map;
+        }
+
+        private long? TryGetUserId()
+        {
+            var claim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (long.TryParse(claim, out var id) && id > 0) return id;
+            return null;
+        }
+
+        private static string ResolveTimeOfDayLabel()
+        {
+            var hour = DateTime.UtcNow.AddHours(5.5).Hour;
+            if (hour >= 5 && hour < 12) return "Morning";
+            if (hour >= 12 && hour < 17) return "Afternoon";
+            if (hour >= 17 && hour < 22) return "Evening";
+            return "Night";
         }
 
         private static bool IsValidCoordinate(double? lat, double? lng)

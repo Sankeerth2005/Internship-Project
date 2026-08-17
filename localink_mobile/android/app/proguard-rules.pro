@@ -6,6 +6,11 @@
 -keep class io.flutter.** { *; }
 -keep class io.flutter.plugins.** { *; }
 
+# Google Sign-In / Play services (release minify)
+-keep class com.google.android.gms.auth.** { *; }
+-keep class com.google.android.gms.common.api.** { *; }
+-dontwarn com.google.android.gms.**
+
 # Keep Gson/json reflective models if used by plugins
 -keepattributes Signature
 -keepattributes *Annotation*

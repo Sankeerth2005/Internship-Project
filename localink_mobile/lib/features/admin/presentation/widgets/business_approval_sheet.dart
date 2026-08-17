@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/models/admin_business_dto.dart';
 import '../../providers/admin_provider.dart';
 import '../../../shared/presentation/widgets/app_feedback.dart';
+import '../../../shared/presentation/widgets/app_safe_bottom_bar.dart';
 import '../../../../core/network/app_error_formatter.dart';
 
 class BusinessApprovalSheet extends ConsumerStatefulWidget {
@@ -108,7 +109,11 @@ class _BusinessApprovalSheetState extends ConsumerState<BusinessApprovalSheet> {
         left: 24,
         right: 24,
         top: 20,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+        bottom: AppSafeBottomBar.insetOf(
+              context,
+              mode: AppSafeBottomMode.overlay,
+            ) +
+            24,
       ),
       child: SingleChildScrollView(
         child: Column(

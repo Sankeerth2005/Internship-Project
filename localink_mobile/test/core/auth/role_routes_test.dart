@@ -45,13 +45,40 @@ void main() {
       );
     });
 
-    test('authenticated without experience goes to continue-as', () {
+    test('new account needs continue-as', () {
+      expect(
+        RoleRoutes.resolvePostAuthRoute(
+          accountType: 'user',
+          needsExperienceSelection: true,
+        ),
+        RoleRoutes.continueAs,
+      );
+    });
+
+    test('existing account without experience uses account type dashboard', () {
       expect(
         RoleRoutes.resolvePostAuthRoute(accountType: 'user'),
-        RoleRoutes.continueAs,
+        '/home',
       );
       expect(
         RoleRoutes.resolvePostAuthRoute(accountType: 'businessowner'),
+        '/business-dashboard',
+      );
+    });
+
+    test('interactive login with needsExperienceSelection goes to continue-as', () {
+      expect(
+        RoleRoutes.resolvePostAuthRoute(
+          accountType: 'user',
+          needsExperienceSelection: true,
+        ),
+        RoleRoutes.continueAs,
+      );
+      expect(
+        RoleRoutes.resolvePostAuthRoute(
+          accountType: 'businessowner',
+          needsExperienceSelection: true,
+        ),
         RoleRoutes.continueAs,
       );
     });

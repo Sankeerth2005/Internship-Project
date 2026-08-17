@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:dio/dio.dart';
 
 import '../../providers/business_provider.dart';
 import '../../providers/category_usage_tracker.dart';
@@ -16,6 +17,8 @@ import '../../../../core/widgets/optimized_network_image.dart';
 import '../../../../core/network/signalr_service.dart';
 import '../../../auth/providers/auth_provider.dart';
 import '../../../auth/providers/auth_state.dart';
+import '../../../auth/providers/location_provider.dart';
+import '../../../auth/data/models/location_models.dart';
 import '../../widgets/business_action_button.dart';
 import '../../widgets/business_operating_hours.dart';
 import '../../widgets/business_review_card.dart';
@@ -159,7 +162,40 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
   }
 
   Future<void> _submitReview() async {
-    if (_commentController.text.trim().isEmpty) return;
+    final authState = ref.read(authProvider);
+    if (authState is! AuthAuthenticated) {
+      AppFeedback.showWarning(context, 'Please log in to submit a review.');
+      return;
+    }
+
+    if (widget.businessId < 1) {
+      AppFeedback.showError(context, 'Invalid business. Please reopen this business and try again.');
+      return;
+    }
+
+    final rating = _userRating.round();
+    if (rating < 1 || rating > 5) {
+      AppFeedback.showWarning(context, 'Please select a rating.');
+      return;
+    }
+
+    final comment = _commentController.text.trim();
+    if (comment.isEmpty) {
+      AppFeedback.showWarning(context, 'Please enter your review.');
+      return;
+    }
+    if (comment.length < 5) {
+      AppFeedback.showWarning(context, 'Please enter your review (at least 5 characters).');
+      return;
+    }
+    if (comment.length > 1000) {
+      AppFeedback.showWarning(context, 'Review must be 1000 characters or fewer.');
+      return;
+    }
+    if (_base64Image != null && _base64Image!.length > 500000) {
+      AppFeedback.showWarning(context, 'Review photo is too large. Please choose a smaller image.');
+      return;
+    }
 
     setState(() => _isSubmittingReview = true);
 
@@ -167,8 +203,8 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
       final repo = ref.read(businessRepositoryProvider);
       await repo.addReview(
         widget.businessId,
-        _userRating,
-        _commentController.text.trim(),
+        rating.toDouble(),
+        comment,
         image: _base64Image,
       );
 
@@ -185,6 +221,11 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
         AppFeedback.showSuccess(context, 'Review submitted successfully!');
       }
     } catch (e) {
+      if (e is DioException) {
+        debugPrint('Review submit validation: ${e.response?.data}');
+      } else {
+        debugPrint('Review submit failed: $e');
+      }
       if (mounted) {
         AppFeedback.showError(context, AppErrorFormatter.format(e));
       }
@@ -433,23 +474,7 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
                                         ),
                                         const SizedBox(width: 8),
                                       ],
-                                      // Ashok Chakra Tricolor Pill
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                        decoration: BoxDecoration(
-                                          color: const Color(0xFFF9F8F6),
-                                          borderRadius: BorderRadius.circular(4),
-                                          border: Border.all(color: const Color(0xFFEAE8E3)),
-                                        ),
-                                        child: Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            Container(width: 5, height: 8, color: const Color(0xFFFF9933)),
-                                            Container(width: 5, height: 8, color: Colors.white),
-                                            Container(width: 5, height: 8, color: const Color(0xFF138808)),
-                                          ],
-                                        ),
-                                      ),
+                                      _buildRegisteredCountryFlag(business),
                                     ],
                                   ),
                                   if (business.distance != null) ...[
@@ -1112,5 +1137,32 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
     final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     final local = date.toLocal();
     return '${local.day} ${months[local.month - 1]} ${local.year}';
+  }
+
+  Widget _buildRegisteredCountryFlag(BusinessDto business) {
+    final countriesAsync = ref.watch(countriesListProvider);
+    return countriesAsync.maybeWhen(
+      data: (countries) {
+        final country = CountryLookup.resolve(
+          countries: countries,
+          phoneCode: business.phoneCode,
+          countryName: business.country,
+        );
+        final flag = CountryLookup.flagEmoji(country);
+        if (flag == null || flag.isEmpty) {
+          return const SizedBox.shrink();
+        }
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF9F8F6),
+            borderRadius: BorderRadius.circular(4),
+            border: Border.all(color: const Color(0xFFEAE8E3)),
+          ),
+          child: Text(flag, style: const TextStyle(fontSize: 13, height: 1.1)),
+        );
+      },
+      orElse: () => const SizedBox.shrink(),
+    );
   }
 }

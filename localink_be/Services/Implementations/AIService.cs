@@ -1,9 +1,9 @@
 using System.Net.Http.Headers;
 using System.Text.Json;
 using localink_be.Services.Interfaces;
-using localink_be.Data;
-using Microsoft.EntityFrameworkCore;
-using System.Linq;
+using localink_be.Models.Queries;
+using localink_be.Models.Enums;
+using System.Text.RegularExpressions;
 
 namespace localink_be.Services.Implementations
 {
@@ -12,13 +12,16 @@ namespace localink_be.Services.Implementations
         private readonly HttpClient _httpClient;
         private readonly IConfiguration _config;
         private readonly ILogger<AIService> _logger;
-        private readonly AppDbContext _db;
+        private readonly IBusinessDiscoveryService _discoveryService;
 
-        public AIService(IConfiguration config, ILogger<AIService> logger, AppDbContext db)
+        public AIService(
+            IConfiguration config,
+            ILogger<AIService> logger,
+            IBusinessDiscoveryService discoveryService)
         {
             _config = config;
             _logger = logger;
-            _db = db;
+            _discoveryService = discoveryService;
             _httpClient = new HttpClient();
             var apiKey = _config["Groq:ApiKey"];
             if (string.IsNullOrWhiteSpace(apiKey))
@@ -213,33 +216,62 @@ Return only the summary text, no quotes or markdown.";
             }
         }
 
-        public async Task<string?> ChatSearchAsync(string message, string chatHistoryJson)
+        public async Task<string?> ChatSearchAsync(string message, string chatHistoryJson, double? userLat = null, double? userLng = null)
         {
             try
             {
-                // Fetch approved businesses
-                var businesses = await _db.Businesses
-                    .Where(b => _db.AdminDashboards.Any(a => a.BusinessId == b.BusinessId && a.Status == BusinessStatus.Approved))
-                    .Select(b => new
+                var searchTerms = ExtractSearchTerms(message);
+                var discovery = await _discoveryService.DiscoverAsync(new BusinessDiscoveryQuery
+                {
+                    Latitude = userLat,
+                    Longitude = userLng,
+                    Search = searchTerms,
+                    Sort = BusinessSortMode.Nearest,
+                    Page = 1,
+                    PageSize = 30
+                });
+
+                var ranked = (discovery.Items ?? Array.Empty<localink_be.Models.DTOs.BusinessDto>()).ToList();
+                if (ranked.Count == 0 && !string.IsNullOrWhiteSpace(searchTerms))
+                {
+                    discovery = await _discoveryService.DiscoverAsync(new BusinessDiscoveryQuery
                     {
-                        b.BusinessName,
-                        Category = b.Category != null ? b.Category.CategoryName : "",
-                        Subcategory = b.Subcategory != null ? b.Subcategory.SubcategoryName : "",
-                        b.Description,
-                        AverageRating = _db.BusinessReviews.Where(r => r.BusinessId == b.BusinessId).Average(r => (double?)r.Rating) ?? 0,
-                        Contact = _db.BusinessContacts.Where(c => c.BusinessId == b.BusinessId).Select(c => new { c.City, c.State, c.PhoneNumber }).FirstOrDefault()
-                    })
-                    .ToListAsync();
+                        Latitude = userLat,
+                        Longitude = userLng,
+                        Sort = BusinessSortMode.Nearest,
+                        Page = 1,
+                        PageSize = 30
+                    });
+                    ranked = (discovery.Items ?? Array.Empty<localink_be.Models.DTOs.BusinessDto>()).ToList();
+                }
+
+                var businesses = ranked.Select(b => new
+                {
+                    b.Name,
+                    Category = b.CategoryName,
+                    Subcategory = b.SubcategoryName,
+                    b.Description,
+                    b.AverageRating,
+                    b.City,
+                    b.State,
+                    b.Country,
+                    DistanceKm = b.Distance,
+                    b.PhoneNumber
+                });
 
                 var businessesJson = JsonSerializer.Serialize(businesses);
+                var locationHint = userLat.HasValue && userLng.HasValue
+                    ? "Businesses are pre-ranked nearest-first from the user's current coordinates. Prefer closer relevant matches, then progressively farther ones including other cities and countries."
+                    : "User location is unavailable; rank by relevance only and do not invent coordinates.";
 
                 var systemMessage = $@"You are 'Vocal for Sanatan Assistant', a friendly and helpful AI guide for local businesses.
-Here is the JSON list of all approved businesses currently registered in our database:
+Here is a JSON list of matching registered businesses (already ranked by search relevance and distance):
 {businessesJson}
 
-Use this database to answer the user's queries.
+{locationHint}
+Use this list to answer the user's queries.
 Rules:
-- Recommend matching businesses from our database list and explain why (e.g. based on ratings, features, or location).
+- Recommend matching businesses from this list and explain why (e.g. based on ratings, features, or proximity).
 - If no matching business exists in the list, politely inform the user that we don't have that type of business listed yet.
 - Keep your responses warm, helpful, and concise (max 3 sentences).";
 
@@ -297,6 +329,26 @@ Rules:
                 _logger.LogError(ex, "Error in AI Chat Search");
                 return "Sorry, an unexpected error occurred. Please try again.";
             }
+        }
+
+        private static readonly HashSet<string> ChatStopWords = new(StringComparer.OrdinalIgnoreCase)
+        {
+            "a", "an", "the", "me", "my", "i", "we", "you", "please", "find", "show", "get",
+            "looking", "look", "for", "near", "nearby", "around", "here", "good", "best",
+            "nice", "some", "any", "local", "in", "at", "to", "of", "and", "or", "is", "are",
+            "want", "need", "can", "could", "would", "recommend", "suggestion", "suggestions"
+        };
+
+        /// <summary>
+        /// Turns "Find me a good restaurant near me" into "restaurant" for discovery search.
+        /// </summary>
+        private static string? ExtractSearchTerms(string message)
+        {
+            if (string.IsNullOrWhiteSpace(message)) return null;
+            var tokens = Regex.Split(message.Trim(), @"[^\p{L}\p{N}]+")
+                .Where(t => t.Length > 1 && !ChatStopWords.Contains(t))
+                .ToArray();
+            return tokens.Length == 0 ? null : string.Join(" ", tokens);
         }
 
         public async Task<string?> GetBusinessInsightsAsync(int views, int favorites, int clicks, string businessName)

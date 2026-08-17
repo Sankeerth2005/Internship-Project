@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_theme.dart';
+import 'app_safe_bottom_bar.dart';
 
 class AppBottomSheet extends StatelessWidget {
   final String title;
@@ -65,7 +66,10 @@ class AppBottomSheet extends StatelessWidget {
       builder: (context) {
         return Padding(
           padding: EdgeInsets.only(
-            bottom: MediaQuery.of(context).viewInsets.bottom,
+            bottom: AppSafeBottomBar.insetOf(
+              context,
+              mode: AppSafeBottomMode.overlay,
+            ),
           ),
           child: AppBottomSheet(title: title, child: child),
         );

@@ -22,6 +22,8 @@ class AiRepository {
   Future<String> chatSearch({
     required String message,
     required String chatHistoryJson,
+    double? latitude,
+    double? longitude,
   }) async {
     final response = await _dio.post(
       'ai/chat-search',
@@ -29,6 +31,12 @@ class AiRepository {
         'message': message,
         'chatHistoryJson': chatHistoryJson,
       },
+      options: Options(
+        headers: {
+          if (latitude != null) 'X-User-Latitude': latitude.toString(),
+          if (longitude != null) 'X-User-Longitude': longitude.toString(),
+        },
+      ),
     );
     final data = response.data;
     if (data is Map) {

@@ -7,6 +7,7 @@ using localink_be.Data;
 using localink_be.Models.Entities;
 using localink_be.Models.DTOs;
 using localink_be.Services.Interfaces;
+using localink_be.Validation;
 
 namespace localink_be.Services.Implementations
 {
@@ -65,29 +66,24 @@ public class UserService : IUserService
         if (user == null)
             return false;
 
-        // 1. Phone number uniqueness validation
+        // 1. Phone number uniqueness + country-aware format
         if (!string.IsNullOrWhiteSpace(dto.Phone))
         {
-            var phoneExists = await _db.Users.AnyAsync(u => u.PhoneNumber == dto.Phone && u.UserId != userId);
+            PhoneNumberGuard.EnsureValid(dto.Phone, dto.CountryCode, dto.Address?.Country);
+            var nationalPhone = PhoneNumberGuard.NationalNumber(dto.Phone, dto.CountryCode);
+
+            var phoneExists = await _db.Users.AnyAsync(u => u.PhoneNumber == nationalPhone && u.UserId != userId);
             if (phoneExists)
             {
                 throw new InvalidOperationException("Phone number is already associated with another account.");
             }
 
-            // Indian phone number validation (exactly 10 digits when country code is +91/91 or country contains "india")
-            var isIndianPhone = dto.CountryCode == "91" || dto.CountryCode == "+91" || (dto.Address?.Country != null && dto.Address.Country.ToLower().Contains("india"));
-            var cleanPhone = dto.Phone.Replace(" ", "").Replace("-", "").Replace("+", "");
-            if (isIndianPhone && cleanPhone.Length != 10)
-            {
-                throw new ArgumentException("Invalid Phone Number. Indian phone numbers must be exactly 10 digits.");
-            }
-
-            user.PhoneNumber = dto.Phone;
+            user.PhoneNumber = nationalPhone;
         }
 
         if (!string.IsNullOrWhiteSpace(dto.CountryCode))
         {
-            user.CountryCode = dto.CountryCode;
+            user.CountryCode = PhoneNumberGuard.FormatCallingCode(dto.CountryCode);
         }
 
         // 2. Validate Country, State, City, and Pincode are not empty
@@ -112,14 +108,10 @@ public class UserService : IUserService
             throw new ArgumentException("The specified Country, State, and City combination is invalid.");
         }
 
-        // 3. Indian pincode validation (exactly 6 digits and numeric)
+        PincodeGuard.EnsureValid(dto.Address.Pincode, dto.Address.Country, required: true);
         var cleanPincode = dto.Address.Pincode.Trim();
-        if (dto.Address.Country.ToLower().Contains("india") && (cleanPincode.Length != 6 || !int.TryParse(cleanPincode, out _)))
-        {
-            throw new ArgumentException("Invalid Pincode. Indian pincodes must be exactly 6 digits.");
-        }
 
-        // 4. Validate pincode existence via Geoapify API
+        // Validate pincode existence via Geoapify API
         try
         {
             var pincodeDataJson = await _pincodeService.GetPincodeData(cleanPincode);

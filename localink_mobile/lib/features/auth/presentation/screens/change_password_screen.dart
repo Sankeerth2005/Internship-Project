@@ -104,6 +104,7 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
                         context.go(RoleRoutes.resolvePostAuthRoute(
                           accountType: auth.userType,
                           activeExperience: auth.activeExperience,
+                          needsExperienceSelection: auth.needsExperienceSelection,
                         ));
                       } else {
                         context.go('/login');

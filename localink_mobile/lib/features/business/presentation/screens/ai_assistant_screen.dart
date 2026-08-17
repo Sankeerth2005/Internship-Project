@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:dio/dio.dart';
 import '../../../ai/data/repositories/ai_repository.dart';
 import '../../../../core/network/app_error_formatter.dart';
+import '../../../../core/audio/voice_session_lifecycle.dart';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
@@ -14,6 +15,7 @@ import 'package:flutter_tts/flutter_tts.dart';
 import '../../../shared/presentation/widgets/app_back_button.dart';
 import '../../../ai/widgets/ai_message_bubble.dart';
 import '../../../ai/widgets/ai_prompt_chips.dart';
+import '../../../business/providers/business_provider.dart';
 
 // ─── DESIGN TOKENS ────────────────────────────────────────────────────────────
 class _AiTok {
@@ -32,7 +34,8 @@ class AiAssistantScreen extends ConsumerStatefulWidget {
   ConsumerState<AiAssistantScreen> createState() => _AiAssistantScreenState();
 }
 
-class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
+class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen>
+    with VoiceSessionLifecycleMixin {
   final List<Map<String, String>> _messages = [
     {
       'role': 'assistant',
@@ -57,7 +60,25 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
   @override
   void initState() {
     super.initState();
+    startVoiceLifecycleWatch();
     _initTts();
+  }
+
+  @override
+  Future<void> stopActiveVoiceSession() async {
+    try {
+      await _flutterTts.stop();
+    } catch (_) {}
+    try {
+      if (await _audioRecorder.isRecording()) {
+        await _audioRecorder.stop();
+      }
+    } catch (_) {}
+    if (mounted && _isRecording) {
+      setState(() => _isRecording = false);
+    } else {
+      _isRecording = false;
+    }
   }
 
   Future<void> _initTts() async {
@@ -133,6 +154,8 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
 
   @override
   void dispose() {
+    stopVoiceLifecycleWatch();
+    stopActiveVoiceSession();
     _flutterTts.stop();
     _audioRecorder.dispose();
     _textController.dispose();
@@ -174,9 +197,12 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
       
       final historyJson = jsonEncode(recentHistory);
 
+      final location = ref.read(searchQueryProvider);
       final reply = await ref.read(aiRepositoryProvider).chatSearch(
         message: query,
         chatHistoryJson: historyJson,
+        latitude: location.latitude,
+        longitude: location.longitude,
       );
       setState(() {
         _messages.add({'role': 'assistant', 'content': reply});
@@ -245,7 +271,7 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
           Expanded(
             child: ListView.builder(
               controller: _scrollController,
-              padding: const EdgeInsets.all(16).copyWith(bottom: 120),
+              padding: const EdgeInsets.all(16).copyWith(bottom: 16),
               itemCount: _messages.length,
               itemBuilder: (context, idx) {
                 final msg = _messages[idx];
@@ -293,6 +319,7 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
               ),
             ),
             child: SafeArea(
+              bottom: false,
               child: Row(
                 children: [
                   Expanded(

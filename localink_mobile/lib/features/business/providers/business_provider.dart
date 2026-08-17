@@ -130,7 +130,7 @@ class SearchQueryState {
     this.userPincode = '',
     this.radiusKm = 25,
     this.page = 1,
-    this.pageSize = 20,
+    this.pageSize = 10,
   });
 
   SearchQueryState copyWith({
@@ -200,31 +200,43 @@ extension BusinessDtoExtension on BusinessDto {
 class SearchFeedState {
   final List<BusinessDto> items;
   final bool hasNextPage;
-  final bool isLoadingMore;
+  final bool hasPreviousPage;
+  final bool isLoadingPage;
   final int page;
+  final int totalPages;
+  final int totalCount;
   final Object? error;
 
   const SearchFeedState({
     this.items = const [],
     this.hasNextPage = false,
-    this.isLoadingMore = false,
+    this.hasPreviousPage = false,
+    this.isLoadingPage = false,
     this.page = 1,
+    this.totalPages = 0,
+    this.totalCount = 0,
     this.error,
   });
 
   SearchFeedState copyWith({
     List<BusinessDto>? items,
     bool? hasNextPage,
-    bool? isLoadingMore,
+    bool? hasPreviousPage,
+    bool? isLoadingPage,
     int? page,
+    int? totalPages,
+    int? totalCount,
     Object? error,
     bool clearError = false,
   }) {
     return SearchFeedState(
       items: items ?? this.items,
       hasNextPage: hasNextPage ?? this.hasNextPage,
-      isLoadingMore: isLoadingMore ?? this.isLoadingMore,
+      hasPreviousPage: hasPreviousPage ?? this.hasPreviousPage,
+      isLoadingPage: isLoadingPage ?? this.isLoadingPage,
       page: page ?? this.page,
+      totalPages: totalPages ?? this.totalPages,
+      totalCount: totalCount ?? this.totalCount,
       error: clearError ? null : (error ?? this.error),
     );
   }
@@ -233,7 +245,7 @@ class SearchFeedState {
 class SearchFeedNotifier extends AsyncNotifier<SearchFeedState> {
   @override
   Future<SearchFeedState> build() async {
-    // Watch filter fields only (exclude page so loadMore does not reset)
+    // Watch filter fields only (exclude page so goToPage does not reset via rebuild)
     ref.watch(searchQueryProvider.select((s) => (
           s.query,
           s.selectedCategoryId,
@@ -246,10 +258,10 @@ class SearchFeedNotifier extends AsyncNotifier<SearchFeedState> {
           s.userPincode,
           s.pageSize,
         )));
-    return _fetchPage(page: 1, reset: true);
+    return _fetchPage(page: 1);
   }
 
-  Future<SearchFeedState> _fetchPage({required int page, required bool reset}) async {
+  Future<SearchFeedState> _fetchPage({required int page}) async {
     final queryState = ref.read(searchQueryProvider);
     final repo = ref.read(businessRepositoryProvider);
 
@@ -267,15 +279,6 @@ class SearchFeedNotifier extends AsyncNotifier<SearchFeedState> {
       }
     } catch (_) {}
 
-    if (queryState.isVoiceSearch && queryState.query.isNotEmpty) {
-      final items = await repo.voiceSearchText(
-        queryState.query,
-        lat: queryState.latitude,
-        lng: queryState.longitude,
-      );
-      return SearchFeedState(items: items, hasNextPage: false, page: 1);
-    }
-
     final paged = await repo.searchBusinesses(
       queryState.query,
       latitude: queryState.latitude,
@@ -285,40 +288,37 @@ class SearchFeedNotifier extends AsyncNotifier<SearchFeedState> {
       userCity: resolvedCity,
       categoryId: queryState.selectedCategoryId,
       subcategoryId: queryState.selectedSubcategoryId,
-      radiusKm: queryState.radiusKm,
       page: page,
       pageSize: queryState.pageSize,
     );
 
-    final previous = reset ? <BusinessDto>[] : (state.asData?.value.items ?? []);
-    final merged = reset
-        ? paged.items
-        : [
-            ...previous,
-            ...paged.items.where(
-              (b) => !previous.any((p) => p.businessId == b.businessId),
-            ),
-          ];
-
     return SearchFeedState(
-      items: merged,
+      items: paged.items,
       hasNextPage: paged.hasNextPage,
-      page: page,
+      hasPreviousPage: paged.hasPreviousPage,
+      page: paged.page,
+      totalPages: paged.totalPages,
+      totalCount: paged.totalCount,
     );
   }
 
-  Future<void> loadMore() async {
+  Future<void> goToPage(int page) async {
     final current = state.asData?.value;
-    if (current == null || !current.hasNextPage || current.isLoadingMore) return;
+    if (current == null || current.isLoadingPage) return;
 
-    state = AsyncData(current.copyWith(isLoadingMore: true, clearError: true));
-    final nextPage = current.page + 1;
+    final totalPages = current.totalPages;
+    if (page < 1) return;
+    if (totalPages > 0 && page > totalPages) return;
+    if (page == current.page) return;
+
+    ref.read(searchQueryProvider.notifier).setPage(page);
+    state = AsyncData(current.copyWith(isLoadingPage: true, clearError: true));
 
     try {
-      final next = await _fetchPage(page: nextPage, reset: false);
-      state = AsyncData(next.copyWith(isLoadingMore: false));
+      final next = await _fetchPage(page: page);
+      state = AsyncData(next.copyWith(isLoadingPage: false));
     } catch (e) {
-      state = AsyncData(current.copyWith(isLoadingMore: false, error: e));
+      state = AsyncData(current.copyWith(isLoadingPage: false, error: e));
     }
   }
 }

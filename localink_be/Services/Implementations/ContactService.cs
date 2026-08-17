@@ -7,6 +7,7 @@ using localink_be.Data;
 using localink_be.Models.Entities;
 using localink_be.Models.DTOs;
 using localink_be.Services.Interfaces;
+using localink_be.Validation;
 using NetTopologySuite.Geometries;
 
 namespace localink_be.Services.Implementations
@@ -37,6 +38,11 @@ namespace localink_be.Services.Implementations
         {
             if (string.IsNullOrWhiteSpace(dto.PhoneCode) || string.IsNullOrWhiteSpace(dto.PhoneNumber))
                 throw new ArgumentException("Phone code and number required");
+
+            PhoneNumberGuard.EnsureValid(dto.PhoneNumber, dto.PhoneCode, dto.Country);
+            dto.PhoneNumber = PhoneNumberGuard.NationalNumber(dto.PhoneNumber, dto.PhoneCode);
+            dto.PhoneCode = PhoneNumberGuard.FormatCallingCode(dto.PhoneCode);
+            PincodeGuard.EnsureValid(dto.Pincode, dto.Country, required: true);
 
             if (dto.Latitude.HasValue || dto.Longitude.HasValue)
             {
@@ -96,6 +102,11 @@ namespace localink_be.Services.Implementations
                 .FirstOrDefaultAsync(c => c.BusinessId == businessId);
 
             if (existing == null) return null;
+
+            PhoneNumberGuard.EnsureValid(updated.PhoneNumber, updated.PhoneCode, updated.Country);
+            updated.PhoneNumber = PhoneNumberGuard.NationalNumber(updated.PhoneNumber, updated.PhoneCode);
+            updated.PhoneCode = PhoneNumberGuard.FormatCallingCode(updated.PhoneCode);
+            PincodeGuard.EnsureValid(updated.Pincode, updated.Country, required: true);
 
             if (updated.Latitude.HasValue || updated.Longitude.HasValue)
             {

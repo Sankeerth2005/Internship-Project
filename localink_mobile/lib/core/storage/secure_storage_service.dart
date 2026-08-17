@@ -14,6 +14,7 @@ class SecureStorageService {
   static const _userTypeKey = 'user_type';
   static const _userIdKey = 'user_id';
   static const _activeExperienceKey = 'active_experience';
+  static const _needsExperienceSelectionKey = 'needs_experience_selection';
 
   static Future<void> saveToken(String token) async {
     try {
@@ -126,6 +127,27 @@ class SecureStorageService {
     }
   }
 
+  static Future<void> saveNeedsExperienceSelection(bool value) async {
+    try {
+      await _storage.write(
+        key: _needsExperienceSelectionKey,
+        value: value ? '1' : '0',
+      );
+    } catch (e) {
+      debugPrint('SecureStorageService: Error writing needsExperienceSelection: $e');
+    }
+  }
+
+  static Future<bool> getNeedsExperienceSelection() async {
+    try {
+      final val = await _storage.read(key: _needsExperienceSelectionKey);
+      return val == '1' || val == 'true';
+    } catch (e) {
+      debugPrint('SecureStorageService: Error reading needsExperienceSelection: $e');
+      return false;
+    }
+  }
+
   /// Clears only auth-related keys (keeps other secure prefs intact).
   static Future<void> clearAuth() async {
     try {
@@ -135,6 +157,7 @@ class SecureStorageService {
         _storage.delete(key: _userTypeKey),
         _storage.delete(key: _userIdKey),
         _storage.delete(key: _activeExperienceKey),
+        _storage.delete(key: _needsExperienceSelectionKey),
       ]);
     } catch (e) {
       debugPrint('SecureStorageService: Error clearing auth: $e');

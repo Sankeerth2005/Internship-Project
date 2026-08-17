@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/auth/role_routes.dart';
 import '../../../core/network/dio_client.dart';
 import '../../../core/network/signalr_service.dart';
 import '../../../core/storage/secure_storage_service.dart';
@@ -56,6 +57,8 @@ class AuthNotifier extends Notifier<AuthState> {
     final userType = await SecureStorageService.getUserType();
     final userId = await SecureStorageService.getUserId();
     final activeExperience = await SecureStorageService.getActiveExperience();
+    final needsSelection =
+        await SecureStorageService.getNeedsExperienceSelection();
 
     if (userType == null || userId == null) {
       state = const AuthUnauthenticated();
@@ -69,7 +72,7 @@ class AuthNotifier extends Notifier<AuthState> {
         final refreshed = await _repository.refresh(refreshToken);
         await _persistSession(
           refreshed,
-          clearActiveExperience: false,
+          isNewUser: needsSelection,
           preserveActiveExperience: activeExperience,
         );
         return;
@@ -86,6 +89,7 @@ class AuthNotifier extends Notifier<AuthState> {
         userType,
         userId,
         activeExperience: activeExperience,
+        needsExperienceSelection: needsSelection,
       );
       return;
     }
@@ -95,8 +99,9 @@ class AuthNotifier extends Notifier<AuthState> {
 
   Future<void> _persistSession(
     AuthResponse response, {
-    required bool clearActiveExperience,
+    required bool isNewUser,
     String? preserveActiveExperience,
+    bool promptExperienceSelection = false,
   }) async {
     final parsedUserId = int.tryParse(response.user.id) ?? 0;
 
@@ -108,12 +113,28 @@ class AuthNotifier extends Notifier<AuthState> {
     await SecureStorageService.saveUserId(parsedUserId);
 
     String? experience;
-    if (clearActiveExperience) {
-      await SecureStorageService.clearActiveExperience();
+    var needsSelection = false;
+    final isAdmin = RoleRoutes.isAdmin(response.user.userType);
+
+    if (!isAdmin && (isNewUser || promptExperienceSelection)) {
+      // Interactive login / signup / Google auth → Continue As (does not create accounts).
+      await SecureStorageService.saveNeedsExperienceSelection(true);
       experience = null;
+      needsSelection = true;
     } else {
+      await SecureStorageService.saveNeedsExperienceSelection(false);
       experience = preserveActiveExperience ??
           await SecureStorageService.getActiveExperience();
+
+      // Session restore: land on the last chosen experience or account type.
+      if (experience == null || experience.isEmpty) {
+        experience =
+            RoleRoutes.experienceForAccountType(response.user.userType);
+      }
+      if (experience != null && experience.isNotEmpty) {
+        await SecureStorageService.saveActiveExperience(experience);
+      }
+      needsSelection = false;
     }
 
     ref.read(userRepositoryProvider).clearCache();
@@ -123,6 +144,7 @@ class AuthNotifier extends Notifier<AuthState> {
       response.user.userType,
       parsedUserId,
       activeExperience: experience,
+      needsExperienceSelection: needsSelection,
     );
   }
 
@@ -138,8 +160,12 @@ class AuthNotifier extends Notifier<AuthState> {
       );
 
       final response = await _repository.login(request);
-      // Fresh login must show Continue As (do not reuse prior experience).
-      await _persistSession(response, clearActiveExperience: true);
+      // Existing account: still choose User / Business Owner for this session.
+      await _persistSession(
+        response,
+        isNewUser: false,
+        promptExperienceSelection: true,
+      );
     } catch (e) {
       state = AuthError(AppErrorFormatter.format(e));
     }
@@ -162,7 +188,12 @@ class AuthNotifier extends Notifier<AuthState> {
     state = const AuthLoading();
     try {
       final response = await _repository.googleSignIn(idToken);
-      await _persistSession(response, clearActiveExperience: true);
+      // Google auth itself is unchanged; only post-auth routing asks for a role.
+      await _persistSession(
+        response,
+        isNewUser: response.user.isNewUser,
+        promptExperienceSelection: true,
+      );
     } catch (e) {
       state = AuthError(AppErrorFormatter.format(e));
     }
@@ -182,7 +213,11 @@ class AuthNotifier extends Notifier<AuthState> {
 
     if (result.allowed) {
       await SecureStorageService.saveActiveExperience(result.experience);
-      state = current.copyWith(activeExperience: result.experience);
+      await SecureStorageService.saveNeedsExperienceSelection(false);
+      state = current.copyWith(
+        activeExperience: result.experience,
+        needsExperienceSelection: false,
+      );
     }
 
     return result;
@@ -195,9 +230,10 @@ class AuthNotifier extends Notifier<AuthState> {
       try {
         final refreshed = await _repository.refresh(refreshToken);
         await SecureStorageService.saveActiveExperience('businessowner');
+        await SecureStorageService.saveNeedsExperienceSelection(false);
         await _persistSession(
           refreshed,
-          clearActiveExperience: false,
+          isNewUser: false,
           preserveActiveExperience: 'businessowner',
         );
         return;
@@ -210,9 +246,11 @@ class AuthNotifier extends Notifier<AuthState> {
     if (current is AuthAuthenticated) {
       await SecureStorageService.saveUserType('businessowner');
       await SecureStorageService.saveActiveExperience('businessowner');
+      await SecureStorageService.saveNeedsExperienceSelection(false);
       state = current.copyWith(
         userType: 'businessowner',
         activeExperience: 'businessowner',
+        needsExperienceSelection: false,
       );
     }
   }

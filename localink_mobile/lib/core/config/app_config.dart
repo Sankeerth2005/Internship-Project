@@ -23,9 +23,16 @@ class AppConfig {
     defaultValue: '',
   );
 
-  /// Google OAuth web client ID (public client id — still injected at build time).
+  /// Google OAuth **Web** client ID (public; injected at build time as serverClientId).
   static const String googleWebClientId = String.fromEnvironment(
     'GOOGLE_WEB_CLIENT_ID',
+    defaultValue: '',
+  );
+
+  /// Optional Android OAuth client ID — used only to reject misconfiguration
+  /// (must not equal [googleWebClientId]). Android auth uses package + SHA-1.
+  static const String googleAndroidClientId = String.fromEnvironment(
+    'GOOGLE_ANDROID_CLIENT_ID',
     defaultValue: '',
   );
 

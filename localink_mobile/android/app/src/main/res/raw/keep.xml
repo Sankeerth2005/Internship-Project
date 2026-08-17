@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  AGP 9+ optimized resource shrinking can drop dynamically looked-up strings.
+  google_sign_in_android reads R.string.default_web_client_id via getIdentifier().
+-->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@string/default_web_client_id" />

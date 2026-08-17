@@ -34,16 +34,13 @@ namespace localink_be.Models.DTOs
         ErrorMessage = "Password must contain uppercase, lowercase, number, and special character")]
         public string Password { get; set; } = string.Empty;
 
-        [Required(ErrorMessage = "Country is required")]
-        [StringLength(100, MinimumLength = 2, ErrorMessage = "Country must be between 2 and 100 characters")]
+        [StringLength(100, ErrorMessage = "Country cannot exceed 100 characters")]
         public string Country { get; set; } = string.Empty;
 
-        [Required(ErrorMessage = "State is required")]
-        [StringLength(100, MinimumLength = 2, ErrorMessage = "State must be between 2 and 100 characters")]
+        [StringLength(100, ErrorMessage = "State cannot exceed 100 characters")]
         public string State { get; set; } = string.Empty;
 
-        [Required(ErrorMessage = "City is required")]
-        [StringLength(100, MinimumLength = 2, ErrorMessage = "City must be between 2 and 100 characters")]
+        [StringLength(100, ErrorMessage = "City cannot exceed 100 characters")]
         public string City { get; set; } = string.Empty;
 
         [StringLength(500, ErrorMessage = "Street address cannot exceed 500 characters")]

@@ -153,6 +153,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
 
   // ── AUTHENTICATION ───────────────────────────────────────────────────────
   Future<void> _login() async {
+    if (ref.read(authProvider) is AuthLoading) return;
     if (!_formKey.currentState!.validate()) {
       HapticFeedback.mediumImpact();
       _shakeKey.currentState?.shake();
@@ -166,6 +167,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   }
 
   Future<void> _signInWithGoogle() async {
+    if (ref.read(authProvider) is AuthLoading) return;
     try {
       HapticFeedback.lightImpact();
       final idToken = await GoogleSignInHelper.getIdToken();
@@ -214,6 +216,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
         context.go(RoleRoutes.resolvePostAuthRoute(
           accountType: next.userType,
           activeExperience: next.activeExperience,
+          needsExperienceSelection: next.needsExperienceSelection,
         ));
       }
     });

@@ -200,6 +200,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
         context.go(RoleRoutes.resolvePostAuthRoute(
           accountType: authState.userType,
           activeExperience: authState.activeExperience,
+          needsExperienceSelection: authState.needsExperienceSelection,
         ));
       } else {
         context.go('/welcome');

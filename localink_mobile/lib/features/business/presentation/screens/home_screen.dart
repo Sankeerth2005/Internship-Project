@@ -45,6 +45,7 @@ class HomeScreen extends ConsumerStatefulWidget {
 class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProviderStateMixin {
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
+  final ScrollController _scrollController = ScrollController();
   Timer? _searchDebounce;
 
   // Recent searches — loaded from device, populated only by real queries
@@ -113,6 +114,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
   void dispose() {
     _searchDebounce?.cancel();
     _searchFocusNode.dispose();
+    _scrollController.dispose();
     SignalRService().removeNotificationListener(_onNotificationReceived);
     _searchController.dispose();
     super.dispose();
@@ -220,7 +222,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
                           ),
                           SizedBox(height: 4),
                           Text(
-                            'Results stay within your search radius',
+                            'Nearest matching businesses appear first',
                             style: TextStyle(
                               fontFamily: 'Inter',
                               color: _HomeTok.mutedText,
@@ -538,7 +540,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
       child: Scaffold(
         backgroundColor: _HomeTok.white,
         body: SafeArea(
+          bottom: false,
           child: CustomScrollView(
+            controller: _scrollController,
             physics: const BouncingScrollPhysics(),
             slivers: [
               // ─── 1. HEADER BAR ───
@@ -720,43 +724,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
                     );
                   }
 
+                  final feed = ref.watch(searchFeedProvider).asData?.value;
+                  final showPagination = feed != null && feed.totalPages > 1;
+
                   return SliverPadding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     sliver: SliverList(
                       delegate: SliverChildBuilderDelegate(
                         (context, index) {
-                          final feed = ref.read(searchFeedProvider).asData?.value;
-                          final showLoadMore = feed?.hasNextPage == true;
-                          if (showLoadMore && index == businesses.length) {
-                            return Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              child: Center(
-                                child: feed?.isLoadingMore == true
-                                    ? const SizedBox(
-                                        width: 28,
-                                        height: 28,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2.5,
-                                          color: _HomeTok.primary,
-                                        ),
-                                      )
-                                    : TextButton.icon(
-                                        onPressed: () => ref
-                                            .read(searchFeedProvider.notifier)
-                                            .loadMore(),
-                                        icon: const Icon(Icons.expand_more_rounded,
-                                            color: _HomeTok.primary),
-                                        label: const Text(
-                                          'Load more',
-                                          style: TextStyle(
-                                            fontFamily: 'Inter',
-                                            color: _HomeTok.primary,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                      ),
-                              ),
-                            );
+                          if (showPagination && index == businesses.length) {
+                            return _buildPaginationBar(feed);
                           }
 
                           final business = businesses[index];
@@ -775,10 +752,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
                             child: _buildBusinessCard(context, ref, business, isFav),
                           );
                         },
-                        childCount: businesses.length +
-                            ((ref.watch(searchFeedProvider).asData?.value.hasNextPage ?? false)
-                                ? 1
-                                : 0),
+                        childCount: businesses.length + (showPagination ? 1 : 0),
                       ),
                     ),
                   );
@@ -796,13 +770,155 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
                 ),
               ),
 
-              // Bottom Spacer
+              // Bottom Spacer (content clears fixed bottom navigation)
               const SliverToBoxAdapter(
-                child: SizedBox(height: 120),
+                child: SizedBox(height: 16),
               ),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildPaginationBar(SearchFeedState feed) {
+    final page = feed.page;
+    final totalPages = feed.totalPages;
+    final isLoading = feed.isLoadingPage;
+
+    List<int> pageNumbers() {
+      if (totalPages <= 5) {
+        return List.generate(totalPages, (i) => i + 1);
+      }
+      final start = (page - 2).clamp(1, totalPages - 4);
+      return List.generate(5, (i) => start + i);
+    }
+
+    void go(int target) {
+      if (isLoading) return;
+      HapticFeedback.selectionClick();
+      ref.read(searchFeedProvider.notifier).goToPage(target);
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          0,
+          duration: const Duration(milliseconds: 280),
+          curve: Curves.easeOutCubic,
+        );
+      }
+    }
+
+    Widget pageBtn({
+      required IconData icon,
+      required bool enabled,
+      required VoidCallback onTap,
+      required String tooltip,
+    }) {
+      return IconButton(
+        tooltip: tooltip,
+        onPressed: enabled && !isLoading ? onTap : null,
+        icon: Icon(icon, size: 22),
+        color: _HomeTok.primary,
+        disabledColor: _HomeTok.mutedText.withValues(alpha: 0.4),
+        visualDensity: VisualDensity.compact,
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(0, 8, 0, 24),
+      child: Column(
+        children: [
+          if (isLoading)
+            const Padding(
+              padding: EdgeInsets.only(bottom: 12),
+              child: SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.5,
+                  color: _HomeTok.primary,
+                ),
+              ),
+            ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+            decoration: BoxDecoration(
+              color: _HomeTok.surface,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: _HomeTok.border),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                pageBtn(
+                  icon: Icons.first_page_rounded,
+                  enabled: page > 1,
+                  onTap: () => go(1),
+                  tooltip: 'First page',
+                ),
+                pageBtn(
+                  icon: Icons.chevron_left_rounded,
+                  enabled: page > 1,
+                  onTap: () => go(page - 1),
+                  tooltip: 'Previous page',
+                ),
+                ...pageNumbers().map((n) {
+                  final selected = n == page;
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 2),
+                    child: Material(
+                      color: selected
+                          ? _HomeTok.primary.withValues(alpha: 0.12)
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(10),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(10),
+                        onTap: selected || isLoading ? null : () => go(n),
+                        child: Container(
+                          width: 36,
+                          height: 36,
+                          alignment: Alignment.center,
+                          child: Text(
+                            '$n',
+                            style: TextStyle(
+                              fontFamily: 'Inter',
+                              fontSize: 13,
+                              fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+                              color: selected ? _HomeTok.primary : _HomeTok.charcoal,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                }),
+                pageBtn(
+                  icon: Icons.chevron_right_rounded,
+                  enabled: page < totalPages,
+                  onTap: () => go(page + 1),
+                  tooltip: 'Next page',
+                ),
+                pageBtn(
+                  icon: Icons.last_page_rounded,
+                  enabled: page < totalPages,
+                  onTap: () => go(totalPages),
+                  tooltip: 'Last page',
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            feed.totalCount > 0
+                ? 'Page $page of $totalPages · ${feed.totalCount} businesses'
+                : 'Page $page of $totalPages',
+            style: const TextStyle(
+              fontFamily: 'Inter',
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: _HomeTok.medText,
+            ),
+          ),
+        ],
       ),
     );
   }

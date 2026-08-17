@@ -186,6 +186,7 @@ builder.Services.AddScoped<IReviewService, ReviewService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IFavoritesService, FavoritesService>();
 builder.Services.AddScoped<IAIService, AIService>();
+builder.Services.AddScoped<IPersonalizationService, PersonalizationService>();
 builder.Services.AddScoped<IChatService, ChatService>();
 builder.Services.AddScoped<ICatalogService, CatalogService>();
 builder.Services.AddScoped<ICurrencyService, CurrencyService>();

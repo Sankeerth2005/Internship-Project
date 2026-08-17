@@ -1,21 +1,28 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:go_router/go_router.dart';
+import 'package:dio/dio.dart';
 
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/storage/user_prefs_store.dart';
+import '../../../../core/validation/app_validators.dart';
+import '../../../../core/async/latest_async_guard.dart';
 import '../../providers/user_provider.dart';
 import '../../data/models/user_profile.dart';
+import '../../data/models/location_models.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/location_provider.dart';
 import '../../../catalog/presentation/providers/currency_provider.dart';
 import '../../../profile/widgets/profile_info_tile.dart';
 import '../../../shared/presentation/widgets/app_feedback.dart';
+import '../../../shared/presentation/widgets/searchable_select_field.dart';
+import '../../../shared/presentation/widgets/location_picker_items.dart';
 import '../../../../core/network/app_error_formatter.dart';
 
 /// Resolves a profile picture to an ImageProvider.
@@ -77,6 +84,24 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   final _stateCtrl = TextEditingController();
   final _pincodeCtrl = TextEditingController();
   final _countryCtrl = TextEditingController();
+  final _profileFormKey = GlobalKey<FormState>();
+
+  List<Country> _countries = [];
+  List<StateModel> _states = [];
+  List<CityModel> _cities = [];
+  Country? _selectedCountry;
+  StateModel? _selectedState;
+  CityModel? _selectedCity;
+  bool _loadingCountries = false;
+  bool _loadingStates = false;
+  bool _loadingCities = false;
+  String? _pincodeError;
+  bool _pincodeValidating = false;
+  final _pincodeGuard = LatestAsyncGuard();
+  final _statesGuard = LatestAsyncGuard();
+  final _citiesGuard = LatestAsyncGuard();
+  Timer? _pincodeDebounce;
+  CancelToken? _pincodeCancel;
 
   Future<bool> _ensureGalleryPermission() async {
     // For Android 13+, use READ_MEDIA_IMAGES
@@ -205,6 +230,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   @override
   void dispose() {
+    _pincodeDebounce?.cancel();
+    _pincodeCancel?.cancel();
     _pincodeCtrl.removeListener(_onPincodeChanged);
     _nameCtrl.dispose();
     _emailCtrl.dispose();
@@ -220,125 +247,280 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   void _onPincodeChanged() {
     if (!_isEditMode) return;
-    final pincode = _pincodeCtrl.text.trim();
-    if (pincode.length == 6 && int.tryParse(pincode) != null) {
-      _lookupPincode(pincode);
+    _pincodeDebounce?.cancel();
+    _pincodeCancel?.cancel();
+    _pincodeGuard.invalidate();
+    if (_pincodeError != null || _pincodeValidating) {
+      setState(() {
+        _pincodeError = null;
+        _pincodeValidating = false;
+      });
     }
+    final pincode = _pincodeCtrl.text.trim();
+    final formatError = AppValidators.pincode(
+      pincode,
+      required: false,
+      countryName: _selectedCountry?.name ?? _countryCtrl.text,
+      countryIso2: _selectedCountry?.iso2,
+      countryCode: _phoneCodeCtrl.text,
+    );
+    if (pincode.isEmpty || formatError != null) return;
+    _pincodeDebounce = Timer(const Duration(milliseconds: 400), () {
+      _lookupPincode(pincode);
+    });
   }
 
-  String? _validateEmail(String? value) {
-    if (value == null || value.trim().isEmpty) return 'Email is required';
-    final trimmed = value.trim();
-    if (trimmed.length > 256) return 'Email cannot exceed 256 characters';
-    final emailRegex = RegExp(
-      r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
-    );
-    if (!emailRegex.hasMatch(trimmed)) {
-      return 'Enter a valid email address';
-    }
-    return null;
-  }
+  String? _validateEmail(String? value) => AppValidators.email(value);
 
   Future<void> _lookupPincode(String pincode) async {
+    final requestId = _pincodeGuard.next();
+    _pincodeCancel?.cancel();
+    _pincodeCancel = CancelToken();
+    if (mounted) setState(() => _pincodeValidating = true);
     try {
       final repo = ref.read(locationRepositoryProvider);
-      final res = await repo.validatePincode(pincode);
-      if (res.city != null && res.city!.isNotEmpty) {
+      final res = await repo.validatePincode(
+        pincode,
+        cancelToken: _pincodeCancel,
+      );
+      if (!mounted || !_pincodeGuard.isLatest(requestId)) return;
+      if (_pincodeCtrl.text.trim() != pincode) return;
+
+      if (!res.isValid) {
         setState(() {
-          _cityCtrl.text = res.city!;
-          if (res.state != null && res.state!.isNotEmpty) {
-            _stateCtrl.text = res.state!;
-          }
-          if (res.country != null && res.country!.isNotEmpty) {
-            _countryCtrl.text = res.country!;
-          }
+          _pincodeError = 'Invalid or unverified pincode';
+          _pincodeValidating = false;
         });
+        return;
       }
+
+      String norm(String? s) => (s ?? '').toLowerCase().replaceAll(' ', '');
+      final selCountry = norm(_selectedCountry?.name ?? _countryCtrl.text);
+      final selState = norm(_selectedState?.name ?? _stateCtrl.text);
+      if (res.country != null &&
+          selCountry.isNotEmpty &&
+          !norm(res.country).contains(selCountry) &&
+          !selCountry.contains(norm(res.country))) {
+        setState(() {
+          _pincodeError = 'Pincode country mismatch (${res.country})';
+          _pincodeValidating = false;
+        });
+        return;
+      }
+      if (res.state != null &&
+          selState.isNotEmpty &&
+          !norm(res.state).contains(selState) &&
+          !selState.contains(norm(res.state))) {
+        setState(() {
+          _pincodeError = 'Pincode state mismatch (${res.state})';
+          _pincodeValidating = false;
+        });
+        return;
+      }
+
+      setState(() {
+        _pincodeError = null;
+        _pincodeValidating = false;
+        if (res.city != null && res.city!.isNotEmpty && _selectedCity == null) {
+          _cityCtrl.text = res.city!;
+        }
+        if (res.state != null && res.state!.isNotEmpty && _selectedState == null) {
+          _stateCtrl.text = res.state!;
+        }
+        if (res.country != null && res.country!.isNotEmpty && _selectedCountry == null) {
+          _countryCtrl.text = res.country!;
+        }
+      });
+    } on DioException catch (e) {
+      if (CancelToken.isCancel(e)) return;
+      if (!mounted || !_pincodeGuard.isLatest(requestId)) return;
+      setState(() {
+        _pincodeValidating = false;
+        _pincodeError = 'Could not verify pincode. Try again.';
+      });
     } catch (e) {
-      debugPrint('Pincode lookup error: $e');
+      if (!mounted || !_pincodeGuard.isLatest(requestId)) return;
+      setState(() {
+        _pincodeValidating = false;
+        _pincodeError = 'Could not verify pincode. Try again.';
+      });
     }
   }
 
   void _populateFields(UserProfileDto profile) {
     _nameCtrl.text = profile.fullName;
     _emailCtrl.text = profile.email;
-    _phoneCodeCtrl.text = profile.countryCode.replaceAll('+', '').trim();
-    _phoneCtrl.text = profile.phone ?? '';
+    final phoneCode = profile.countryCode.replaceAll('+', '').trim();
+    _phoneCodeCtrl.text = phoneCode.isEmpty ? '91' : phoneCode;
+    _phoneCtrl.text = AppValidators.nationalNumber(profile.phone, phoneCode);
     _streetCtrl.text = profile.address.street ?? '';
     _cityCtrl.text = profile.address.city ?? '';
     _stateCtrl.text = profile.address.state ?? '';
     _pincodeCtrl.text = profile.address.pincode ?? '';
-    _countryCtrl.text = profile.address.country ?? '';
+    final country = profile.address.country?.trim() ?? '';
+    _countryCtrl.text = country.isEmpty ? 'India' : country;
     _profilePicBase64 = profile.profilePicture;
   }
 
+  Future<void> _ensureLocationData() async {
+    if (_countries.isNotEmpty) {
+      await _matchLocationFromControllers();
+      return;
+    }
+    setState(() => _loadingCountries = true);
+    try {
+      final repo = ref.read(locationRepositoryProvider);
+      final countries = await repo.getCountries();
+      if (!mounted) return;
+      setState(() {
+        _countries = countries;
+        _loadingCountries = false;
+      });
+      await _matchLocationFromControllers();
+    } catch (_) {
+      if (mounted) setState(() => _loadingCountries = false);
+    }
+  }
+
+  Future<void> _matchLocationFromControllers() async {
+    if (_countries.isEmpty) return;
+    final countryName = _countryCtrl.text.trim().toLowerCase();
+    Country? matched;
+    for (final c in _countries) {
+      if (c.name.toLowerCase() == countryName) {
+        matched = c;
+        break;
+      }
+    }
+    matched ??= _countries.cast<Country?>().firstWhere(
+          (c) => c!.name.toLowerCase().contains(countryName) ||
+              countryName.contains(c.name.toLowerCase()),
+          orElse: () => null,
+        );
+    if (matched == null) return;
+    _selectedCountry = matched;
+    final code = matched.phoneCode?.replaceAll('+', '').trim();
+    if (code != null && code.isNotEmpty && _phoneCodeCtrl.text.trim().isEmpty) {
+      _phoneCodeCtrl.text = code;
+    }
+    await _loadStates(matched.iso2, preserveNames: true);
+  }
+
+  Future<void> _loadStates(String countryIso2, {bool preserveNames = false}) async {
+    final requestId = _statesGuard.next();
+    setState(() {
+      _loadingStates = true;
+      if (!preserveNames) {
+        _states = [];
+        _selectedState = null;
+        _cities = [];
+        _selectedCity = null;
+        _stateCtrl.clear();
+        _cityCtrl.clear();
+        _pincodeError = null;
+      }
+    });
+    try {
+      final states = await ref.read(locationRepositoryProvider).getStates(countryIso2);
+      if (!mounted || !_statesGuard.isLatest(requestId)) return;
+      StateModel? matched;
+      if (preserveNames) {
+        final name = _stateCtrl.text.trim().toLowerCase();
+        for (final s in states) {
+          if (s.name.toLowerCase() == name ||
+              s.name.toLowerCase().contains(name) ||
+              name.contains(s.name.toLowerCase())) {
+            matched = s;
+            break;
+          }
+        }
+      }
+      setState(() {
+        _states = states;
+        _selectedState = matched;
+        _loadingStates = false;
+      });
+      if (matched != null) {
+        await _loadCities(countryIso2, matched.iso2, preserveNames: preserveNames);
+      }
+    } catch (_) {
+      if (!mounted || !_statesGuard.isLatest(requestId)) return;
+      setState(() => _loadingStates = false);
+    }
+  }
+
+  Future<void> _loadCities(
+    String countryIso2,
+    String stateIso2, {
+    bool preserveNames = false,
+  }) async {
+    final requestId = _citiesGuard.next();
+    setState(() {
+      _loadingCities = true;
+      if (!preserveNames) {
+        _cities = [];
+        _selectedCity = null;
+        _cityCtrl.clear();
+        _pincodeError = null;
+      }
+    });
+    try {
+      final cities =
+          await ref.read(locationRepositoryProvider).getCities(countryIso2, stateIso2);
+      if (!mounted || !_citiesGuard.isLatest(requestId)) return;
+      CityModel? matched;
+      if (preserveNames) {
+        final name = _cityCtrl.text.trim().toLowerCase();
+        for (final c in cities) {
+          if (c.name.toLowerCase() == name) {
+            matched = c;
+            break;
+          }
+        }
+      }
+      setState(() {
+        _cities = cities;
+        _selectedCity = matched;
+        _loadingCities = false;
+      });
+    } catch (_) {
+      if (!mounted || !_citiesGuard.isLatest(requestId)) return;
+      setState(() => _loadingCities = false);
+    }
+  }
+
   Future<void> _saveProfile() async {
-    final name = _nameCtrl.text.trim();
-    if (name.isEmpty) {
-      AppFeedback.showError(context, 'Full name is required');
-      return;
-    }
-    if (name.length < 2 || name.length > 100) {
-      AppFeedback.showError(context, 'Full name must be between 2 and 100 characters');
-      return;
-    }
-    if (!RegExp(r"^[a-zA-Z\s\-\.']+$").hasMatch(name)) {
-      AppFeedback.showError(context, 'Name can only contain letters, spaces, hyphens, dots, and apostrophes');
+    final nameError = AppValidators.name(_nameCtrl.text, label: 'Full name');
+    if (nameError != null) {
+      AppFeedback.showError(context, nameError);
       return;
     }
 
-    final country = _countryCtrl.text.trim();
-    final state = _stateCtrl.text.trim();
-    final city = _cityCtrl.text.trim();
+    final country = (_selectedCountry?.name ?? _countryCtrl.text).trim();
+    final state = (_selectedState?.name ?? _stateCtrl.text).trim();
+    final city = (_selectedCity?.name ?? _cityCtrl.text).trim();
     final pincode = _pincodeCtrl.text.trim();
-
-    // Validate phone code
     final phoneCode = _phoneCodeCtrl.text.trim();
-    if (phoneCode.isEmpty) {
-      AppFeedback.showError(context, 'Phone code is required');
+    final phone = AppValidators.nationalNumber(_phoneCtrl.text, phoneCode);
+
+    final codeError = AppValidators.callingCode(phoneCode);
+    if (codeError != null) {
+      AppFeedback.showError(context, codeError);
       return;
     }
-    if (!RegExp(r'^\+?[0-9]{1,4}$').hasMatch(phoneCode)) {
-      AppFeedback.showError(context, 'Invalid phone code format (e.g. 91 or +91)');
+    final phoneError = AppValidators.phone(
+      phone,
+      countryCode: phoneCode,
+      countryName: country,
+    );
+    if (phoneError != null) {
+      AppFeedback.showError(context, phoneError);
       return;
     }
 
-    // Validate phone format
-    final phone = _phoneCtrl.text.trim();
-    if (phone.isEmpty) {
-      AppFeedback.showError(context, 'Phone number is required');
-      return;
-    }
-    final digitsOnly = phone.replaceAll(RegExp(r'\D'), '');
-    final isIndia = phoneCode == '91' || phoneCode == '+91' || country.toLowerCase() == 'india';
-    if (isIndia) {
-      if (digitsOnly.length != 10) {
-        AppFeedback.showError(context, 'Indian phone number must be exactly 10 digits');
-        return;
-      }
-    } else {
-      if (digitsOnly.length < 7 || digitsOnly.length > 15) {
-        AppFeedback.showError(context, 'Phone number must be between 7 and 15 digits');
-        return;
-      }
-    }
-
-    // Validate email format
-    final email = _emailCtrl.text.trim();
-    if (email.isEmpty) {
-      AppFeedback.showError(context, 'Email is required');
-      return;
-    }
-    if (email.length > 256) {
-      AppFeedback.showError(context, 'Email cannot exceed 256 characters');
-      return;
-    }
-    final emailRegex = RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
-    if (!emailRegex.hasMatch(email)) {
-      AppFeedback.showError(
-        context,
-        'Invalid email address format (e.g. name@domain.com)',
-      );
+    final emailError = AppValidators.email(_emailCtrl.text);
+    if (emailError != null) {
+      AppFeedback.showError(context, emailError);
       return;
     }
 
@@ -350,76 +532,47 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       return;
     }
 
-    // Validate country - should be at least 2 characters
-    if (country.length < 2 || country.length > 100) {
-      AppFeedback.showError(context, 'Country must be between 2 and 100 characters');
-      return;
-    }
-    final nameRegex = RegExp(r"^[a-zA-Z\s\-\.']+$");
-    if (!nameRegex.hasMatch(country)) {
-      AppFeedback.showError(context, 'Country can only contain letters, spaces, hyphens, dots, and apostrophes');
+    final streetError = AppValidators.street(_streetCtrl.text);
+    if (streetError != null) {
+      AppFeedback.showError(context, streetError);
       return;
     }
 
-    // Validate state - should be at least 2 characters
-    if (state.length < 2 || state.length > 100) {
-      AppFeedback.showError(context, 'State must be between 2 and 100 characters');
-      return;
-    }
-    if (!nameRegex.hasMatch(state)) {
-      AppFeedback.showError(context, 'State can only contain letters, spaces, hyphens, dots, and apostrophes');
-      return;
-    }
-
-    // Validate city - should be at least 2 characters
-    if (city.length < 2 || city.length > 100) {
-      AppFeedback.showError(context, 'City must be between 2 and 100 characters');
-      return;
-    }
-    if (!nameRegex.hasMatch(city)) {
-      AppFeedback.showError(context, 'City can only contain letters, spaces, hyphens, dots, and apostrophes');
+    final pincodeError = AppValidators.pincode(
+      pincode,
+      required: true,
+      countryName: country,
+      countryIso2: _selectedCountry?.iso2,
+      countryCode: phoneCode,
+      asyncError: _pincodeError,
+    );
+    if (pincodeError != null) {
+      AppFeedback.showError(context, pincodeError);
       return;
     }
 
-    // Validate pincode format
-    if (country.toLowerCase().contains('india')) {
-      if (pincode.length != 6 || int.tryParse(pincode) == null) {
-        AppFeedback.showError(context, 'Indian pincode must be exactly 6 digits');
-        return;
-      }
-    } else {
-      if (pincode.length < 3 || pincode.length > 15) {
-        AppFeedback.showError(context, 'Pincode must be between 3 and 15 characters');
-        return;
-      }
-      if (!RegExp(r'^[A-Za-z0-9\-\s]+$').hasMatch(pincode)) {
-        AppFeedback.showError(context, 'Pincode contains invalid characters');
-        return;
-      }
-    }
-
-    // Validate street address length
-    final street = _streetCtrl.text.trim();
-    if (street.length > 500) {
-      AppFeedback.showError(context, 'Street address cannot exceed 500 characters');
+    if (_pincodeValidating) {
+      AppFeedback.showError(context, 'Please wait for pincode verification');
       return;
     }
 
+    if (_isSaving) return;
+    _profileFormKey.currentState?.validate();
     setState(() => _isSaving = true);
     try {
       final repo = ref.read(userRepositoryProvider);
       await repo.updateProfile(UpdateUserProfileDto(
         fullName: _nameCtrl.text.trim(),
         email: _emailCtrl.text.trim().isNotEmpty ? _emailCtrl.text.trim() : null,
-        phone: _phoneCtrl.text.trim().isNotEmpty ? _phoneCtrl.text.trim() : null,
+        phone: phone,
         countryCode: phoneCode.startsWith('+') ? phoneCode : '+$phoneCode',
         profilePicture: _profilePicBase64,
         address: AddressDto(
           street: _streetCtrl.text.trim().isNotEmpty ? _streetCtrl.text.trim() : null,
-          city: _cityCtrl.text.trim().isNotEmpty ? _cityCtrl.text.trim() : null,
-          state: _stateCtrl.text.trim().isNotEmpty ? _stateCtrl.text.trim() : null,
-          pincode: _pincodeCtrl.text.trim().isNotEmpty ? _pincodeCtrl.text.trim() : null,
-          country: _countryCtrl.text.trim().isNotEmpty ? _countryCtrl.text.trim() : null,
+          city: city,
+          state: state,
+          pincode: pincode,
+          country: country,
         ),
       ));
 
@@ -491,6 +644,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           onPressed: () {
                             _populateFields(profile);
                             setState(() => _isEditMode = true);
+                            _ensureLocationData();
                           },
                         ),
                     ],
@@ -565,7 +719,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   const SizedBox(height: 32),
 
                   // Info Card
-                  Container(
+                  Form(
+                    key: _profileFormKey,
+                    child: Container(
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
                       color: _ProfileTok.cardBg,
@@ -622,6 +778,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                     icon: Icons.phone_outlined,
                                     isEditMode: true,
                                     isPhone: true,
+                                    validator: (v) => AppValidators.phone(
+                                      v,
+                                      countryCode: _phoneCodeCtrl.text,
+                                      countryName: _selectedCountry?.name ?? _countryCtrl.text,
+                                    ),
                                   ),
                                 ),
                               ],
@@ -646,12 +807,106 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         ),
                         const SizedBox(height: 12),
                         ProfileInfoTile(label: 'Street', controller: _streetCtrl, icon: Icons.home_outlined, isEditMode: _isEditMode),
-                        ProfileInfoTile(label: 'City', controller: _cityCtrl, icon: Icons.location_city_outlined, isEditMode: _isEditMode),
-                        ProfileInfoTile(label: 'State', controller: _stateCtrl, icon: Icons.map_outlined, isEditMode: _isEditMode),
-                        ProfileInfoTile(label: 'Pincode', controller: _pincodeCtrl, icon: Icons.pin_drop_outlined, isEditMode: _isEditMode),
-                        ProfileInfoTile(label: 'Country', controller: _countryCtrl, icon: Icons.flag_outlined, isEditMode: _isEditMode),
+                        if (_isEditMode) ...[
+                          SearchableSelectField<Country>(
+                            label: 'Country *',
+                            hint: 'Select country',
+                            prefixIcon: Icons.flag_outlined,
+                            items: countryPickerItems(_countries),
+                            selected: _selectedCountry,
+                            loading: _loadingCountries,
+                            searchHint: 'Search countries...',
+                            emptyMessage: 'No countries found',
+                            validator: (v) => AppValidators.requiredSelection(v, 'Country'),
+                            onSelected: (item) {
+                              setState(() {
+                                _selectedCountry = item.value;
+                                _countryCtrl.text = item.value.name;
+                                final code = item.value.phoneCode?.replaceAll('+', '').trim();
+                                if (code != null && code.isNotEmpty) {
+                                  _phoneCodeCtrl.text = code;
+                                }
+                                _pincodeError = null;
+                              });
+                              _loadStates(item.value.iso2);
+                            },
+                          ),
+                          const SizedBox(height: 16),
+                          SearchableSelectField<StateModel>(
+                            label: 'State *',
+                            hint: _selectedCountry == null ? 'Select country first' : 'Select state',
+                            prefixIcon: Icons.map_outlined,
+                            items: statePickerItems(_states),
+                            selected: _selectedState,
+                            loading: _loadingStates,
+                            enabled: _selectedCountry != null && !_loadingStates,
+                            searchHint: 'Search states...',
+                            emptyMessage: 'No states found',
+                            validator: (v) => AppValidators.requiredSelection(v, 'State'),
+                            onSelected: (item) {
+                              setState(() {
+                                _selectedState = item.value;
+                                _stateCtrl.text = item.value.name;
+                                _pincodeError = null;
+                              });
+                              _loadCities(_selectedCountry!.iso2, item.value.iso2);
+                            },
+                          ),
+                          const SizedBox(height: 16),
+                          SearchableSelectField<CityModel>(
+                            label: 'City *',
+                            hint: _selectedState == null ? 'Select state first' : 'Select city',
+                            prefixIcon: Icons.location_city_outlined,
+                            items: cityPickerItems(_cities),
+                            selected: _selectedCity,
+                            loading: _loadingCities,
+                            enabled: _selectedState != null && !_loadingCities,
+                            searchHint: 'Search cities...',
+                            emptyMessage: 'No cities found',
+                            validator: (v) => AppValidators.requiredSelection(v, 'City'),
+                            onSelected: (item) {
+                              setState(() {
+                                _selectedCity = item.value;
+                                _cityCtrl.text = item.value.name;
+                                _pincodeError = null;
+                              });
+                            },
+                          ),
+                          const SizedBox(height: 16),
+                          ProfileInfoTile(
+                            label: 'Pincode',
+                            controller: _pincodeCtrl,
+                            icon: Icons.pin_drop_outlined,
+                            isEditMode: true,
+                          ),
+                          if (_pincodeValidating)
+                            const Padding(
+                              padding: EdgeInsets.only(bottom: 8),
+                              child: LinearProgressIndicator(
+                                color: _ProfileTok.primary,
+                                minHeight: 2,
+                              ),
+                            ),
+                          if (_pincodeError != null)
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 12),
+                              child: Text(
+                                _pincodeError!,
+                                style: const TextStyle(
+                                  color: _ProfileTok.error,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ),
+                        ] else ...[
+                          ProfileInfoTile(label: 'City', controller: _cityCtrl, icon: Icons.location_city_outlined, isEditMode: false),
+                          ProfileInfoTile(label: 'State', controller: _stateCtrl, icon: Icons.map_outlined, isEditMode: false),
+                          ProfileInfoTile(label: 'Pincode', controller: _pincodeCtrl, icon: Icons.pin_drop_outlined, isEditMode: false),
+                          ProfileInfoTile(label: 'Country', controller: _countryCtrl, icon: Icons.flag_outlined, isEditMode: false),
+                        ],
                       ],
                     ),
+                  ),
                   ),
                   const SizedBox(height: 24),
 

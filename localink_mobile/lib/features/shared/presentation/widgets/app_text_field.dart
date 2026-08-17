@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../../../core/theme/app_theme.dart';
 
 class AppTextField extends StatefulWidget {
@@ -14,6 +15,11 @@ class AppTextField extends StatefulWidget {
   final FocusNode? focusNode;
   final TextInputAction? textInputAction;
   final void Function(String)? onFieldSubmitted;
+  final List<TextInputFormatter>? inputFormatters;
+  final int? maxLength;
+  final bool enabled;
+  final bool readOnly;
+  final VoidCallback? onTap;
 
   const AppTextField({
     super.key,
@@ -29,6 +35,11 @@ class AppTextField extends StatefulWidget {
     this.focusNode,
     this.textInputAction,
     this.onFieldSubmitted,
+    this.inputFormatters,
+    this.maxLength,
+    this.enabled = true,
+    this.readOnly = false,
+    this.onTap,
   });
 
   @override
@@ -56,6 +67,11 @@ class _AppTextFieldState extends State<AppTextField> {
         autofillHints: widget.autofillHints,
         textInputAction: widget.textInputAction,
         onFieldSubmitted: widget.onFieldSubmitted,
+        inputFormatters: widget.inputFormatters,
+        maxLength: widget.maxLength,
+        enabled: widget.enabled,
+        readOnly: widget.readOnly,
+        onTap: widget.onTap,
         style: TextStyle(
           fontFamily: 'Inter',
           fontSize: 14.5,
@@ -100,6 +116,7 @@ class _AppTextFieldState extends State<AppTextField> {
             minWidth: 40,
             minHeight: 40,
           ),
+          counterText: widget.maxLength == null ? null : '',
         ),
       ),
     );

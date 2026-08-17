@@ -7,6 +7,7 @@ import '../../../../core/widgets/optimized_network_image.dart';
 import '../../data/models/catalog_models.dart';
 import '../providers/catalog_provider.dart';
 import '../../../shared/presentation/widgets/app_button.dart';
+import '../../../shared/presentation/widgets/app_safe_bottom_bar.dart';
 
 class _CatTok {
   static const Color primary = Color(0xFFFF6600);
@@ -207,7 +208,10 @@ class _ManageCatalogScreenState extends ConsumerState<ManageCatalogScreen> {
         return StatefulBuilder(builder: (sheetCtx, setState) {
           return Padding(
             padding: EdgeInsets.only(
-              bottom: MediaQuery.of(sheetCtx).viewInsets.bottom,
+              bottom: AppSafeBottomBar.insetOf(
+                sheetCtx,
+                mode: AppSafeBottomMode.overlay,
+              ),
               left: 20,
               right: 20,
               top: 20,

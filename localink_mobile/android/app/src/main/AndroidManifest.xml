@@ -39,10 +39,10 @@
             android:name="flutterEmbedding"
             android:value="2" />
         
-        <!-- Google Sign-In — set GOOGLE_WEB_CLIENT_ID in android/local.properties or env -->
+        <!-- Google Sign-In Web client (same value as Dart serverClientId / R.string.default_web_client_id) -->
         <meta-data
             android:name="com.google.android.gms.default_web_client_id"
-            android:value="${GOOGLE_WEB_CLIENT_ID}" />
+            android:value="@string/default_web_client_id" />
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and

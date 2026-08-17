@@ -40,11 +40,16 @@ class UserDto {
   @JsonKey(name: 'userType')
   final String userType;
 
+  /// True only when this auth call created the account (e.g. first Google sign-in).
+  @JsonKey(name: 'isNewUser', defaultValue: false)
+  final bool isNewUser;
+
   UserDto({
     required this.id,
     required this.name,
     required this.email,
     required this.userType,
+    this.isNewUser = false,
   });
 
   factory UserDto.fromJson(Map<String, dynamic> json) =>

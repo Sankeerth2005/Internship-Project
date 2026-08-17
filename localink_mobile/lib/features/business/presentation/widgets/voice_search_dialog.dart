@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
+import '../../../../core/audio/voice_session_lifecycle.dart';
 
 class VoiceSearchDialog extends ConsumerStatefulWidget {
   const VoiceSearchDialog({super.key});
@@ -11,22 +12,22 @@ class VoiceSearchDialog extends ConsumerStatefulWidget {
 }
 
 class _VoiceSearchDialogState extends ConsumerState<VoiceSearchDialog>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, VoiceSessionLifecycleMixin {
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
   bool _isListening = false;
   String _statusText = 'Initializing speech...';
   String _voiceOutput = '';
-  
+
   final stt.SpeechToText _speech = stt.SpeechToText();
   bool _speechEnabled = false;
   bool _hasPopped = false;
+  bool _stopping = false;
   Timer? _popTimer;
 
-  // Preset speech simulation inputs to test the AI query parsing
   final List<String> _voiceShortcuts = [
     'Find pizza open now',
-    'Recommend a pharmacy in Mumbai',
+    'Recommend a pharmacy nearby',
     'Artisanal coffee cafes',
     'Best doctors near me',
   ];
@@ -34,6 +35,7 @@ class _VoiceSearchDialogState extends ConsumerState<VoiceSearchDialog>
   @override
   void initState() {
     super.initState();
+    startVoiceLifecycleWatch();
     _pulseController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1500),
@@ -49,6 +51,7 @@ class _VoiceSearchDialogState extends ConsumerState<VoiceSearchDialog>
       _speechEnabled = await _speech.initialize(
         onError: (val) {
           debugPrint('Speech error: $val');
+          if (!mounted) return;
           setState(() {
             _statusText = 'Error: ${val.errorMsg}';
             _isListening = false;
@@ -62,13 +65,15 @@ class _VoiceSearchDialogState extends ConsumerState<VoiceSearchDialog>
           }
         },
       );
+      if (!mounted) return;
       setState(() {
-        _statusText = _speechEnabled 
-            ? 'Tap mic to start speaking...' 
+        _statusText = _speechEnabled
+            ? 'Tap mic to start speaking...'
             : 'Speech recognition not available';
       });
     } catch (e) {
       debugPrint('Speech init failed: $e');
+      if (!mounted) return;
       setState(() {
         _statusText = 'Speech recognition failed to load';
       });
@@ -76,10 +81,49 @@ class _VoiceSearchDialogState extends ConsumerState<VoiceSearchDialog>
   }
 
   @override
+  Future<void> stopActiveVoiceSession() async {
+    if (_stopping) return;
+    _stopping = true;
+    _popTimer?.cancel();
+    try {
+      if (_speech.isListening) {
+        await _speech.stop();
+      }
+      await _speech.cancel();
+    } catch (_) {}
+    if (_pulseController.isAnimating) {
+      _pulseController.stop();
+      _pulseController.reset();
+    }
+    if (mounted && _isListening) {
+      setState(() {
+        _isListening = false;
+        _statusText = 'Listening stopped.';
+      });
+    } else {
+      _isListening = false;
+    }
+    _stopping = false;
+  }
+
+  Future<void> _closeDialog([String? result]) async {
+    if (_hasPopped) return;
+    _hasPopped = true;
+    await stopActiveVoiceSession();
+    if (!mounted) return;
+    Navigator.of(context).pop(result);
+  }
+
+  @override
   void dispose() {
     _popTimer?.cancel();
+    stopVoiceLifecycleWatch();
+    // Best-effort sync stop; async cleanup already requested on close/lifecycle.
+    try {
+      _speech.stop();
+      _speech.cancel();
+    } catch (_) {}
     _pulseController.dispose();
-    _speech.stop();
     super.dispose();
   }
 
@@ -91,39 +135,49 @@ class _VoiceSearchDialogState extends ConsumerState<VoiceSearchDialog>
     }
   }
 
-  void _startListening() async {
+  Future<void> _startListening() async {
     if (!_speechEnabled) {
       await _initSpeech();
     }
-    if (_speechEnabled) {
-      setState(() {
-        _isListening = true;
-        _statusText = 'Listening...';
-        _voiceOutput = '';
-      });
-      _pulseController.repeat();
-
-      await _speech.listen(
-        onResult: (result) {
-          setState(() {
-            _voiceOutput = result.recognizedWords;
-          });
-          if (result.finalResult) {
-            _stopListening(query: result.recognizedWords);
-          }
-        },
-      );
-    } else {
-      setState(() {
-        _statusText = 'Mic permission denied or not available.';
-      });
+    if (!_speechEnabled || !mounted) {
+      if (mounted) {
+        setState(() {
+          _statusText = 'Mic permission denied or not available.';
+        });
+      }
+      return;
     }
+
+    setState(() {
+      _isListening = true;
+      _statusText = 'Listening...';
+      _voiceOutput = '';
+    });
+    _pulseController.repeat();
+
+    await _speech.listen(
+      onResult: (result) {
+        if (!mounted) return;
+        setState(() {
+          _voiceOutput = result.recognizedWords;
+        });
+        if (result.finalResult) {
+          _stopListening(query: result.recognizedWords);
+        }
+      },
+    );
   }
 
-  void _stopListening({String? query, bool cancelled = false}) async {
-    await _speech.stop();
-    _pulseController.stop();
-    _pulseController.reset();
+  Future<void> _stopListening({String? query, bool cancelled = false}) async {
+    try {
+      await _speech.stop();
+    } catch (_) {}
+    if (_pulseController.isAnimating) {
+      _pulseController.stop();
+      _pulseController.reset();
+    }
+
+    if (!mounted) return;
 
     if (cancelled) {
       setState(() {
@@ -136,19 +190,15 @@ class _VoiceSearchDialogState extends ConsumerState<VoiceSearchDialog>
     final finalQuery = query ?? _voiceOutput;
     setState(() {
       _isListening = false;
-      _statusText = finalQuery.isNotEmpty 
-          ? 'Speech processed successfully!' 
+      _statusText = finalQuery.isNotEmpty
+          ? 'Speech processed successfully!'
           : 'Tap mic to start speaking...';
     });
 
     if (finalQuery.isNotEmpty) {
-      // Auto close dialog and return query after a brief delay
       _popTimer?.cancel();
       _popTimer = Timer(const Duration(milliseconds: 800), () {
-        if (mounted && !_hasPopped) {
-          _hasPopped = true;
-          Navigator.of(context).pop(finalQuery);
-        }
+        _closeDialog(finalQuery);
       });
     }
   }
@@ -175,7 +225,6 @@ class _VoiceSearchDialogState extends ConsumerState<VoiceSearchDialog>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Header
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -197,18 +246,11 @@ class _VoiceSearchDialogState extends ConsumerState<VoiceSearchDialog>
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),
                   icon: const Icon(Icons.close, color: Colors.white30, size: 20),
-                  onPressed: () {
-                    if (!_hasPopped) {
-                      _hasPopped = true;
-                      Navigator.of(context).pop();
-                    }
-                  },
+                  onPressed: () => _closeDialog(),
                 ),
               ],
             ),
             const SizedBox(height: 25),
-
-            // Pulsing Mic Icon
             Center(
               child: AnimatedBuilder(
                 animation: _pulseAnimation,
@@ -222,7 +264,7 @@ class _VoiceSearchDialogState extends ConsumerState<VoiceSearchDialog>
                           height: 80 * _pulseAnimation.value,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: const Color(0xFFFF7A00).withValues(alpha: 
+                            color: const Color(0xFFFF7A00).withValues(alpha:
                               (1.8 - _pulseAnimation.value).clamp(0.0, 1.0),
                             ),
                           ),
@@ -255,8 +297,6 @@ class _VoiceSearchDialogState extends ConsumerState<VoiceSearchDialog>
               ),
             ),
             const SizedBox(height: 20),
-
-            // Status message
             Text(
               _statusText,
               style: TextStyle(
@@ -266,7 +306,6 @@ class _VoiceSearchDialogState extends ConsumerState<VoiceSearchDialog>
               ),
               textAlign: TextAlign.center,
             ),
-
             if (_voiceOutput.isNotEmpty) ...[
               const SizedBox(height: 15),
               Container(
@@ -285,12 +324,9 @@ class _VoiceSearchDialogState extends ConsumerState<VoiceSearchDialog>
                 ),
               ),
             ],
-
             const SizedBox(height: 25),
             const Divider(color: Colors.white10),
             const SizedBox(height: 15),
-
-            // Speech presets header
             const Align(
               alignment: Alignment.centerLeft,
               child: Text(
@@ -299,8 +335,6 @@ class _VoiceSearchDialogState extends ConsumerState<VoiceSearchDialog>
               ),
             ),
             const SizedBox(height: 10),
-
-            // Speech shortcuts
             Wrap(
               spacing: 8,
               runSpacing: 8,

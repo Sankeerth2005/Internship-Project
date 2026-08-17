@@ -1,12 +1,17 @@
-# Build release APK from the SINGLE repo-root .env file.
+# Build release APK/AAB from the SINGLE repo-root .env file.
 # Usage (from localink_mobile or repo root):
 #   .\scripts\build_from_env.ps1
+#   .\scripts\build_from_env.ps1 -Target appbundle -AllowEphemeralHost
 #   .\scripts\build_from_env.ps1 -AllowDebugSigning
 #   .\scripts\build_from_env.ps1 -EnvFile "C:\path\to\.env"
 
 param(
     [string]$EnvFile = "",
-    [switch]$AllowDebugSigning
+    [ValidateSet("apk", "appbundle")]
+    [string]$Target = "apk",
+    [string]$ApiHostOverride = "",
+    [switch]$AllowDebugSigning,
+    [switch]$AllowEphemeralHost
 )
 
 $ErrorActionPreference = "Stop"
@@ -35,7 +40,10 @@ function Get-DotEnvValue {
     return $value
 }
 
-$apiHost = Get-DotEnvValue -Path $EnvFile -Key "API_HOST"
+$apiHost = $ApiHostOverride
+if ([string]::IsNullOrWhiteSpace($apiHost)) {
+    $apiHost = Get-DotEnvValue -Path $EnvFile -Key "API_HOST"
+}
 if ([string]::IsNullOrWhiteSpace($apiHost)) {
     $backendUrl = Get-DotEnvValue -Path $EnvFile -Key "BACKEND_API_URL"
     if (-not [string]::IsNullOrWhiteSpace($backendUrl)) {
@@ -72,12 +80,15 @@ $googleWeb = Get-DotEnvValue -Path $EnvFile -Key "GOOGLE_WEB_CLIENT_ID"
 if ([string]::IsNullOrWhiteSpace($googleWeb)) {
     $googleWeb = Get-DotEnvValue -Path $EnvFile -Key "GOOGLE_CLIENT_ID"
 }
+$googleAndroid = Get-DotEnvValue -Path $EnvFile -Key "GOOGLE_ANDROID_CLIENT_ID"
 
 $buildArgs = @{
-    ApiHost            = $apiHost
-    UseHttps           = $useHttps
-    GeoapifyApiKey     = $geo
-    GoogleWebClientId  = $googleWeb
+    ApiHost               = $apiHost
+    Target                = $Target
+    UseHttps              = $useHttps
+    GeoapifyApiKey        = $geo
+    GoogleWebClientId     = $googleWeb
+    GoogleAndroidClientId = $googleAndroid
 }
 
 if ($allowInsecure -or -not $useHttps) {
@@ -86,6 +97,9 @@ if ($allowInsecure -or -not $useHttps) {
 if ($AllowDebugSigning) {
     $buildArgs.AllowDebugSigning = $true
 }
+if ($AllowEphemeralHost) {
+    $buildArgs.AllowEphemeralHost = $true
+}
 
-Write-Host "==> Building from single env file: $EnvFile" -ForegroundColor Cyan
-& (Join-Path $PSScriptRoot "build_manager_apk.ps1") @buildArgs
+Write-Host "==> Building $Target from env file: $EnvFile" -ForegroundColor Cyan
+& (Join-Path $PSScriptRoot "build_release.ps1") @buildArgs

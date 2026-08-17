@@ -48,6 +48,10 @@ class AppErrorFormatter {
             }
 
             if (data is Map) {
+              final fieldErrors = validationMessages(data);
+              if (fieldErrors != null && fieldErrors.isNotEmpty) {
+                return fieldErrors;
+              }
               final message = data['message'] ?? data['title'] ?? data['error'];
               if (message != null && message.toString().isNotEmpty) {
                 return message.toString();
@@ -73,5 +77,44 @@ class AppErrorFormatter {
       return errString.substring(11);
     }
     return errString;
+  }
+
+  /// Reads ASP.NET ProblemDetails / custom `{ errors: ... }` payloads so the
+  /// UI can show the failing field instead of "One or more validation errors occurred."
+  static String? validationMessages(Map data) {
+    final errors = data['errors'];
+    final messages = <String>[];
+
+    if (errors is Map) {
+      for (final value in errors.values) {
+        _collectErrorValue(value, messages);
+      }
+    } else if (errors is List) {
+      for (final item in errors) {
+        _collectErrorValue(item, messages);
+      }
+    }
+
+    if (messages.isEmpty) return null;
+    return messages.join('\n');
+  }
+
+  static void _collectErrorValue(dynamic value, List<String> messages) {
+    if (value == null) return;
+    if (value is List) {
+      for (final item in value) {
+        _collectErrorValue(item, messages);
+      }
+      return;
+    }
+    if (value is Map) {
+      final nested = value['errors'] ?? value['error'] ?? value['message'];
+      if (nested != null) {
+        _collectErrorValue(nested, messages);
+        return;
+      }
+    }
+    final text = value.toString().trim();
+    if (text.isNotEmpty) messages.add(text);
   }
 }

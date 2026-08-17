@@ -10,7 +10,10 @@ namespace localink_be.Models.Queries
         public double? Latitude { get; set; }
         public double? Longitude { get; set; }
 
-        /// <summary>Search radius in kilometers. Null = use configured default when lat/lng present.</summary>
+        /// <summary>
+        /// Optional search radius in kilometers. Ignored as a visibility cutoff;
+        /// eligible matching businesses are ranked by distance instead.
+        /// </summary>
         public double? RadiusKm { get; set; }
 
         public string? Search { get; set; }
@@ -25,8 +28,8 @@ namespace localink_be.Models.Queries
         public int PageSize { get; set; } = 20;
 
         /// <summary>
-        /// When false and lat/lng provided, businesses outside radius are excluded.
-        /// When true (no location), global catalog search is allowed.
+        /// When true and lat/lng are missing, return an empty page (location-gated features).
+        /// When false, discovery still runs using non-distance ranking.
         /// </summary>
         public bool RequireLocation { get; set; } = false;
     }

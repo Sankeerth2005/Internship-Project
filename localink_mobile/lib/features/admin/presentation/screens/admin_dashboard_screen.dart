@@ -15,6 +15,7 @@ import '../../../../core/network/dio_client.dart';
 import '../../../../core/network/signalr_service.dart';
 import '../../../auth/providers/auth_state.dart';
 import '../../../shared/presentation/widgets/app_feedback.dart';
+import '../../../shared/presentation/widgets/app_safe_bottom_bar.dart';
 import '../../../../core/network/app_error_formatter.dart';
 import '../../../../core/widgets/brand_icons.dart';
 
@@ -614,7 +615,9 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
             ),
           ],
         ),
-        bottomNavigationBar: Container(
+        bottomNavigationBar: AppSafeBottomBar(
+          fillColor: const Color(0xFF161616),
+          child: Container(
           decoration: BoxDecoration(
             color: const Color(0xFF161616),
             border: Border(top: BorderSide(color: Colors.white.withValues(alpha: 0.05), width: 1)),
@@ -664,6 +667,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
               ),
             ],
           ),
+        ),
         ),
       ),
     );

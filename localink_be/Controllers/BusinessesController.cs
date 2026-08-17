@@ -9,7 +9,7 @@ namespace localink_be.Controllers
 {
     /// <summary>
     /// Enterprise business discovery API.
-    /// All search, radius, sort, and pagination run in SQL Server.
+    /// All search, sort, distance ranking, and pagination run in SQL Server.
     /// </summary>
     [ApiController]
     [Route("api/v1/businesses")]
@@ -40,7 +40,7 @@ namespace localink_be.Controllers
             [FromQuery] string? sort = null,
             [FromQuery] string? sortBy = null,
             [FromQuery] int page = 1,
-            [FromQuery] int pageSize = 20,
+            [FromQuery] int pageSize = 10,
             [FromQuery] string? userPincode = null,
             CancellationToken cancellationToken = default)
         {

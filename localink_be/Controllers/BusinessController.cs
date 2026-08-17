@@ -145,7 +145,7 @@ namespace localink_be.Controllers
             [FromQuery] int? categoryId = null,
             [FromQuery] int? subcategoryId = null,
             [FromQuery] int page = 1,
-            [FromQuery] int pageSize = 25,
+            [FromQuery] int pageSize = 10,
             [FromQuery] bool paged = false,
             [FromServices] localink_be.Data.AppDbContext db = null!)
         {

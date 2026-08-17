@@ -23,7 +23,7 @@ namespace localink_be.Models.Entities
 
         [Column("phone_number")]
         [Required(ErrorMessage = "Phone number is required")]
-        [RegularExpression(@"^[3-9][0-9]{9}$", ErrorMessage = "Phone number must be 10 digits starting with 3–9")]
+        [RegularExpression(@"^[0-9]{7,15}$", ErrorMessage = "Phone number must be between 7 and 15 digits")]
         public string PhoneNumber { get; set; } = string.Empty;
 
         [Column("email")]

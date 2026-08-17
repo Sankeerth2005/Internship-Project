@@ -54,18 +54,6 @@ namespace localink_be.Controllers
                 });
             }
 
-            // Validate radius
-            if (request.Radius < 0 || request.Radius > 100)
-            {
-                return BadRequest(new VoiceSearchResponse
-                {
-                    Success = false,
-                    Message = "Radius must be between 0 and 100 kilometers",
-                    Results = new System.Collections.Generic.List<BusinessDto>(),
-                    TotalCount = 0
-                });
-            }
-
             try
             {
                 // Parse intent using AI Gateway to extract search query, category, openNow status
@@ -79,10 +67,7 @@ namespace localink_be.Controllers
                             request.Query = intentResult.Query ?? request.Query;
                             request.Category = intentResult.Category ?? request.Category;
                             request.OpenNow = intentResult.OpenNow || request.OpenNow;
-                            if (intentResult.RadiusKm.HasValue)
-                            {
-                                request.Radius = intentResult.RadiusKm.Value;
-                            }
+                            // Ignore parsed radius — it is ranking context only, never a visibility cutoff.
                         }
                     }
                     catch

@@ -67,7 +67,7 @@ class CatalogItem {
       price: (json['price'] as num).toDouble(),
       imageUrl: json['imageUrl'],
       isAvailable: json['isAvailable'] ?? true,
-      currency: json['currency'] ?? 'USD',
+      currency: json['currency'] ?? 'INR',
     );
   }
 
