@@ -35,10 +35,12 @@ class ProfileInfoTile extends StatelessWidget {
               decoration: InputDecoration(
                 labelText: label,
                 labelStyle: const TextStyle(color: Color(0xFF5F5C58), fontSize: 13),
+                floatingLabelBehavior: FloatingLabelBehavior.always,
+                alignLabelWithHint: true,
                 prefixIcon: Icon(icon, color: const Color(0xFFFF6600), size: 18),
                 filled: true,
                 fillColor: Colors.white,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: const BorderSide(color: Color(0xFFEAE8E3)),
@@ -86,6 +88,8 @@ class ProfileInfoTile extends StatelessWidget {
                         const SizedBox(height: 3),
                         Text(
                           controller.text.isNotEmpty ? controller.text : 'Not set',
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             color: controller.text.isNotEmpty
                                 ? const Color(0xFF1A1918)

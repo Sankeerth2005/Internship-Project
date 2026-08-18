@@ -285,12 +285,16 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
                 children: [
                   const Icon(Icons.auto_awesome, color: _DetailTok.primary),
                   const SizedBox(width: 8),
-                  const Text(
-                    'AI Enhanced Reviews',
-                    style: TextStyle(
-                      color: _DetailTok.textHigh,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
+                  const Expanded(
+                    child: Text(
+                      'AI Enhanced Reviews',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: _DetailTok.textHigh,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                 ],
@@ -464,12 +468,16 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
                                   Row(
                                     children: [
                                       if (business.categoryName != null) ...[
-                                        Text(
-                                          business.categoryName!,
-                                          style: const TextStyle(
-                                            color: _DetailTok.primary,
-                                            fontSize: 13,
-                                            fontWeight: FontWeight.bold,
+                                        Flexible(
+                                          child: Text(
+                                            business.categoryName!,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: const TextStyle(
+                                              color: _DetailTok.primary,
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.bold,
+                                            ),
                                           ),
                                         ),
                                         const SizedBox(width: 8),

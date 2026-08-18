@@ -43,10 +43,9 @@ class SearchableSelectField<T> extends StatelessWidget {
     for (final item in items) {
       if (item.value == selected) {
         final lead = item.leading;
+        // Keep the closed field compact: subtitle belongs in the picker list.
         if (lead != null && lead.isNotEmpty) {
-          return item.subtitle == null
-              ? '$lead  ${item.label}'
-              : '$lead  ${item.label}  ${item.subtitle}';
+          return '$lead  ${item.label}';
         }
         return item.label;
       }
@@ -83,7 +82,11 @@ class SearchableSelectField<T> extends StatelessWidget {
             isEmpty: selected == null,
             decoration: InputDecoration(
               labelText: label,
-              hintText: hint,
+              // Child already renders hint/value. hintText would paint on top
+              // of that child and overlap the floating label when empty.
+              floatingLabelBehavior: FloatingLabelBehavior.always,
+              alignLabelWithHint: true,
+              contentPadding: const EdgeInsets.fromLTRB(12, 18, 8, 14),
               errorText: err,
               prefixIcon: prefixIcon == null
                   ? null

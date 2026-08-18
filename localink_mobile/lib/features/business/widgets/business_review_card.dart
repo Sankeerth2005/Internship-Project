@@ -31,18 +31,20 @@ class BusinessReviewCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                review.userName,
-                style: const TextStyle(
-                  color: Color(0xFF1A1918),
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
+              Expanded(
+                child: Text(
+                  review.userName,
+                  style: const TextStyle(
+                    color: Color(0xFF1A1918),
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
               ),
+              const SizedBox(width: 8),
               Row(
                 children: List.generate(5, (index) {
                   return Icon(

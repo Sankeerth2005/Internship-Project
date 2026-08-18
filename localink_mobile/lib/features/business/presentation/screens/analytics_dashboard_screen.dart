@@ -135,6 +135,8 @@ class _AnalyticsDashboardScreenState extends ConsumerState<AnalyticsDashboardScr
         ),
         title: Text(
           '${widget.businessName} Analytics',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
           style: const TextStyle(
             fontFamily: 'Inter',
             color: _AnalTok.textHigh,
@@ -164,7 +166,9 @@ class _AnalyticsDashboardScreenState extends ConsumerState<AnalyticsDashboardScr
                     children: [
                       // Timeframe Tabs Selector Row
                       Center(
-                        child: Container(
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Container(
                           padding: const EdgeInsets.all(4),
                           decoration: BoxDecoration(
                             color: _AnalTok.surface,
@@ -210,6 +214,7 @@ class _AnalyticsDashboardScreenState extends ConsumerState<AnalyticsDashboardScr
                               );
                             }).toList(),
                           ),
+                        ),
                         ),
                       ),
                       const SizedBox(height: 24),
@@ -406,12 +411,16 @@ class _AnalyticsDashboardScreenState extends ConsumerState<AnalyticsDashboardScr
                         children: [
                           Icon(Icons.auto_awesome, color: _AnalTok.primary, size: 16),
                           SizedBox(width: 8),
-                          Text(
-                            'AI Action Recommendations',
-                            style: TextStyle(
-                              color: _AnalTok.textHigh,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w900,
+                          Expanded(
+                            child: Text(
+                              'AI Action Recommendations',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: _AnalTok.textHigh,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w900,
+                              ),
                             ),
                           ),
                         ],
@@ -490,11 +499,15 @@ class _AnalyticsDashboardScreenState extends ConsumerState<AnalyticsDashboardScr
             const SizedBox(height: 10),
             Text(
               value,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: const TextStyle(color: _AnalTok.textHigh, fontSize: 18, fontWeight: FontWeight.w900),
             ),
             const SizedBox(height: 2),
             Text(
               label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: const TextStyle(color: _AnalTok.textMedium, fontSize: 10.5),
             ),
           ],

@@ -750,10 +750,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                     decoration: InputDecoration(
                                       labelText: 'Code',
                                       labelStyle: const TextStyle(color: Color(0xFF5F5C58), fontSize: 13),
+                                      floatingLabelBehavior: FloatingLabelBehavior.always,
                                       prefixIcon: const Icon(Icons.add_rounded, color: Color(0xFFFF6600), size: 16),
                                       filled: true,
                                       fillColor: Colors.white,
-                                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
                                       border: OutlineInputBorder(
                                         borderRadius: BorderRadius.circular(12),
                                         borderSide: const BorderSide(color: Color(0xFFEAE8E3)),

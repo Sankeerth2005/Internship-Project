@@ -51,12 +51,16 @@ class _BusinessActionButtonState extends State<BusinessActionButton> {
             children: [
               Icon(widget.icon, color: const Color(0xFFFF6600), size: 16),
               const SizedBox(width: 6),
-              Text(
-                widget.label,
-                style: const TextStyle(
-                  color: Color(0xFF1A1918),
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
+              Flexible(
+                child: Text(
+                  widget.label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Color(0xFF1A1918),
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             ],

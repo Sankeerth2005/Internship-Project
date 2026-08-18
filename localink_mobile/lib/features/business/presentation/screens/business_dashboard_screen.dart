@@ -80,13 +80,17 @@ class _BusinessDashboardScreenState extends ConsumerState<BusinessDashboardScree
                 child: const Icon(Icons.storefront_rounded, color: _DashTok.primary, size: 20),
               ),
               const SizedBox(width: 10),
-              const Text(
-                'Business Suite',
-                style: TextStyle(
-                  fontFamily: 'Inter',
-                  color: _DashTok.textHigh,
-                  fontWeight: FontWeight.w900,
-                  fontSize: 18,
+              const Expanded(
+                child: Text(
+                  'Business Suite',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    color: _DashTok.textHigh,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 18,
+                  ),
                 ),
               ),
             ],
@@ -167,7 +171,6 @@ class _BusinessDashboardScreenState extends ConsumerState<BusinessDashboardScree
                         children: [
                           if (businesses.length > 1) ...[
                             Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 const Text(
                                   'Switch Business',
@@ -178,27 +181,35 @@ class _BusinessDashboardScreenState extends ConsumerState<BusinessDashboardScree
                                     letterSpacing: 0.5,
                                   ),
                                 ),
-                                TextButton.icon(
-                                  onPressed: () {
-                                    HapticFeedback.lightImpact();
-                                    context.push('/register-business');
-                                  },
-                                  style: TextButton.styleFrom(
-                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                    minimumSize: const Size(0, 36),
-                                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                    foregroundColor: _DashTok.primary,
-                                    backgroundColor: _DashTok.primaryLight,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                  ),
-                                  icon: const Icon(Icons.add_rounded, size: 18),
-                                  label: const Text(
-                                    'Add New Business',
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.bold,
+                                const SizedBox(width: 8),
+                                Flexible(
+                                  child: Align(
+                                    alignment: Alignment.centerRight,
+                                    child: TextButton.icon(
+                                      onPressed: () {
+                                        HapticFeedback.lightImpact();
+                                        context.push('/register-business');
+                                      },
+                                      style: TextButton.styleFrom(
+                                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                        minimumSize: const Size(0, 36),
+                                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                        foregroundColor: _DashTok.primary,
+                                        backgroundColor: _DashTok.primaryLight,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                      ),
+                                      icon: const Icon(Icons.add_rounded, size: 18),
+                                      label: const Text(
+                                        'Add New Business',
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
                                     ),
                                   ),
                                 ),
@@ -295,23 +306,28 @@ class _BusinessDashboardScreenState extends ConsumerState<BusinessDashboardScree
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              const Text(
-                                'Analytics Insights',
-                                style: TextStyle(
-                                  fontFamily: 'Inter',
-                                  color: _DashTok.textHigh,
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w900,
+                              const Expanded(
+                                child: Text(
+                                  'Analytics Insights',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontFamily: 'Inter',
+                                    color: _DashTok.textHigh,
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w900,
+                                  ),
                                 ),
                               ),
+                              const SizedBox(width: 8),
                               GestureDetector(
                                 onTap: () {
                                   HapticFeedback.lightImpact();
                                   context.push('/analytics/${activeBusiness.businessId}', extra: activeBusiness);
                                 },
                                 child: const Row(
+                                  mainAxisSize: MainAxisSize.min,
                                   children: [
                                     Text(
                                       'View Details',
@@ -357,10 +373,10 @@ class _BusinessDashboardScreenState extends ConsumerState<BusinessDashboardScree
                           return SliverPadding(
                             padding: const EdgeInsets.symmetric(horizontal: 20),
                             sliver: SliverGrid.count(
-                              crossAxisCount: 2,
+                              crossAxisCount: _kpiCrossAxisCount(context),
                               crossAxisSpacing: 12,
                               mainAxisSpacing: 12,
-                              childAspectRatio: 1.38,
+                              childAspectRatio: _kpiAspectRatio(context),
                               children: [
                                 _buildKpiCard('Search Views', '$searchViews', '+14%', Icons.troubleshoot_rounded, _DashTok.info),
                                 _buildKpiCard('Profile Views', '$views', '+18%', Icons.visibility_rounded, _DashTok.primary),
@@ -381,10 +397,10 @@ class _BusinessDashboardScreenState extends ConsumerState<BusinessDashboardScree
                         error: (err, st) => SliverPadding(
                           padding: const EdgeInsets.symmetric(horizontal: 20),
                           sliver: SliverGrid.count(
-                            crossAxisCount: 2,
+                            crossAxisCount: _kpiCrossAxisCount(context),
                             crossAxisSpacing: 12,
                             mainAxisSpacing: 12,
-                            childAspectRatio: 1.38,
+                            childAspectRatio: _kpiAspectRatio(context),
                             children: [
                               _buildKpiCard('Search Views', '0', '0%', Icons.troubleshoot_rounded, _DashTok.info),
                               _buildKpiCard('Profile Views', '0', '0%', Icons.visibility_rounded, _DashTok.primary),
@@ -412,13 +428,17 @@ class _BusinessDashboardScreenState extends ConsumerState<BusinessDashboardScree
                             child: const Icon(Icons.auto_awesome, color: _DashTok.ai, size: 14),
                           ),
                           const SizedBox(width: 8),
-                          const Text(
-                            'AI Smart Growth Advisor',
-                            style: TextStyle(
-                              fontFamily: 'Inter',
-                              color: _DashTok.textHigh,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w900,
+                          const Expanded(
+                            child: Text(
+                              'AI Smart Growth Advisor',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontFamily: 'Inter',
+                                color: _DashTok.textHigh,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w900,
+                              ),
                             ),
                           ),
                         ],
@@ -726,6 +746,18 @@ class _BusinessDashboardScreenState extends ConsumerState<BusinessDashboardScree
     );
   }
 
+  int _kpiCrossAxisCount(BuildContext context) {
+    return MediaQuery.sizeOf(context).width < 340 ? 1 : 2;
+  }
+
+  double _kpiAspectRatio(BuildContext context) {
+    final width = MediaQuery.sizeOf(context).width;
+    final textScale = MediaQuery.textScalerOf(context).scale(1);
+    if (_kpiCrossAxisCount(context) == 1) return 2.6;
+    if (width < 360 || textScale > 1.2) return 1.15;
+    return 1.38;
+  }
+
   Widget _buildHeroCommandCenter(BuildContext context, BusinessDto b) {
     final isApproved = b.status?.toLowerCase() == 'approved';
     Color statusColor = isApproved ? _DashTok.success : _DashTok.warning;
@@ -772,16 +804,16 @@ class _BusinessDashboardScreenState extends ConsumerState<BusinessDashboardScree
       ),
       child: Padding(
         padding: const EdgeInsets.all(20),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Verification Badge Row
-                  Row(
-                    children: [
-                      Container(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final stackVertically = constraints.maxWidth < 220;
+            final info = Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Flexible(
+                      child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                         decoration: BoxDecoration(
                           color: statusBg,
@@ -790,6 +822,8 @@ class _BusinessDashboardScreenState extends ConsumerState<BusinessDashboardScree
                         ),
                         child: Text(
                           statusText,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             color: statusColor,
                             fontSize: 10,
@@ -797,81 +831,79 @@ class _BusinessDashboardScreenState extends ConsumerState<BusinessDashboardScree
                           ),
                         ),
                       ),
+                    ),
+                    if (isApproved) ...[
                       const SizedBox(width: 8),
-                      if (isApproved)
-                        const Icon(Icons.verified_rounded, color: Colors.white, size: 14),
+                      const Icon(Icons.verified_rounded, color: Colors.white, size: 14),
                     ],
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  b.businessName,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontFamily: 'Inter',
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
                   ),
-                  const SizedBox(height: 8),
-
-                  // Business Name
-                  Text(
-                    b.businessName,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontFamily: 'Inter',
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Listing Owner • ${b.email}',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.8),
+                    fontSize: 11,
+                  ),
+                ),
+                const SizedBox(height: 18),
+                GestureDetector(
+                  onTap: () {
+                    HapticFeedback.lightImpact();
+                    context.push('/business-detail/${b.businessId}');
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                    decoration: BoxDecoration(
                       color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w900,
+                      borderRadius: BorderRadius.circular(10),
                     ),
-                  ),
-
-                  const SizedBox(height: 4),
-
-                  // Owner info
-                  Text(
-                    'Listing Owner • ${b.email}',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.8),
-                      fontSize: 11,
-                    ),
-                  ),
-                  const SizedBox(height: 18),
-
-                  // Quick launch CTA
-                  GestureDetector(
-                    onTap: () {
-                      HapticFeedback.lightImpact();
-                      context.push('/business-detail/${b.businessId}');
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: const Text(
-                        'Preview Listing',
-                        style: TextStyle(
-                          color: _DashTok.primary,
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                        ),
+                    child: const Text(
+                      'Preview Listing',
+                      style: TextStyle(
+                        color: _DashTok.primary,
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
                   ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 16),
+                ),
+              ],
+            );
 
-            // Health Score Ring Indicator
-            Column(
+            final health = Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
                 SizedBox(
-                  height: 64,
-                  width: 64,
+                  width: 76,
+                  height: 76,
                   child: Stack(
                     alignment: Alignment.center,
+                    clipBehavior: Clip.none,
                     children: [
-                      CircularProgressIndicator(
-                        value: score / 100,
-                        backgroundColor: Colors.white.withValues(alpha: 0.25),
-                        valueColor: const AlwaysStoppedAnimation(Colors.white),
-                        strokeWidth: 5.5,
+                      Padding(
+                        padding: const EdgeInsets.all(5),
+                        child: CircularProgressIndicator(
+                          value: (score.clamp(0, 100)) / 100,
+                          backgroundColor: Colors.white.withValues(alpha: 0.25),
+                          valueColor: const AlwaysStoppedAnimation(Colors.white),
+                          strokeWidth: 6,
+                          strokeCap: StrokeCap.round,
+                        ),
                       ),
                       Text(
                         '$score%',
@@ -890,8 +922,28 @@ class _BusinessDashboardScreenState extends ConsumerState<BusinessDashboardScree
                   style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
                 ),
               ],
-            ),
-          ],
+            );
+
+            if (stackVertically) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  info,
+                  const SizedBox(height: 16),
+                  Align(alignment: Alignment.centerRight, child: health),
+                ],
+              );
+            }
+
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(child: info),
+                const SizedBox(width: 16),
+                health,
+              ],
+            );
+          },
         ),
       ),
     );
@@ -910,7 +962,6 @@ class _BusinessDashboardScreenState extends ConsumerState<BusinessDashboardScree
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Container(
                 padding: const EdgeInsets.all(6),
@@ -920,15 +971,23 @@ class _BusinessDashboardScreenState extends ConsumerState<BusinessDashboardScree
                 ),
                 child: Icon(icon, color: color, size: 14),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: _DashTok.successLight,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  trend,
-                  style: const TextStyle(color: _DashTok.success, fontSize: 9.5, fontWeight: FontWeight.bold),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: _DashTok.successLight,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      trend,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(color: _DashTok.success, fontSize: 9.5, fontWeight: FontWeight.bold),
+                    ),
+                  ),
                 ),
               ),
             ],
@@ -938,6 +997,8 @@ class _BusinessDashboardScreenState extends ConsumerState<BusinessDashboardScree
             children: [
               Text(
                 count,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   color: _DashTok.textHigh,
                   fontSize: 16,
@@ -947,6 +1008,8 @@ class _BusinessDashboardScreenState extends ConsumerState<BusinessDashboardScree
               const SizedBox(height: 2),
               Text(
                 title,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
                 style: const TextStyle(color: _DashTok.textMedium, fontSize: 10.5),
               ),
             ],
@@ -971,21 +1034,27 @@ class _BusinessDashboardScreenState extends ConsumerState<BusinessDashboardScree
           Expanded(
             child: Text(
               title,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
               style: const TextStyle(color: _DashTok.textHigh, fontSize: 11.5, height: 1.4),
             ),
           ),
           const SizedBox(width: 12),
-          GestureDetector(
-            onTap: onTap,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: _DashTok.ai,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                cta,
-                style: const TextStyle(color: Colors.white, fontSize: 10.5, fontWeight: FontWeight.bold),
+          Flexible(
+            child: GestureDetector(
+              onTap: onTap,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: _DashTok.ai,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  cta,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: Colors.white, fontSize: 10.5, fontWeight: FontWeight.bold),
+                ),
               ),
             ),
           ),
@@ -1064,12 +1133,16 @@ class _BusinessDashboardScreenState extends ConsumerState<BusinessDashboardScree
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      title,
-                      style: const TextStyle(color: _DashTok.textHigh, fontSize: 12, fontWeight: FontWeight.bold),
+                    Expanded(
+                      child: Text(
+                        title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(color: _DashTok.textHigh, fontSize: 12, fontWeight: FontWeight.bold),
+                      ),
                     ),
+                    const SizedBox(width: 8),
                     Text(
                       time,
                       style: const TextStyle(color: _DashTok.textLow, fontSize: 10),
@@ -1079,6 +1152,8 @@ class _BusinessDashboardScreenState extends ConsumerState<BusinessDashboardScree
                 const SizedBox(height: 3),
                 Text(
                   desc,
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(color: _DashTok.textMedium, fontSize: 11),
                 ),
               ],

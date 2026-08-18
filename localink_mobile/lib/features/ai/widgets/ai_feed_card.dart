@@ -116,6 +116,8 @@ class _AiFeedCardState extends State<AiFeedCard> {
                       const SizedBox(height: 6),
                       Text(
                         reason,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           color: Color(0xFFFF6600),
                           fontSize: 11,
@@ -139,7 +141,7 @@ class _AiFeedCardState extends State<AiFeedCard> {
                       children: [
                         const Icon(Icons.location_on, color: Color(0xFFFF6600), size: 12),
                         const SizedBox(width: 4),
-                        Flexible(
+                        Expanded(
                           child: Text(
                             _locationLabel(),
                             style: const TextStyle(
@@ -150,19 +152,23 @@ class _AiFeedCardState extends State<AiFeedCard> {
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        const Spacer(),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFFF6600).withValues(alpha: 0.08),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            '${widget.item['categoryName']} • ${widget.item['subcategoryName']}',
-                            style: const TextStyle(
-                              color: Color(0xFFFF6600),
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFF6600).withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              '${widget.item['categoryName']} • ${widget.item['subcategoryName']}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: Color(0xFFFF6600),
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
                         ),

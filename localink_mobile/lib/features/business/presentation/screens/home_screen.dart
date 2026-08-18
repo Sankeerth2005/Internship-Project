@@ -846,9 +846,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
               borderRadius: BorderRadius.circular(14),
               border: Border.all(color: _HomeTok.border),
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
                 pageBtn(
                   icon: Icons.first_page_rounded,
                   enabled: page > 1,
@@ -904,6 +906,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
                   tooltip: 'Last page',
                 ),
               ],
+            ),
             ),
           ),
           const SizedBox(height: 8),
@@ -1005,13 +1008,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
                         children: [
                           const Icon(Icons.near_me_rounded, color: _HomeTok.primary, size: 12),
                           const SizedBox(width: 4),
-                          Text(
-                            locationText,
-                            style: const TextStyle(
-                              fontFamily: 'Inter',
-                              color: Colors.white,
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
+                          ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 180),
+                            child: Text(
+                              locationText,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontFamily: 'Inter',
+                                color: Colors.white,
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
                         ],
@@ -1112,46 +1120,59 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
                     ),
                     const SizedBox(height: 12),
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Row(
-                          children: [
-                            const Icon(Icons.star_rounded, color: Colors.amber, size: 16),
-                            const SizedBox(width: 4),
-                            Text(
-                              business.averageRating.toStringAsFixed(1),
-                              style: const TextStyle(
-                                fontFamily: 'Inter',
-                                color: _HomeTok.charcoal,
-                                fontSize: 13,
-                                fontWeight: FontWeight.bold,
+                        Flexible(
+                          child: Row(
+                            children: [
+                              const Icon(Icons.star_rounded, color: Colors.amber, size: 16),
+                              const SizedBox(width: 4),
+                              Text(
+                                business.averageRating.toStringAsFixed(1),
+                                style: const TextStyle(
+                                  fontFamily: 'Inter',
+                                  color: _HomeTok.charcoal,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              '(${business.reviewCount} reviews)',
-                              style: const TextStyle(
-                                fontFamily: 'Inter',
-                                color: _HomeTok.mutedText,
-                                fontSize: 11,
+                              const SizedBox(width: 4),
+                              Flexible(
+                                child: Text(
+                                  '(${business.reviewCount} reviews)',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontFamily: 'Inter',
+                                    color: _HomeTok.mutedText,
+                                    fontSize: 11,
+                                  ),
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                        Row(
-                          children: [
-                            const Icon(Icons.call_rounded, color: _HomeTok.primary, size: 13),
-                            const SizedBox(width: 4),
-                            Text(
-                              business.phoneNumber.isNotEmpty ? business.phoneNumber : 'Contact',
-                              style: const TextStyle(
-                                fontFamily: 'Inter',
-                                color: _HomeTok.primary,
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              const Icon(Icons.call_rounded, color: _HomeTok.primary, size: 13),
+                              const SizedBox(width: 4),
+                              Flexible(
+                                child: Text(
+                                  business.phoneNumber.isNotEmpty ? business.phoneNumber : 'Contact',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontFamily: 'Inter',
+                                    color: _HomeTok.primary,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ],
                     ),

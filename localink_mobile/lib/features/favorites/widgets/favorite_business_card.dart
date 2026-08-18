@@ -83,6 +83,8 @@ class _FavoriteBusinessCardState extends State<FavoriteBusinessCard> {
                           const SizedBox(height: 3),
                           Text(
                             widget.business.categoryName!,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
                               color: Color(0xFFFF6600),
                               fontSize: 11,
@@ -113,19 +115,25 @@ class _FavoriteBusinessCardState extends State<FavoriteBusinessCard> {
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
-                            const Spacer(),
-                            Row(
-                              children: [
-                                const Icon(Icons.location_on, color: Color(0xFFFF6600), size: 12),
-                                const SizedBox(width: 2),
-                                Text(
-                                  widget.business.city,
-                                  style: const TextStyle(
-                                    color: Color(0xFF9F9B96),
-                                    fontSize: 11,
+                            const SizedBox(width: 8),
+                            Flexible(
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.location_on, color: Color(0xFFFF6600), size: 12),
+                                  const SizedBox(width: 2),
+                                  Flexible(
+                                    child: Text(
+                                      widget.business.city,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        color: Color(0xFF9F9B96),
+                                        fontSize: 11,
+                                      ),
+                                    ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
                           ],
                         ),

@@ -944,6 +944,8 @@ class _BusinessRegistrationScreenState extends ConsumerState<BusinessRegistratio
         centerTitle: true,
         title: Text(
           widget.businessToEdit != null ? 'Edit Business Details' : 'List New Business',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
           style: const TextStyle(
             fontFamily: 'Inter',
             color: _RegTok.textHigh,
@@ -986,24 +988,27 @@ class _BusinessRegistrationScreenState extends ConsumerState<BusinessRegistratio
 
   Widget _buildStepper() {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 14),
+      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
       decoration: const BoxDecoration(
         color: _RegTok.surface,
         border: Border(bottom: BorderSide(color: _RegTok.border)),
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          _buildStepCircle(1, 'Profile'),
-          _buildStepLine(2),
-          _buildStepCircle(2, 'Map'),
-          _buildStepLine(3),
-          _buildStepCircle(3, 'Gallery'),
-          _buildStepLine(4),
-          _buildStepCircle(4, 'Hours'),
-          _buildStepLine(5),
-          _buildStepCircle(5, 'Publish'),
-        ],
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            _buildStepCircle(1, 'Profile'),
+            _buildStepLine(2),
+            _buildStepCircle(2, 'Map'),
+            _buildStepLine(3),
+            _buildStepCircle(3, 'Gallery'),
+            _buildStepLine(4),
+            _buildStepCircle(4, 'Hours'),
+            _buildStepLine(5),
+            _buildStepCircle(5, 'Publish'),
+          ],
+        ),
       ),
     );
   }
@@ -1048,6 +1053,8 @@ class _BusinessRegistrationScreenState extends ConsumerState<BusinessRegistratio
         const SizedBox(height: 4),
         Text(
           label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
           style: TextStyle(
             color: isPassed ? _RegTok.primary : _RegTok.textLow,
             fontSize: 9.5,
@@ -1559,8 +1566,8 @@ class _BusinessRegistrationScreenState extends ConsumerState<BusinessRegistratio
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            SizedBox(
-              width: 132,
+            Flexible(
+              flex: 2,
               child: SearchableSelectField<String>(
                 label: 'Code *',
                 hint: '+91',
@@ -1580,6 +1587,7 @@ class _BusinessRegistrationScreenState extends ConsumerState<BusinessRegistratio
                 searchHint: 'Search country codes...',
                 emptyMessage: 'No country codes found',
                 validator: AppValidators.callingCode,
+                displayBuilder: (code) => '+$code',
                 onSelected: (item) {
                   setState(() => _selectedPhoneCode = item.value);
                 },
@@ -1667,65 +1675,80 @@ class _BusinessRegistrationScreenState extends ConsumerState<BusinessRegistratio
                 border: Border.all(color: _RegTok.border),
               ),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(day.day, style: const TextStyle(color: _RegTok.textHigh, fontSize: 13, fontWeight: FontWeight.bold)),
-                  Row(
-                    children: [
-                      if (day.mode == 'Open') ...[
-                        GestureDetector(
-                          onTap: () async {
-                            final initialTime = day.slots.isNotEmpty ? _parseTimeOfDay(day.slots.first.open) : const TimeOfDay(hour: 9, minute: 0);
-                            final time = await showTimePicker(context: context, initialTime: initialTime);
-                            if (time != null) {
-                              final formatted = '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
-                              setState(() {
-                                day.slots[0] = SlotDto(open: formatted, close: day.slots.first.close);
-                              });
-                            }
-                          },
-                          child: Text(
-                            day.slots.isNotEmpty ? day.slots.first.open : '09:00',
-                            style: const TextStyle(color: _RegTok.primary, fontSize: 12, fontWeight: FontWeight.bold),
+                  Expanded(
+                    child: Text(
+                      day.day,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(color: _RegTok.textHigh, fontSize: 13, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerRight,
+                      child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (day.mode == 'Open') ...[
+                          GestureDetector(
+                            onTap: () async {
+                              final initialTime = day.slots.isNotEmpty ? _parseTimeOfDay(day.slots.first.open) : const TimeOfDay(hour: 9, minute: 0);
+                              final time = await showTimePicker(context: context, initialTime: initialTime);
+                              if (time != null) {
+                                final formatted = '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
+                                setState(() {
+                                  day.slots[0] = SlotDto(open: formatted, close: day.slots.first.close);
+                                });
+                              }
+                            },
+                            child: Text(
+                              day.slots.isNotEmpty ? day.slots.first.open : '09:00',
+                              style: const TextStyle(color: _RegTok.primary, fontSize: 12, fontWeight: FontWeight.bold),
+                            ),
                           ),
-                        ),
-                        const Text(' - ', style: TextStyle(color: _RegTok.textLow)),
-                        GestureDetector(
-                          onTap: () async {
-                            final initialTime = day.slots.isNotEmpty ? _parseTimeOfDay(day.slots.first.close) : const TimeOfDay(hour: 18, minute: 0);
-                            final time = await showTimePicker(context: context, initialTime: initialTime);
-                            if (time != null) {
-                              final formatted = '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
-                              setState(() {
-                                day.slots[0] = SlotDto(open: day.slots.first.open, close: formatted);
-                              });
-                            }
-                          },
-                          child: Text(
-                            day.slots.isNotEmpty ? day.slots.first.close : '18:00',
-                            style: const TextStyle(color: _RegTok.primary, fontSize: 12, fontWeight: FontWeight.bold),
+                          const Text(' - ', style: TextStyle(color: _RegTok.textLow)),
+                          GestureDetector(
+                            onTap: () async {
+                              final initialTime = day.slots.isNotEmpty ? _parseTimeOfDay(day.slots.first.close) : const TimeOfDay(hour: 18, minute: 0);
+                              final time = await showTimePicker(context: context, initialTime: initialTime);
+                              if (time != null) {
+                                final formatted = '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
+                                setState(() {
+                                  day.slots[0] = SlotDto(open: day.slots.first.open, close: formatted);
+                                });
+                              }
+                            },
+                            child: Text(
+                              day.slots.isNotEmpty ? day.slots.first.close : '18:00',
+                              style: const TextStyle(color: _RegTok.primary, fontSize: 12, fontWeight: FontWeight.bold),
+                            ),
                           ),
+                          const SizedBox(width: 8),
+                        ] else ...[
+                          const Text('Closed', style: TextStyle(color: Colors.red, fontSize: 12)),
+                          const SizedBox(width: 8),
+                        ],
+                        Switch(
+                          value: day.mode == 'Open',
+                          activeTrackColor: _RegTok.primaryLight,
+                          activeThumbColor: _RegTok.primary,
+                          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          onChanged: (val) {
+                            setState(() {
+                              _businessHours[index] = DayHoursDto(
+                                day: day.day,
+                                mode: val ? 'Open' : 'Closed',
+                                slots: val ? [SlotDto(open: '09:00', close: '18:00')] : [],
+                              );
+                            });
+                          },
                         ),
-                        const SizedBox(width: 8),
-                      ] else ...[
-                        const Text('Closed', style: TextStyle(color: Colors.red, fontSize: 12)),
-                        const SizedBox(width: 8),
                       ],
-                      Switch(
-                        value: day.mode == 'Open',
-                        activeTrackColor: _RegTok.primaryLight,
-                        activeThumbColor: _RegTok.primary,
-                        onChanged: (val) {
-                          setState(() {
-                            _businessHours[index] = DayHoursDto(
-                              day: day.day,
-                              mode: val ? 'Open' : 'Closed',
-                              slots: val ? [SlotDto(open: '09:00', close: '18:00')] : [],
-                            );
-                          });
-                        },
-                      ),
-                    ],
+                    ),
+                    ),
                   ),
                 ],
               ),
@@ -1819,6 +1842,8 @@ class _BusinessRegistrationScreenState extends ConsumerState<BusinessRegistratio
                     const SizedBox(height: 6),
                     Text(
                       'Address: ${_addressController.text.isEmpty ? "No Address Entered" : _addressController.text}, ${_selectedCity?.name ?? ""}',
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(color: _RegTok.textMedium, fontSize: 11.5),
                     ),
                     const SizedBox(height: 10),
@@ -1879,42 +1904,53 @@ class _BusinessRegistrationScreenState extends ConsumerState<BusinessRegistratio
           border: Border(top: BorderSide(color: _RegTok.border)),
         ),
         child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             if (_currentStep > 1)
-              GestureDetector(
-                onTap: _previousStep,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                  decoration: BoxDecoration(
-                    color: _RegTok.surface,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: _RegTok.border),
+              Flexible(
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: GestureDetector(
+                    onTap: _previousStep,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: _RegTok.surface,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: _RegTok.border),
+                      ),
+                      child: const Text('Back', style: TextStyle(color: _RegTok.textMedium, fontWeight: FontWeight.bold, fontSize: 13)),
+                    ),
                   ),
-                  child: const Text('Back', style: TextStyle(color: _RegTok.textMedium, fontWeight: FontWeight.bold, fontSize: 13)),
                 ),
               )
             else
               const SizedBox(width: 70),
-
-            GestureDetector(
-              onTap: _currentStep == 5 ? _submitForm : _nextStep,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 12),
-                decoration: BoxDecoration(
-                  color: _RegTok.primary,
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
-                    BoxShadow(
-                      color: _RegTok.primary.withValues(alpha: 0.15),
-                      blurRadius: 8,
-                      offset: const Offset(0, 4),
+            const SizedBox(width: 12),
+            Flexible(
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: GestureDetector(
+                  onTap: _currentStep == 5 ? _submitForm : _nextStep,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: _RegTok.primary,
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: _RegTok.primary.withValues(alpha: 0.15),
+                          blurRadius: 8,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
-                child: Text(
-                  _currentStep == 5 ? 'Publish Listing' : 'Next Step',
-                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                    child: Text(
+                      _currentStep == 5 ? 'Publish Listing' : 'Next Step',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -1928,6 +1964,8 @@ class _BusinessRegistrationScreenState extends ConsumerState<BusinessRegistratio
     return InputDecoration(
       labelText: label,
       labelStyle: const TextStyle(color: _RegTok.textMedium, fontSize: 12.5),
+      floatingLabelBehavior: FloatingLabelBehavior.always,
+      alignLabelWithHint: true,
       prefixIcon: Icon(icon, color: _RegTok.primary, size: 18),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
@@ -1939,7 +1977,7 @@ class _BusinessRegistrationScreenState extends ConsumerState<BusinessRegistratio
       ),
       filled: true,
       fillColor: _RegTok.surface,
-      contentPadding: const EdgeInsets.symmetric(vertical: 10),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
     );
   }
 

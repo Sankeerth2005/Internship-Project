@@ -174,6 +174,8 @@ class _SearchablePickerSheetState<T> extends State<_SearchablePickerSheet<T>> {
                     const SizedBox(height: 14),
                     Text(
                       widget.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         fontFamily: 'Inter',
                         fontSize: 18,
@@ -274,6 +276,8 @@ class _SearchablePickerSheetState<T> extends State<_SearchablePickerSheet<T>> {
                                       ? null
                                       : Text(
                                           item.subtitle!,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
                                           style: const TextStyle(
                                             fontFamily: 'Inter',
                                             fontSize: 12,

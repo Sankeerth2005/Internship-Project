@@ -81,6 +81,8 @@ class _AppTextFieldState extends State<AppTextField> {
         decoration: InputDecoration(
           labelText: widget.labelText,
           hintText: widget.hintText,
+          floatingLabelBehavior: FloatingLabelBehavior.always,
+          alignLabelWithHint: true,
           prefixIcon: widget.prefixIcon != null
               ? Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 12.0),

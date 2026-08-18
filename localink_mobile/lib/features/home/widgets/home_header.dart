@@ -119,14 +119,18 @@ class HomeHeader extends StatelessWidget {
                         children: [
                           BrandIcons.om(size: 14),
                           const SizedBox(width: 6),
-                          const Text(
-                            'Vocal for Sanatan',
-                            style: TextStyle(
-                              fontFamily: 'Inter',
-                              color: Color(0xFFFF6600),
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 0.2,
+                          const Expanded(
+                            child: Text(
+                              'Vocal for Sanatan',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontFamily: 'Inter',
+                                color: Color(0xFFFF6600),
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0.2,
+                              ),
                             ),
                           ),
                         ],
