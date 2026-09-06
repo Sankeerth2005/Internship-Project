@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import '../../../../core/network/dio_client.dart';
 import '../../../../core/storage/category_cache_store.dart';
 import '../models/business_models.dart';
 
@@ -187,8 +188,10 @@ class BusinessRepository {
     return list.map((e) => BusinessReviewDto.fromJson(e)).toList();
   }
 
-  // VOICE SEARCH (text-based — STT happens on device)
-  Future<List<BusinessDto>> voiceSearchText(
+  /// Voice/intent search — POST `api/v1/search/voice` (STT happens on device).
+  /// Throws [DioException] on HTTP/network failures so callers can format via
+  /// [AppErrorFormatter] or fall back to plain text search.
+  Future<VoiceSearchResult> voiceSearchText(
     String query, {
     bool openNow = false,
     int radius = 25,
@@ -202,7 +205,7 @@ class BusinessRepository {
         'query': query,
         'openNow': openNow,
         'radius': radius,
-        'category': category,
+        if (category != null && category.isNotEmpty) 'category': category,
         'language': 'en',
       },
       options: Options(
@@ -212,8 +215,38 @@ class BusinessRepository {
         },
       ),
     );
-    final results = response.data['results'] as List? ?? [];
-    return results.map((e) => BusinessDto.fromJson(e)).toList();
+
+    final data = response.data;
+    if (data is! Map) {
+      return const VoiceSearchResult(results: [], totalCount: 0);
+    }
+
+    final map = Map<String, dynamic>.from(data);
+    if (map['success'] == false) {
+      final message = map['message']?.toString() ?? 'Voice search failed';
+      throw DioException(
+        requestOptions: response.requestOptions,
+        response: response,
+        type: DioExceptionType.badResponse,
+        message: message,
+      );
+    }
+
+    final raw = map['results'] as List? ?? map['Results'] as List? ?? [];
+    final results = raw
+        .whereType<Map>()
+        .map((e) => BusinessDto.fromJson(Map<String, dynamic>.from(e)))
+        .toList();
+    final totalRaw = map['totalCount'] ?? map['TotalCount'];
+    final totalCount = totalRaw is num
+        ? totalRaw.toInt()
+        : int.tryParse(totalRaw?.toString() ?? '') ?? results.length;
+
+    return VoiceSearchResult(
+      results: results,
+      totalCount: totalCount < 0 ? results.length : totalCount,
+      message: map['message']?.toString() ?? map['Message']?.toString() ?? '',
+    );
   }
 
   // ─── FAVORITES ───
@@ -251,23 +284,25 @@ class BusinessRepository {
     int rating,
     String businessName,
   ) async {
-    final response = await _dio.post(
-      'ai/review-suggestions',
-      data: {
-        'draftText': draftText,
-        'rating': rating,
-        'businessName': businessName,
-      },
-     
-    );
-    if (response.data['success'] == true) {
-      final data = response.data['data'];
-      if (data is List) {
-        return data.map<String>((e) => e.toString()).toList();
-      } else if (data is String) {
-        return [data];
+    try {
+      final response = await _dio.post(
+        'ai/review-suggestions',
+        data: {
+          'draftText': draftText,
+          'rating': rating,
+          'businessName': businessName,
+        },
+        options: DioClient.backgroundOptions(),
+      );
+      if (response.data['success'] == true) {
+        final data = response.data['data'];
+        if (data is List) {
+          return data.map<String>((e) => e.toString()).toList();
+        } else if (data is String) {
+          return [data];
+        }
       }
-    }
+    } on DioException catch (_) {}
     return [];
   }
 
@@ -277,18 +312,21 @@ class BusinessRepository {
     int totalReviews,
     String businessName,
   ) async {
-    final response = await _dio.post(
-      'ai/review-summary',
-      data: {
-        'reviews': reviews,
-        'averageRating': averageRating,
-        'totalReviews': totalReviews,
-        'businessName': businessName,
-      },
-    );
-    if (response.data['success'] == true) {
-      return response.data['data']?.toString() ?? '';
-    }
+    try {
+      final response = await _dio.post(
+        'ai/review-summary',
+        data: {
+          'reviews': reviews,
+          'averageRating': averageRating,
+          'totalReviews': totalReviews,
+          'businessName': businessName,
+        },
+        options: DioClient.backgroundOptions(),
+      );
+      if (response.data['success'] == true) {
+        return response.data['data']?.toString() ?? '';
+      }
+    } on DioException catch (_) {}
     return '';
   }
 

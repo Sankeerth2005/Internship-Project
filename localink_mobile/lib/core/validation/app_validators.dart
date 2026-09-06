@@ -142,6 +142,35 @@ class AppValidators {
     return null;
   }
 
+  /// True when the national number's digit length matches the country rules
+  /// (empty input counts as "no length mismatch").
+  static bool hasValidLengthForCountry(
+    String? value, {
+    String? countryCode,
+    String? countryName,
+  }) {
+    final national = nationalNumber(value, countryCode);
+    if (national.isEmpty) return true;
+    if (isIndianCallingCode(countryCode, countryName: countryName)) {
+      return national.length == 10;
+    }
+    final calling = normalizeCallingCode(countryCode);
+    if (calling.isEmpty) return false;
+    return _allowedLengths(calling).contains(national.length);
+  }
+
+  static String _countryContextLabel({
+    String? countryCode,
+    String? countryName,
+  }) {
+    final calling = normalizeCallingCode(countryCode);
+    final name = (countryName ?? '').trim();
+    if (name.isNotEmpty && calling.isNotEmpty) return '$name (+$calling)';
+    if (calling.isNotEmpty) return '+$calling';
+    if (name.isNotEmpty) return name;
+    return 'the selected country';
+  }
+
   static String? phone(
     String? value, {
     bool required = true,
@@ -158,14 +187,26 @@ class AppValidators {
     }
 
     final calling = normalizeCallingCode(countryCode);
+    if (required && calling.isEmpty) {
+      return 'Country code is required';
+    }
+    if (calling.isNotEmpty && !RegExp(r'^[1-9]\d{0,3}$').hasMatch(calling)) {
+      return 'Invalid country code';
+    }
+
     final national = nationalNumber(raw, countryCode);
     if (national.isEmpty) {
       return required ? 'Phone number is required' : null;
     }
 
+    final label = _countryContextLabel(
+      countryCode: countryCode,
+      countryName: countryName,
+    );
+
     if (isIndianCallingCode(countryCode, countryName: countryName)) {
       if (national.length != 10) {
-        return 'Indian phone number must be exactly 10 digits';
+        return 'Indian phone number must be exactly 10 digits for $label';
       }
       if (!RegExp(r'^[6-9]').hasMatch(national)) {
         return 'Indian mobile numbers must start with 6, 7, 8, or 9';
@@ -176,9 +217,9 @@ class AppValidators {
     final allowed = _allowedLengths(calling);
     if (!allowed.contains(national.length)) {
       if (allowed.length == 1) {
-        return 'Phone number must be ${allowed.first} digits for the selected country';
+        return 'Phone number must be ${allowed.first} digits for $label';
       }
-      return 'Phone number must be ${allowed.first}–${allowed.last} digits for the selected country';
+      return 'Phone number must be ${allowed.first}–${allowed.last} digits for $label';
     }
     if (national.length < 7 || national.length > 15) {
       return 'Phone number must be between 7 and 15 digits';

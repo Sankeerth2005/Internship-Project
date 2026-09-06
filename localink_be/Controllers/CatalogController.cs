@@ -35,7 +35,7 @@ namespace localink_be.Controllers
             return Ok(new { success = true, data = catalogs });
         }
 
-        [Authorize(Roles = "client,businessowner,admin")]
+        [Authorize(Roles = "user,client,businessowner,admin")]
         [HttpPost("{businessId}")]
         public async Task<IActionResult> CreateCatalog(long businessId, [FromBody] CreateCatalogDto dto)
         {
@@ -50,7 +50,7 @@ namespace localink_be.Controllers
             }
         }
 
-        [Authorize(Roles = "client,businessowner,admin")]
+        [Authorize(Roles = "user,client,businessowner,admin")]
         [HttpPut("{catalogId}")]
         public async Task<IActionResult> UpdateCatalog(int catalogId, [FromBody] CreateCatalogDto dto)
         {
@@ -69,7 +69,7 @@ namespace localink_be.Controllers
             }
         }
 
-        [Authorize(Roles = "client,businessowner,admin")]
+        [Authorize(Roles = "user,client,businessowner,admin")]
         [HttpDelete("{catalogId}")]
         public async Task<IActionResult> DeleteCatalog(int catalogId)
         {
@@ -84,7 +84,7 @@ namespace localink_be.Controllers
             }
         }
 
-        [Authorize(Roles = "client,businessowner,admin")]
+        [Authorize(Roles = "user,client,businessowner,admin")]
         [HttpPost("{catalogId}/items")]
         public async Task<IActionResult> AddCatalogItem(int catalogId, [FromForm] CreateCatalogItemDto dto, IFormFile? image)
         {
@@ -99,7 +99,7 @@ namespace localink_be.Controllers
             }
         }
 
-        [Authorize(Roles = "client,businessowner,admin")]
+        [Authorize(Roles = "user,client,businessowner,admin")]
         [HttpPut("items/{itemId}")]
         public async Task<IActionResult> UpdateCatalogItem(int itemId, [FromForm] CreateCatalogItemDto dto, IFormFile? image)
         {
@@ -118,7 +118,7 @@ namespace localink_be.Controllers
             }
         }
 
-        [Authorize(Roles = "client,businessowner,admin")]
+        [Authorize(Roles = "user,client,businessowner,admin")]
         [HttpDelete("items/{itemId}")]
         public async Task<IActionResult> DeleteCatalogItem(int itemId)
         {

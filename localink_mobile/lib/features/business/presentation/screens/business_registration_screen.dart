@@ -27,6 +27,8 @@ import '../../../auth/data/models/location_models.dart';
 import '../../../auth/providers/location_provider.dart';
 import '../../../auth/data/repositories/location_repository.dart';
 import '../../../auth/providers/auth_provider.dart';
+import '../../../auth/providers/user_provider.dart';
+import '../../../../core/validation/postal_code_rules.dart';
 
 class _RegTok {
   static const Color primary = Color(0xFFFF6600);
@@ -41,7 +43,13 @@ class _RegTok {
 
 class BusinessRegistrationScreen extends ConsumerStatefulWidget {
   final BusinessDto? businessToEdit;
-  const BusinessRegistrationScreen({super.key, this.businessToEdit});
+  /// When set (edit route), latest data is fetched from the API before form submit is allowed.
+  final int? businessId;
+  const BusinessRegistrationScreen({
+    super.key,
+    this.businessToEdit,
+    this.businessId,
+  });
 
   @override
   ConsumerState<BusinessRegistrationScreen> createState() => _BusinessRegistrationScreenState();
@@ -118,6 +126,12 @@ class _BusinessRegistrationScreenState extends ConsumerState<BusinessRegistratio
   ];
 
   bool _isLoading = false;
+  bool _loadingEdit = false;
+  String? _editLoadError;
+  BusinessDto? _loadedBusiness;
+
+  bool get _isEditMode => widget.businessId != null || widget.businessToEdit != null;
+  BusinessDto? get _editSource => _loadedBusiness ?? widget.businessToEdit;
 
   List<Map<String, String>> get _phoneCountryItems {
     final list = <Map<String, String>>[];
@@ -138,39 +152,86 @@ class _BusinessRegistrationScreenState extends ConsumerState<BusinessRegistratio
   void initState() {
     super.initState();
     _pincodeController.addListener(_onPincodeChanged);
-    if (widget.businessToEdit != null) {
-      final edit = widget.businessToEdit!;
-      _nameController.text = edit.businessName;
-      _descController.text = edit.description;
-      _selectedCategoryId = edit.categoryId;
-      _selectedSubcategoryId = edit.subcategoryId;
-      final normalizedCode = edit.phoneCode.replaceAll('+', '').trim();
-      _selectedPhoneCode = normalizedCode.isEmpty ? '91' : normalizedCode;
-      _phoneController.text = edit.phoneNumber;
-      _emailController.text = edit.email;
-      _websiteController.text = edit.website;
-      _addressController.text = edit.address;
-      _pincodeController.text = edit.pincode;
-      _latitude = edit.latitude;
-      _longitude = edit.longitude;
-      if (edit.hours.isNotEmpty) {
-        _businessHours = edit.hours.map((h) => DayHoursDto(
-          day: h.day,
-          mode: h.mode,
-          slots: h.slots.map((s) => SlotDto(open: s.open, close: s.close)).toList(),
-        )).toList();
-      }
-      _selectedPhotoLabel = edit.photos.isNotEmpty ? 'Edit Current Logo' : 'No Photo Selected';
-    }
-    _loadCountries().then((_) {
+
+    final editId = widget.businessId;
+    if (editId != null) {
+      _loadingEdit = true;
+      // Optional skeleton from route extra while API loads
       if (widget.businessToEdit != null) {
-        _loadLocationDetailsForEdit();
+        _applyBusinessToForm(widget.businessToEdit!);
+      }
+    } else if (widget.businessToEdit != null) {
+      _applyBusinessToForm(widget.businessToEdit!);
+    }
+
+    _loadCountries().then((_) {
+      if (!mounted) return;
+      // Create/edit-via-extra only: location from extra. Edit-by-id waits for API fetch.
+      if (editId == null && widget.businessToEdit != null) {
+        _loadLocationDetailsForEdit(widget.businessToEdit!);
       }
     });
+
+    if (editId != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _fetchBusinessForEdit(editId);
+      });
+    }
   }
 
-  Future<void> _loadLocationDetailsForEdit() async {
-    final res = widget.businessToEdit!;
+  void _applyBusinessToForm(BusinessDto edit) {
+    _nameController.text = edit.businessName;
+    _descController.text = edit.description;
+    _selectedCategoryId = edit.categoryId;
+    _selectedSubcategoryId = edit.subcategoryId;
+    final normalizedCode = edit.phoneCode.replaceAll('+', '').trim();
+    _selectedPhoneCode = normalizedCode.isEmpty ? '91' : normalizedCode;
+    _phoneController.text = edit.phoneNumber;
+    _emailController.text = edit.email;
+    _websiteController.text = edit.website;
+    _addressController.text = edit.address;
+    _pincodeController.text = edit.pincode;
+    _latitude = edit.latitude;
+    _longitude = edit.longitude;
+    if (edit.hours.isNotEmpty) {
+      _businessHours = edit.hours.map((h) => DayHoursDto(
+        day: h.day,
+        mode: h.mode,
+        slots: h.slots.map((s) => SlotDto(open: s.open, close: s.close)).toList(),
+      )).toList();
+    }
+    _selectedPhotoLabel = edit.photos.isNotEmpty ? 'Edit Current Logo' : 'No Photo Selected';
+  }
+
+  Future<void> _fetchBusinessForEdit(int id) async {
+    setState(() {
+      _loadingEdit = true;
+      _editLoadError = null;
+    });
+    try {
+      final business = await ref.read(businessRepositoryProvider).getBusinessById(id);
+      if (!mounted) return;
+      _applyBusinessToForm(business);
+      setState(() {
+        _loadedBusiness = business;
+        _loadingEdit = false;
+      });
+      if (_countries.isEmpty) {
+        await _loadCountries();
+      }
+      if (mounted) {
+        await _loadLocationDetailsForEdit(business);
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loadingEdit = false;
+        _editLoadError = AppErrorFormatter.format(e);
+      });
+    }
+  }
+
+  Future<void> _loadLocationDetailsForEdit(BusinessDto res) async {
     if (res.country.isEmpty) return;
     setState(() {
       _loadingCountries = true;
@@ -210,11 +271,13 @@ class _BusinessRegistrationScreenState extends ConsumerState<BusinessRegistratio
     } catch (e) {
       debugPrint('Error loading location for edit: $e');
     } finally {
-      setState(() {
-        _loadingCountries = false;
-        _loadingStates = false;
-        _loadingCities = false;
-      });
+      if (mounted) {
+        setState(() {
+          _loadingCountries = false;
+          _loadingStates = false;
+          _loadingCities = false;
+        });
+      }
     }
   }
 
@@ -313,6 +376,10 @@ class _BusinessRegistrationScreenState extends ConsumerState<BusinessRegistratio
   /// Reverse-geocode a map pin / GPS point and autofill address fields.
   Future<void> _reverseGeocodeAndFill(double lat, double lon) async {
     if (lat == 0.0 && lon == 0.0) return;
+    if (!AppConfig.isConfigured) {
+      debugPrint('Geoapify not configured; skipping reverse geocode');
+      return;
+    }
     final token = ++_reverseGeocodeToken;
 
     try {
@@ -421,14 +488,24 @@ class _BusinessRegistrationScreenState extends ConsumerState<BusinessRegistratio
     try {
       final res = await _locationRepo.validatePincode(
         pincode,
+        countryIso2: _selectedCountry?.iso2,
+        countryName: _selectedCountry?.name,
         cancelToken: _pincodeCancel,
       );
       if (!mounted || !_pincodeGuard.isLatest(requestId)) return;
       if (_pincodeController.text.trim() != pincode) return;
 
       if (!res.isValid) {
+        // Format already passed for the selected country — don't block foreign
+        // owners when Geoapify has no postcode record for that region.
+        final formatOk = AppValidators.pincode(
+              pincode,
+              countryName: _selectedCountry?.name,
+              countryIso2: _selectedCountry?.iso2,
+            ) ==
+            null;
         setState(() {
-          _pincodeError = 'Invalid or unverified pincode';
+          _pincodeError = formatOk ? null : 'Invalid or unverified pincode';
           _pincodeValidating = false;
         });
         return;
@@ -463,47 +540,67 @@ class _BusinessRegistrationScreenState extends ConsumerState<BusinessRegistratio
         _pincodeValidating = false;
       });
 
-      if (res.city != null && res.city!.isNotEmpty) {
-        if (res.country != null && res.country!.isNotEmpty) {
-          try {
-            final matchedCountry = _countries.firstWhere(
-              (c) => c.name.toLowerCase() == res.country!.toLowerCase(),
-              orElse: () => _countries.firstWhere((c) => c.name.toLowerCase() == 'india', orElse: () => _countries.first),
-            );
-            setState(() => _selectedCountry = matchedCountry);
-
-            await _loadStates(matchedCountry.iso2);
-
-            if (res.state != null && res.state!.isNotEmpty) {
-              final matchedState = _states.firstWhere(
-                (s) => s.name.toLowerCase() == res.state!.toLowerCase(),
-                orElse: () => _states.first,
-              );
-              setState(() => _selectedState = matchedState);
-
-              await _loadCities(matchedCountry.iso2, matchedState.iso2);
-
-              final matchedCity = _cities.firstWhere(
-                (c) => c.name.toLowerCase() == res.city!.toLowerCase(),
-                orElse: () => _cities.first,
-              );
-              setState(() => _selectedCity = matchedCity);
+      if (res.city != null &&
+          res.city!.isNotEmpty &&
+          res.country != null &&
+          res.country!.isNotEmpty &&
+          _selectedCountry == null) {
+        try {
+          Country? matchedCountry;
+          for (final c in _countries) {
+            if (c.name.toLowerCase() == res.country!.toLowerCase()) {
+              matchedCountry = c;
+              break;
             }
-          } catch (_) {}
-        }
+          }
+          if (matchedCountry == null) return;
+
+          setState(() => _selectedCountry = matchedCountry);
+
+          await _loadStates(matchedCountry.iso2);
+
+          if (res.state != null && res.state!.isNotEmpty) {
+            final matchedState = _states.firstWhere(
+              (s) => s.name.toLowerCase() == res.state!.toLowerCase(),
+              orElse: () => _states.first,
+            );
+            setState(() => _selectedState = matchedState);
+
+            await _loadCities(matchedCountry.iso2, matchedState.iso2);
+
+            final matchedCity = _cities.firstWhere(
+              (c) => c.name.toLowerCase() == res.city!.toLowerCase(),
+              orElse: () => _cities.first,
+            );
+            setState(() => _selectedCity = matchedCity);
+          }
+        } catch (_) {}
       }
     } on DioException catch (e) {
       if (CancelToken.isCancel(e)) return;
       if (!mounted || !_pincodeGuard.isLatest(requestId)) return;
+      final formatOk = AppValidators.pincode(
+            pincode,
+            countryName: _selectedCountry?.name,
+            countryIso2: _selectedCountry?.iso2,
+          ) ==
+          null;
       setState(() {
         _pincodeValidating = false;
-        _pincodeError = 'Could not verify pincode. Try again.';
+        // Country-format already valid — allow continue if live lookup is unavailable.
+        _pincodeError = formatOk ? null : 'Could not verify pincode. Try again.';
       });
     } catch (_) {
       if (!mounted || !_pincodeGuard.isLatest(requestId)) return;
+      final formatOk = AppValidators.pincode(
+            pincode,
+            countryName: _selectedCountry?.name,
+            countryIso2: _selectedCountry?.iso2,
+          ) ==
+          null;
       setState(() {
         _pincodeValidating = false;
-        _pincodeError = 'Could not verify pincode. Try again.';
+        _pincodeError = formatOk ? null : 'Could not verify pincode. Try again.';
       });
     }
   }
@@ -513,33 +610,52 @@ class _BusinessRegistrationScreenState extends ConsumerState<BusinessRegistratio
   Future<void> _loadCountries() async {
     setState(() => _loadingCountries = true);
     try {
+      // Ensure owner profile is available so we can default to their registered country.
+      try {
+        await ref.read(userProfileProvider.future);
+      } catch (_) {}
+
       final countries = await _locationRepo.getCountries();
-      Country? defaultCountry;
-      if (widget.businessToEdit == null) {
-        try {
-          defaultCountry = countries.firstWhere((c) => c.name.toLowerCase() == 'india');
-        } catch (_) {}
-      }
+      final defaultCountry = !_isEditMode ? _resolveOwnerDefaultCountry(countries) : null;
       setState(() {
         _countries = countries;
-        // Default Country: India, Phone Country Code: +91 (new registrations only)
+        // Prefer the owner's registered profile country — never force India.
         if (defaultCountry != null && _selectedCountry == null) {
           _selectedCountry = defaultCountry;
           if (defaultCountry.phoneCode != null && defaultCountry.phoneCode!.isNotEmpty) {
             _selectedPhoneCode = defaultCountry.phoneCode!.replaceAll('+', '').trim();
-          } else {
-            _selectedPhoneCode = '91';
           }
         }
         _loadingCountries = false;
       });
-      if (defaultCountry != null && widget.businessToEdit == null) {
+      if (defaultCountry != null && !_isEditMode) {
         await _loadStates(defaultCountry.iso2);
       }
     } catch (e) {
       debugPrint('Error loading countries: $e');
       setState(() => _loadingCountries = false);
     }
+  }
+
+  Country? _resolveOwnerDefaultCountry(List<Country> countries) {
+    if (countries.isEmpty) return null;
+    try {
+      final profile = ref.read(userProfileProvider).value;
+      final ownerCountry = profile?.address.country?.trim();
+      if (ownerCountry == null || ownerCountry.isEmpty) return null;
+
+      final byIso = PostalCodeRules.resolveIso2(countryName: ownerCountry);
+      for (final c in countries) {
+        if (c.name.toLowerCase() == ownerCountry.toLowerCase()) return c;
+        if (byIso != null && c.iso2.toUpperCase() == byIso) return c;
+      }
+      for (final c in countries) {
+        final n = c.name.toLowerCase();
+        final o = ownerCountry.toLowerCase();
+        if (n.contains(o) || o.contains(n)) return c;
+      }
+    } catch (_) {}
+    return null;
   }
 
   Future<void> _loadStates(String countryIso2) async {
@@ -636,7 +752,11 @@ class _BusinessRegistrationScreenState extends ConsumerState<BusinessRegistratio
   }
 
   Future<void> _submitForm() async {
-    if (_isLoading) return;
+    if (_isLoading || _loadingEdit) return;
+    if (widget.businessId != null && (_editLoadError != null || _loadedBusiness == null)) {
+      AppFeedback.showWarning(context, 'Wait for business details to finish loading before saving.');
+      return;
+    }
     if (!_formKey.currentState!.validate()) return;
     if (_latitude == null || _longitude == null || _latitude == 0.0 || _longitude == 0.0) {
       AppFeedback.showError(
@@ -648,8 +768,9 @@ class _BusinessRegistrationScreenState extends ConsumerState<BusinessRegistratio
     setState(() => _isLoading = true);
 
     try {
+      final edit = _editSource;
       final business = BusinessDto(
-        businessId: widget.businessToEdit?.businessId ?? 0,
+        businessId: edit?.businessId ?? 0,
         businessName: _nameController.text.trim(),
         description: _descController.text.trim(),
         categoryId: _selectedCategoryId!,
@@ -665,18 +786,18 @@ class _BusinessRegistrationScreenState extends ConsumerState<BusinessRegistratio
         pincode: _pincodeController.text.trim(),
         latitude: _latitude,
         longitude: _longitude,
-        averageRating: widget.businessToEdit?.averageRating ?? 0.0,
-        reviewCount: widget.businessToEdit?.reviewCount ?? 0,
-        status: widget.businessToEdit?.status ?? 'Pending',
+        averageRating: edit?.averageRating ?? 0.0,
+        reviewCount: edit?.reviewCount ?? 0,
+        status: edit?.status ?? 'Pending',
         hours: _businessHours,
-        photos: widget.businessToEdit?.photos ?? [],
+        photos: edit?.photos ?? [],
         photo: _photoBase64,
       );
 
-      if (widget.businessToEdit != null) {
+      if (_isEditMode && edit != null) {
         final success = await ref
             .read(myBusinessesProvider.notifier)
-            .updateBusinessProfile(widget.businessToEdit!.businessId, business);
+            .updateBusinessProfile(edit.businessId, business);
         if (success) {
           if (mounted) {
             AppFeedback.showSuccess(context, 'Business updated successfully!');
@@ -765,12 +886,15 @@ class _BusinessRegistrationScreenState extends ConsumerState<BusinessRegistratio
   Future<void> _geocodeSelectedCity() async {
     if (_selectedCity == null) return;
     if (_manuallySelectedCoordinates) return;
+    if (!AppConfig.isConfigured) return;
 
     try {
       final cityStr = _selectedCity!.name;
       final stateStr = _selectedState?.name ?? '';
-      final countryStr = _selectedCountry?.name ?? 'India';
-      final queryText = '$cityStr, $stateStr, $countryStr';
+      final countryStr = _selectedCountry?.name ?? '';
+      final queryText = [cityStr, stateStr, countryStr]
+          .where((p) => p.trim().isNotEmpty)
+          .join(', ');
 
       final dio = Dio();
       final response = await dio.get(
@@ -901,6 +1025,10 @@ class _BusinessRegistrationScreenState extends ConsumerState<BusinessRegistratio
       });
       return;
     }
+    if (!AppConfig.isConfigured) {
+      setState(() => _locationSuggestions = []);
+      return;
+    }
     try {
       final dio = Dio();
       final response = await dio.get(
@@ -932,6 +1060,35 @@ class _BusinessRegistrationScreenState extends ConsumerState<BusinessRegistratio
     return const TimeOfDay(hour: 9, minute: 0);
   }
 
+  Widget _buildEditLoadError() {
+    final id = widget.businessId;
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 28),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.error_outline_rounded, color: _RegTok.primary, size: 40),
+            const SizedBox(height: 12),
+            Text(
+              _editLoadError ?? 'Could not load business details.',
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: _RegTok.textMedium, fontSize: 14),
+            ),
+            if (id != null) ...[
+              const SizedBox(height: 16),
+              TextButton(
+                onPressed: () => _fetchBusinessForEdit(id),
+                style: TextButton.styleFrom(foregroundColor: _RegTok.primary),
+                child: const Text('Retry', style: TextStyle(fontWeight: FontWeight.bold)),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -943,7 +1100,7 @@ class _BusinessRegistrationScreenState extends ConsumerState<BusinessRegistratio
         scrolledUnderElevation: 0,
         centerTitle: true,
         title: Text(
-          widget.businessToEdit != null ? 'Edit Business Details' : 'List New Business',
+          _isEditMode ? 'Edit Business Details' : 'List New Business',
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: const TextStyle(
@@ -965,24 +1122,28 @@ class _BusinessRegistrationScreenState extends ConsumerState<BusinessRegistratio
           ),
         ),
       ),
-      body: _isLoading
+      body: _loadingEdit
           ? const Center(child: CircularProgressIndicator(color: _RegTok.primary))
-          : Form(
-              key: _formKey,
-              child: Column(
-                children: [
-                  _buildStepper(),
-                  Expanded(
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                      physics: const BouncingScrollPhysics(),
-                      child: _buildCurrentStepContent(),
+          : _editLoadError != null
+              ? _buildEditLoadError()
+              : _isLoading
+                  ? const Center(child: CircularProgressIndicator(color: _RegTok.primary))
+                  : Form(
+                      key: _formKey,
+                      child: Column(
+                        children: [
+                          _buildStepper(),
+                          Expanded(
+                            child: SingleChildScrollView(
+                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                              physics: const BouncingScrollPhysics(),
+                              child: _buildCurrentStepContent(),
+                            ),
+                          ),
+                          _buildBottomNavigation(),
+                        ],
+                      ),
                     ),
-                  ),
-                  _buildBottomNavigation(),
-                ],
-              ),
-            ),
     );
   }
 
@@ -1314,44 +1475,61 @@ class _BusinessRegistrationScreenState extends ConsumerState<BusinessRegistratio
           clipBehavior: Clip.antiAlias,
           child: Stack(
             children: [
-              Listener(
-                onPointerDown: (_) => setState(() => _userInteractedWithMap = true),
-                child: MapLibreMap(
-                  styleString: osmStyle,
-                  initialCameraPosition: CameraPosition(
-                    target: (_latitude != null && _longitude != null && _latitude != 0.0 && _longitude != 0.0)
-                        ? LatLng(_latitude!, _longitude!)
-                        // India geographic center — not a city pin; user GPS / search should set the real location.
-                        : const LatLng(20.5937, 78.9629),
-                    zoom: (_latitude != null && _longitude != null) ? 14 : 4.5,
-                  ),
-                  onMapCreated: _onMapCreated,
-                  onMapClick: _onMapClick,
-                  myLocationEnabled: true,
-                  onCameraIdle: () {
-                    if (_mapController != null && _mapInitialized && _userInteractedWithMap) {
-                      final target = _mapController!.cameraPosition?.target;
-                      if (target != null) {
-                        setState(() {
-                          _latitude = target.latitude;
-                          _longitude = target.longitude;
-                          _manuallySelectedCoordinates = true;
-                        });
-                        _addMarker(target);
-                        _scheduleReverseGeocode(target.latitude, target.longitude);
+              if (_latitude != null &&
+                  _longitude != null &&
+                  _latitude != 0.0 &&
+                  _longitude != 0.0)
+                Listener(
+                  onPointerDown: (_) => setState(() => _userInteractedWithMap = true),
+                  child: MapLibreMap(
+                    styleString: osmStyle,
+                    initialCameraPosition: CameraPosition(
+                      target: LatLng(_latitude!, _longitude!),
+                      zoom: 14,
+                    ),
+                    onMapCreated: _onMapCreated,
+                    onMapClick: _onMapClick,
+                    myLocationEnabled: true,
+                    onCameraIdle: () {
+                      if (_mapController != null && _mapInitialized && _userInteractedWithMap) {
+                        final target = _mapController!.cameraPosition?.target;
+                        if (target != null &&
+                            !(target.latitude == 0.0 && target.longitude == 0.0)) {
+                          setState(() {
+                            _latitude = target.latitude;
+                            _longitude = target.longitude;
+                            _manuallySelectedCoordinates = true;
+                          });
+                          _addMarker(target);
+                          _scheduleReverseGeocode(target.latitude, target.longitude);
+                        }
                       }
-                    }
-                  },
-                ),
-              ),
-              IgnorePointer(
-                child: Center(
-                  child: Container(
-                    margin: const EdgeInsets.only(bottom: 24),
-                    child: const Icon(Icons.location_pin, color: _RegTok.primary, size: 34),
+                    },
+                  ),
+                )
+              else
+                Container(
+                  color: _RegTok.surface,
+                  alignment: Alignment.center,
+                  padding: const EdgeInsets.all(16),
+                  child: const Text(
+                    'Use GPS or address search to set the business location.\nThe map appears after a valid pin is chosen.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 13, height: 1.4),
                   ),
                 ),
-              ),
+              if (_latitude != null &&
+                  _longitude != null &&
+                  _latitude != 0.0 &&
+                  _longitude != 0.0)
+                const IgnorePointer(
+                  child: Center(
+                    child: Padding(
+                      padding: EdgeInsets.only(bottom: 24),
+                      child: Icon(Icons.location_pin, color: _RegTok.primary, size: 34),
+                    ),
+                  ),
+                ),
             ],
           ),
         ),
@@ -1539,10 +1717,10 @@ class _BusinessRegistrationScreenState extends ConsumerState<BusinessRegistratio
               ),
             ],
           ),
-        ] else if (widget.businessToEdit != null && widget.businessToEdit!.photos.isNotEmpty) ...[
+        ] else if (_editSource != null && _editSource!.photos.isNotEmpty) ...[
           const SizedBox(height: 20),
           OptimizedNetworkImage.business(
-            imageUrl: widget.businessToEdit!.photos.first,
+            imageUrl: _editSource!.photos.first,
             height: 160,
             width: double.infinity,
             borderRadius: BorderRadius.circular(16),
@@ -1563,54 +1741,81 @@ class _BusinessRegistrationScreenState extends ConsumerState<BusinessRegistratio
         ),
         const SizedBox(height: 16),
 
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Flexible(
-              flex: 2,
-              child: SearchableSelectField<String>(
-                label: 'Code *',
-                hint: '+91',
-                prefixIcon: Icons.flag_outlined,
-                items: _phoneCountryItems
-                    .map(
-                      (pc) => SearchablePickerItem<String>(
-                        value: pc['code']!,
-                        label: '+${pc['code']}',
-                        leading: pc['flag'],
-                        subtitle: pc['name'],
-                        searchText: '${pc['name']} ${pc['code']} +${pc['code']}',
-                      ),
-                    )
-                    .toList(),
-                selected: _selectedPhoneCode,
-                searchHint: 'Search country codes...',
-                emptyMessage: 'No country codes found',
-                validator: AppValidators.callingCode,
-                displayBuilder: (code) => '+$code',
-                onSelected: (item) {
-                  setState(() => _selectedPhoneCode = item.value);
-                },
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final codeItems = _phoneCountryItems
+                .map(
+                  (pc) => SearchablePickerItem<String>(
+                    value: pc['code']!,
+                    label: '+${pc['code']}',
+                    leading: pc['flag'],
+                    subtitle: pc['name'],
+                    searchText: '${pc['name']} ${pc['code']} +${pc['code']}',
+                  ),
+                )
+                .toList();
+            final selectedCodeItem = _phoneCountryItems.cast<Map<String, String>?>().firstWhere(
+              (pc) => pc != null && pc['code'] == _selectedPhoneCode,
+              orElse: () => null,
+            );
+
+            final codeField = SearchableSelectField<String>(
+              label: 'Code *',
+              hint: '+91',
+              items: codeItems,
+              selected: _selectedPhoneCode,
+              searchHint: 'Search country codes...',
+              emptyMessage: 'No country codes found',
+              validator: AppValidators.callingCode,
+              displayBuilder: (code) {
+                final flag = selectedCodeItem?['flag'];
+                if (flag != null && flag.isNotEmpty) {
+                  return '$flag  +$code';
+                }
+                return '+$code';
+              },
+              onSelected: (item) {
+                setState(() {
+                  // Phone calling code is independent of address country/city/pincode.
+                  _selectedPhoneCode = item.value;
+                });
+              },
+            );
+
+            final phoneField = TextFormField(
+              controller: _phoneController,
+              keyboardType: TextInputType.phone,
+              style: const TextStyle(color: _RegTok.textHigh, fontSize: 13),
+              decoration: _inputDecoration('Phone Number', Icons.phone_rounded),
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(RegExp(r'[0-9+\-\s]')),
+              ],
+              validator: (value) => AppValidators.phone(
+                value,
+                countryCode: _selectedPhoneCode,
+                countryName: _selectedCountry?.name,
               ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: TextFormField(
-                controller: _phoneController,
-                keyboardType: TextInputType.phone,
-                style: const TextStyle(color: _RegTok.textHigh, fontSize: 13),
-                decoration: _inputDecoration('Phone Number', Icons.phone_rounded),
-                inputFormatters: [
-                  FilteringTextInputFormatter.allow(RegExp(r'[0-9+\-\s]')),
+            );
+
+            if (constraints.maxWidth < 340) {
+              return Column(
+                children: [
+                  codeField,
+                  const SizedBox(height: 10),
+                  phoneField,
                 ],
-                validator: (value) => AppValidators.phone(
-                  value,
-                  countryCode: _selectedPhoneCode,
-                  countryName: _selectedCountry?.name,
-                ),
-              ),
-            ),
-          ],
+              );
+            }
+
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(flex: 40, child: codeField),
+                const SizedBox(width: 12),
+                Expanded(flex: 60, child: phoneField),
+              ],
+            );
+          },
         ),
         const SizedBox(height: 14),
 
@@ -1793,11 +1998,11 @@ class _BusinessRegistrationScreenState extends ConsumerState<BusinessRegistratio
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Cover
-              _photoBase64 != null
+                  _photoBase64 != null
                   ? Image.memory(base64Decode(_photoBase64!), height: 130, width: double.infinity, fit: BoxFit.cover)
-                  : (widget.businessToEdit != null && widget.businessToEdit!.photos.isNotEmpty)
+                  : (_editSource != null && _editSource!.photos.isNotEmpty)
                       ? OptimizedNetworkImage.business(
-                          imageUrl: widget.businessToEdit!.photos.first,
+                          imageUrl: _editSource!.photos.first,
                           height: 130,
                           width: double.infinity,
                           iconColor: _RegTok.primary,

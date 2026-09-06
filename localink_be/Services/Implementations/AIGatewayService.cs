@@ -23,7 +23,8 @@ namespace localink_be.Services.Implementations
         // Groq API configuration
         private const string GROQ_BASE_URL = "https://api.groq.com/openai/v1/";
         private const string WHISPER_MODEL = "whisper-large-v3-turbo";
-        private const string LLM_MODEL = "llama-3.1-8b-instant";
+        private const string DefaultChatModel = "openai/gpt-oss-20b";
+        private readonly string _chatModel;
         
         // Cache configuration
         private static readonly TimeSpan CACHE_TTL = TimeSpan.FromHours(24);
@@ -41,6 +42,9 @@ namespace localink_be.Services.Implementations
             _logger = logger;
             _memoryCache = memoryCache;
             _db = db;
+            _chatModel = string.IsNullOrWhiteSpace(_config["Groq:ChatModel"])
+                ? DefaultChatModel
+                : _config["Groq:ChatModel"]!;
             _httpClient = httpClientFactory.CreateClient("GroqAI");
             var apiKey = _config["Groq:ApiKey"];
             if (string.IsNullOrWhiteSpace(apiKey))
@@ -262,7 +266,7 @@ namespace localink_be.Services.Implementations
                     
                     var requestBody = new
                     {
-                        model = LLM_MODEL,
+                        model = _chatModel,
                         messages = new[]
                         {
                             new { 
@@ -409,7 +413,7 @@ namespace localink_be.Services.Implementations
                 {
                     var requestBody = new
                     {
-                        model = LLM_MODEL,
+                        model = _chatModel,
                         messages = new[]
                         {
                             new { 
@@ -447,14 +451,24 @@ Return ONLY the JSON object, no markdown, no explanation."
                     if (response.IsSuccessStatusCode)
                     {
                         var result = await response.Content.ReadFromJsonAsync<GroqChatResponse>();
-                        var content = result?.Choices?.FirstOrDefault()?.Message?.Content;
+                        var msg = result?.Choices?.FirstOrDefault()?.Message;
+                        var content = !string.IsNullOrWhiteSpace(msg?.Content)
+                            ? msg!.Content
+                            : msg?.Reasoning;
 
                         if (!string.IsNullOrEmpty(content))
                         {
                             try
                             {
+                                // Reasoning models may wrap JSON; extract object if needed.
+                                var jsonPayload = content;
+                                var start = content.IndexOf('{');
+                                var end = content.LastIndexOf('}');
+                                if (start >= 0 && end > start)
+                                    jsonPayload = content.Substring(start, end - start + 1);
+
                                 // Parse the JSON response
-                                var parsedIntent = JsonSerializer.Deserialize<ParsedIntent>(content, new JsonSerializerOptions
+                                var parsedIntent = JsonSerializer.Deserialize<ParsedIntent>(jsonPayload, new JsonSerializerOptions
                                 {
                                     PropertyNameCaseInsensitive = true
                                 });
@@ -536,7 +550,7 @@ Return ONLY the JSON object, no markdown, no explanation."
                 // Simple health check by making a minimal request
                 var requestBody = new
                 {
-                    model = LLM_MODEL,
+                    model = _chatModel,
                     messages = new[] { new { role = "user", content = "Hi" } },
                     max_tokens = 1
                 };
@@ -629,7 +643,7 @@ Return ONLY the JSON object, no markdown, no explanation."
                     
                     var requestBody = new
                     {
-                        model = LLM_MODEL,
+                        model = _chatModel,
                         messages = new[]
                         {
                             new { 
@@ -996,6 +1010,9 @@ Return ONLY the translated JSON object."
         {
             [JsonPropertyName("content")]
             public string? Content { get; set; }
+
+            [JsonPropertyName("reasoning")]
+            public string? Reasoning { get; set; }
         }
 
         private class ParsedIntent

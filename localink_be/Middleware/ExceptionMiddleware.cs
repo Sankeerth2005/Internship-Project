@@ -39,8 +39,17 @@ public class ExceptionMiddleware
         }
         catch (UnauthorizedAccessException ex)
         {
-            _logger.LogWarning(ex, "Unauthorized Access");
-            await HandleException(context, HttpStatusCode.Unauthorized, ex.Message);
+            // Auth failures (OTP/login) stay 401; ownership/authz messages → 403
+            // so mobile refresh loops are not triggered by Forbid-style errors.
+            var msg = ex.Message ?? string.Empty;
+            var isAuthz = msg.Contains("own", StringComparison.OrdinalIgnoreCase)
+                || msg.Contains("forbidden", StringComparison.OrdinalIgnoreCase)
+                || msg.Contains("do not", StringComparison.OrdinalIgnoreCase);
+            _logger.LogWarning(ex, isAuthz ? "Forbidden" : "Unauthorized Access");
+            await HandleException(
+                context,
+                isAuthz ? HttpStatusCode.Forbidden : HttpStatusCode.Unauthorized,
+                msg.Length > 0 ? msg : "Unauthorized");
         }
         catch (Exception ex)
         {

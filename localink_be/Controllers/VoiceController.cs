@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.RateLimiting;
 using System.ComponentModel.DataAnnotations;
 using localink_be.Services.Interfaces;
 using localink_be.Models.DTOs;
@@ -12,7 +11,6 @@ namespace localink_be.Controllers
     /// </summary>
     [ApiController]
     [Route("api/v1/voice")]
-    [EnableRateLimiting("AiPolicy")]
     public class VoiceController : ControllerBase
     {
         private readonly IAIGatewayService _aiGateway;

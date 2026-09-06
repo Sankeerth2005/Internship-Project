@@ -6,12 +6,14 @@ namespace localink_be.Middleware
     /// Translation Middleware - Intercepts all API responses and translates string fields
     /// Reads target language from x-lang header
     /// Uses batch JSON translation via AI Gateway for efficiency
+    /// Opt-in via Translation:EnableResponseMiddleware (default false).
     /// </summary>
     public class TranslationMiddleware
     {
         private readonly RequestDelegate _next;
         private readonly ILogger<TranslationMiddleware> _logger;
         private readonly IServiceScopeFactory _scopeFactory;
+        private readonly bool _enabled;
 
         // Language codes that don't need translation (already English or default)
         private static readonly HashSet<string> DefaultLanguages = new(StringComparer.OrdinalIgnoreCase)
@@ -22,15 +24,24 @@ namespace localink_be.Middleware
         public TranslationMiddleware(
             RequestDelegate next,
             ILogger<TranslationMiddleware> logger,
-            IServiceScopeFactory scopeFactory)
+            IServiceScopeFactory scopeFactory,
+            IConfiguration configuration)
         {
             _next = next;
             _logger = logger;
             _scopeFactory = scopeFactory;
+            _enabled = configuration.GetValue("Translation:EnableResponseMiddleware", false);
         }
 
         public async Task InvokeAsync(HttpContext context)
         {
+            // Opt-in only — default disabled means zero Groq/translation work.
+            if (!_enabled)
+            {
+                await _next(context);
+                return;
+            }
+
             // Get target language from header
             var targetLang = GetTargetLanguage(context);
 
@@ -170,11 +181,19 @@ namespace localink_be.Middleware
     public static class TranslationMiddlewareExtensions
     {
         /// <summary>
-        /// Adds TranslationMiddleware to the application pipeline
+        /// Adds TranslationMiddleware when Translation:EnableResponseMiddleware is true.
+        /// Defaults to disabled so the pipeline skips translation and Groq calls.
         /// </summary>
         public static IApplicationBuilder UseResponseTranslation(
             this IApplicationBuilder app)
         {
+            var enabled = app.ApplicationServices
+                .GetRequiredService<IConfiguration>()
+                .GetValue("Translation:EnableResponseMiddleware", false);
+
+            if (!enabled)
+                return app;
+
             return app.UseMiddleware<TranslationMiddleware>();
         }
     }

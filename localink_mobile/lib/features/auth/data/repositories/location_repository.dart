@@ -80,12 +80,20 @@ class LocationRepository {
 
   Future<PincodeValidationResponse> validatePincode(
     String postcode, {
+    String? countryIso2,
+    String? countryName,
     CancelToken? cancelToken,
   }) async {
     try {
       final response = await dio.get(
         'BusinessPincode/validate',
-        queryParameters: {'postcode': postcode},
+        queryParameters: {
+          'postcode': postcode,
+          if (countryIso2 != null && countryIso2.trim().isNotEmpty)
+            'countryIso2': countryIso2.trim(),
+          if (countryName != null && countryName.trim().isNotEmpty)
+            'country': countryName.trim(),
+        },
         cancelToken: cancelToken,
       );
       final data = response.data;

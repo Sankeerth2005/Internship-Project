@@ -7,6 +7,7 @@ import '../../main.dart';
 class SignalRService {
   HubConnection? _hubConnection;
   final List<Function(String)> _notificationListeners = [];
+  bool _isConnecting = false;
   
   String? _lastNotificationMessage;
   DateTime? _lastNotificationTime;
@@ -32,10 +33,21 @@ class SignalRService {
   }
 
   Future<void> connect(int userId, String role, BuildContext context) async {
-    if (_hubConnection != null && 
-        (_hubConnection!.state == HubConnectionState.Connected || 
-         _hubConnection!.state == HubConnectionState.Connecting)) {
+    if (_isConnecting) return;
+    final existingState = _hubConnection?.state;
+    if (existingState == HubConnectionState.Connected ||
+        existingState == HubConnectionState.Connecting) {
       return;
+    }
+
+    // Hub exists but is disconnected (or otherwise not usable) — tear down so we can reconnect.
+    if (_hubConnection != null) {
+      try {
+        await _hubConnection!.stop();
+      } catch (e) {
+        debugPrint('SignalR: Error stopping stale hub before reconnect: $e');
+      }
+      _hubConnection = null;
     }
 
     final url = '${DioClient.backendOrigin}/notifications';
@@ -103,6 +115,7 @@ class SignalRService {
     });
 
     try {
+      _isConnecting = true;
       await _hubConnection!.start();
       debugPrint('SignalR: Connected to hub!');
       
@@ -116,6 +129,9 @@ class SignalRService {
       }
     } catch (e) {
       debugPrint('SignalR connection failed: $e');
+      _hubConnection = null;
+    } finally {
+      _isConnecting = false;
     }
   }
 
@@ -136,6 +152,7 @@ class SignalRService {
         debugPrint('SignalR disconnect error: $e');
       } finally {
         _hubConnection = null;
+        _isConnecting = false;
       }
     }
   }

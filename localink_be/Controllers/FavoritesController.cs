@@ -51,9 +51,10 @@ namespace localink_be.Controllers
 
             var result = await _favoritesService.AddFavoriteAsync(dto);
 
-            if (result == "Already added" || result == "User not found" || result == "Business not found")
+            if (result == "User not found" || result == "Business not found")
                 return BadRequest(new { success = false, message = result });
 
+            // Idempotent: already favorited is success for the client.
             return Ok(new { success = true, message = result });
         }
 

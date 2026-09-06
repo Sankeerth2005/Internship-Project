@@ -1,13 +1,11 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.RateLimiting;
 using localink_be.Services.Interfaces;
 
 namespace localink_be.Controllers
 {
     [ApiController]
     [Route("api/v1/personalization")]
-    [EnableRateLimiting("AiPolicy")]
     public class PersonalizationController : ControllerBase
     {
         private readonly IPersonalizationService _personalizationService;
@@ -19,7 +17,7 @@ namespace localink_be.Controllers
 
         /// <summary>
         /// Location-ranked personalized "For You" feed.
-        /// Uses the caller's current coordinates; farther businesses remain eligible.
+        /// Uses the caller's current coordinates and nearby radius (default 30 km).
         /// </summary>
         [HttpGet("feed")]
         public async Task<IActionResult> GetPersonalizedFeed(

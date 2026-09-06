@@ -17,5 +17,6 @@ namespace localink_be.Services.Interfaces
         Task<string> ChangePasswordAsync(long userId, ChangePasswordRequest request);
         Task<AuthorizedExperiencesDto> GetAuthorizedExperiencesAsync(long userId);
         Task<SelectExperienceResultDto> SelectExperienceAsync(long userId, string experience);
+        Task<object> AcceptUserConsentAsync(long userId);
     }
 }

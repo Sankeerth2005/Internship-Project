@@ -146,9 +146,14 @@ namespace localink_be.Services.Implementations
             existing.State = updated.State;
             existing.Country = updated.Country;
             existing.Pincode = updated.Pincode;
-            existing.Latitude = updated.Latitude;
-            existing.Longitude = updated.Longitude;
-            existing.GeoLocation = BuildGeoPoint(updated.Latitude, updated.Longitude);
+
+            // Preserve existing coordinates when the update omits lat/lng.
+            if (updated.Latitude.HasValue && updated.Longitude.HasValue)
+            {
+                existing.Latitude = updated.Latitude;
+                existing.Longitude = updated.Longitude;
+                existing.GeoLocation = BuildGeoPoint(updated.Latitude, updated.Longitude);
+            }
             existing.UpdatedAt = DateTime.UtcNow;
 
             await _db.SaveChangesAsync();

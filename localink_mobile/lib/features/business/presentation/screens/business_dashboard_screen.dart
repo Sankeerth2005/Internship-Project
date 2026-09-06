@@ -7,6 +7,7 @@ import '../../data/models/business_models.dart';
 import '../../../auth/providers/auth_provider.dart';
 import '../../../auth/providers/auth_state.dart';
 import '../../../../core/network/signalr_service.dart';
+import '../../../../core/widgets/optimized_network_image.dart';
 import '../../../shared/presentation/widgets/app_feedback.dart';
 import '../../../../core/network/app_error_formatter.dart';
 
@@ -42,15 +43,36 @@ class _BusinessDashboardScreenState extends ConsumerState<BusinessDashboardScree
   int? _selectedBusinessId;
 
   @override
+  void initState() {
+    super.initState();
+    SignalRService().addNotificationListener(_onNotificationReceived);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final authState = ref.read(authProvider);
+      if (authState is AuthAuthenticated) {
+        SignalRService().connect(authState.userId, authState.userType, context);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    SignalRService().removeNotificationListener(_onNotificationReceived);
+    super.dispose();
+  }
+
+  void _onNotificationReceived(String message) {
+    if (message.contains('BusinessUpdated') ||
+        message.contains('BusinessDeleted') ||
+        message.contains('status') ||
+        message.contains('closure')) {
+      ref.read(myBusinessesProvider.notifier).refresh();
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final myBusinessesAsync = ref.watch(myBusinessesProvider);
     final authState = ref.watch(authProvider);
-
-    if (authState is AuthAuthenticated) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        SignalRService().connect(authState.userId, authState.userType, context);
-      });
-    }
 
     return PopScope(
       canPop: true,
@@ -356,7 +378,7 @@ class _BusinessDashboardScreenState extends ConsumerState<BusinessDashboardScree
                     ),
                   ),
 
-                  // KPI Cards Grid
+                  // KPI Cards Grid — absolute counts from analytics only (no invented deltas)
                   Consumer(
                     builder: (context, ref, child) {
                       final metricsAsync = ref.watch(businessMetricsProvider(activeBusiness.businessId));
@@ -365,10 +387,7 @@ class _BusinessDashboardScreenState extends ConsumerState<BusinessDashboardScree
                           final views = metrics['views'] ?? 0;
                           final saves = metrics['favorites'] ?? 0;
                           final clicks = metrics['clicks'] ?? 0;
-
-                          // Real calculations
-                          final searchViews = (views * 1.8).round();
-                          final directions = (saves * 0.7 + clicks * 0.3).round();
+                          final reviews = activeBusiness.reviewCount;
 
                           return SliverPadding(
                             padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -378,10 +397,10 @@ class _BusinessDashboardScreenState extends ConsumerState<BusinessDashboardScree
                               mainAxisSpacing: 12,
                               childAspectRatio: _kpiAspectRatio(context),
                               children: [
-                                _buildKpiCard('Search Views', '$searchViews', '+14%', Icons.troubleshoot_rounded, _DashTok.info),
-                                _buildKpiCard('Profile Views', '$views', '+18%', Icons.visibility_rounded, _DashTok.primary),
-                                _buildKpiCard('Directions clicks', '$directions', '+8%', Icons.directions_rounded, _DashTok.success),
-                                _buildKpiCard('Phone Clicks', '$clicks', '+11%', Icons.phone_rounded, _DashTok.warning),
+                                _buildKpiCard('Profile Views', '$views', Icons.visibility_rounded, _DashTok.primary),
+                                _buildKpiCard('Saves', '$saves', Icons.favorite_rounded, _DashTok.info),
+                                _buildKpiCard('Contact Clicks', '$clicks', Icons.phone_rounded, _DashTok.warning),
+                                _buildKpiCard('Reviews', '$reviews', Icons.star_rounded, _DashTok.success),
                               ],
                             ),
                           );
@@ -402,10 +421,10 @@ class _BusinessDashboardScreenState extends ConsumerState<BusinessDashboardScree
                             mainAxisSpacing: 12,
                             childAspectRatio: _kpiAspectRatio(context),
                             children: [
-                              _buildKpiCard('Search Views', '0', '0%', Icons.troubleshoot_rounded, _DashTok.info),
-                              _buildKpiCard('Profile Views', '0', '0%', Icons.visibility_rounded, _DashTok.primary),
-                              _buildKpiCard('Directions clicks', '0', '0%', Icons.directions_rounded, _DashTok.success),
-                              _buildKpiCard('Phone Clicks', '0', '0%', Icons.phone_rounded, _DashTok.warning),
+                              _buildKpiCard('Profile Views', '0', Icons.visibility_rounded, _DashTok.primary),
+                              _buildKpiCard('Saves', '0', Icons.favorite_rounded, _DashTok.info),
+                              _buildKpiCard('Contact Clicks', '0', Icons.phone_rounded, _DashTok.warning),
+                              _buildKpiCard('Reviews', '${activeBusiness.reviewCount}', Icons.star_rounded, _DashTok.success),
                             ],
                           ),
                         ),
@@ -413,7 +432,7 @@ class _BusinessDashboardScreenState extends ConsumerState<BusinessDashboardScree
                     },
                   ),
 
-                  // AI Growth Insights Section
+                  // Growth tips derived from real listing + metrics (no fake % theater)
                   SliverToBoxAdapter(
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(20, 24, 20, 10),
@@ -430,7 +449,7 @@ class _BusinessDashboardScreenState extends ConsumerState<BusinessDashboardScree
                           const SizedBox(width: 8),
                           const Expanded(
                             child: Text(
-                              'AI Smart Growth Advisor',
+                              'Growth Tips',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
@@ -446,25 +465,33 @@ class _BusinessDashboardScreenState extends ConsumerState<BusinessDashboardScree
                     ),
                   ),
 
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: Column(
-                        children: [
-                          _buildAiCard(
-                            '🏆 Business visibility increased by 18% this week.',
-                            'View Stats',
-                            () => context.push('/analytics/${activeBusiness.businessId}', extra: activeBusiness),
+                  Consumer(
+                    builder: (context, ref, child) {
+                      final metricsAsync = ref.watch(businessMetricsProvider(activeBusiness.businessId));
+                      final metrics = metricsAsync.asData?.value ??
+                          const {'views': 0, 'favorites': 0, 'clicks': 0};
+                      final tips = _buildGrowthTips(activeBusiness, metrics);
+                      return SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          child: Column(
+                            children: [
+                              for (var i = 0; i < tips.length; i++) ...[
+                                if (i > 0) const SizedBox(height: 10),
+                                _buildAiCard(
+                                  tips[i].message,
+                                  tips[i].cta,
+                                  () {
+                                    HapticFeedback.lightImpact();
+                                    tips[i].onTap();
+                                  },
+                                ),
+                              ],
+                            ],
                           ),
-                          const SizedBox(height: 10),
-                          _buildAiCard(
-                            '📸 Listing status is approved! Add secondary gallery photos to double local views.',
-                            'Manage Gallery',
-                            () => context.push('/edit-business/${activeBusiness.businessId}', extra: activeBusiness),
-                          ),
-                        ],
-                      ),
-                    ),
+                        ),
+                      );
+                    },
                   ),
 
                   // Quick Actions Title
@@ -607,12 +634,12 @@ class _BusinessDashboardScreenState extends ConsumerState<BusinessDashboardScree
                     ),
                   ),
 
-                  // Recent Timeline Activity
+                  // Recent reviews (honest label — this feed is reviews only)
                   SliverToBoxAdapter(
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(20, 28, 20, 10),
                       child: const Text(
-                        'Recent Suite Logs',
+                        'Recent reviews',
                         style: TextStyle(
                           fontFamily: 'Inter',
                           color: _DashTok.textHigh,
@@ -623,33 +650,67 @@ class _BusinessDashboardScreenState extends ConsumerState<BusinessDashboardScree
                     ),
                   ),
 
-                  SliverPadding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    sliver: SliverList(
-                      delegate: SliverChildListDelegate([
-                        _buildTimelineItem(
-                          icon: Icons.star_rounded,
-                          title: 'New Review Received',
-                          desc: 'Sanket left a 5-star review for your listing.',
-                          time: '3h ago',
-                          color: _DashTok.primary,
+                  Consumer(
+                    builder: (context, ref, child) {
+                      final logsAsync = ref.watch(reviewsProvider(activeBusiness.businessId));
+                      return logsAsync.when(
+                        data: (reviews) {
+                          final sorted = [...reviews]
+                            ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+                          if (sorted.isEmpty) {
+                            return const SliverToBoxAdapter(
+                              child: Padding(
+                                padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                                child: Text(
+                                  'No reviews yet for this business.',
+                                  style: TextStyle(color: _DashTok.textLow, fontSize: 12),
+                                ),
+                              ),
+                            );
+                          }
+                          final top = sorted.take(3).toList(growable: false);
+                          return SliverPadding(
+                            padding: const EdgeInsets.symmetric(horizontal: 20),
+                            sliver: SliverList(
+                              delegate: SliverChildBuilderDelegate((context, index) {
+                                final review = top[index];
+                                return _buildTimelineItem(
+                                  icon: Icons.star_rounded,
+                                  title: 'New review',
+                                  desc: '${review.userName} rated ${review.rating.toStringAsFixed(1)}★: ${sanitizeReviewComment(review.comment)}',
+                                  time: _relativeTime(review.createdAt),
+                                  color: _DashTok.primary,
+                                );
+                              }, childCount: top.length),
+                            ),
+                          );
+                        },
+                        loading: () => const SliverToBoxAdapter(
+                          child: Padding(
+                            padding: EdgeInsets.symmetric(vertical: 12),
+                            child: Center(
+                              child: SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: _DashTok.primary,
+                                ),
+                              ),
+                            ),
+                          ),
                         ),
-                        _buildTimelineItem(
-                          icon: Icons.edit_note_rounded,
-                          title: 'Listing Details Updated',
-                          desc: 'Metadata and tags synced to local directories.',
-                          time: '1d ago',
-                          color: _DashTok.info,
+                        error: (err, stack) => const SliverToBoxAdapter(
+                          child: Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                            child: Text(
+                              'Unable to load reviews for this business.',
+                              style: TextStyle(color: _DashTok.textLow, fontSize: 12),
+                            ),
+                          ),
                         ),
-                        _buildTimelineItem(
-                          icon: Icons.verified_user_rounded,
-                          title: 'Business Approved',
-                          desc: 'Your listing is now verified and active.',
-                          time: '5d ago',
-                          color: _DashTok.success,
-                        ),
-                      ]),
-                    ),
+                      );
+                    },
                   ),
 
                   const SliverToBoxAdapter(child: SizedBox(height: 60)),
@@ -807,50 +868,86 @@ class _BusinessDashboardScreenState extends ConsumerState<BusinessDashboardScree
         child: LayoutBuilder(
           builder: (context, constraints) {
             final stackVertically = constraints.maxWidth < 220;
+            final primaryPhoto = b.photos.isNotEmpty
+                ? b.photos.first
+                : (b.photo != null && b.photo!.isNotEmpty ? b.photo : null);
+            final phoneDisplay = [
+              if (b.phoneCode.isNotEmpty) b.phoneCode,
+              if (b.phoneNumber.isNotEmpty) b.phoneNumber,
+            ].join(' ').trim();
+            final desc = b.description.trim();
+
             final info = Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Flexible(
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: statusBg,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: statusColor.withValues(alpha: 0.2)),
-                        ),
-                        child: Text(
-                          statusText,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: statusColor,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w900,
-                          ),
+                    if (primaryPhoto != null) ...[
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: OptimizedNetworkImage.business(
+                          imageUrl: primaryPhoto,
+                          cacheKey: primaryPhoto,
+                          width: 52,
+                          height: 52,
+                          placeholderColor: Colors.white.withValues(alpha: 0.2),
+                          iconColor: Colors.white,
+                          iconSize: 22,
                         ),
                       ),
-                    ),
-                    if (isApproved) ...[
-                      const SizedBox(width: 8),
-                      const Icon(Icons.verified_rounded, color: Colors.white, size: 14),
+                      const SizedBox(width: 10),
                     ],
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Flexible(
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: statusBg,
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(color: statusColor.withValues(alpha: 0.2)),
+                                  ),
+                                  child: Text(
+                                    statusText,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      color: statusColor,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w900,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              if (isApproved) ...[
+                                const SizedBox(width: 8),
+                                const Icon(Icons.verified_rounded, color: Colors.white, size: 14),
+                              ],
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            b.businessName,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontFamily: 'Inter',
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  b.businessName,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontFamily: 'Inter',
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 6),
                 Text(
                   'Listing Owner • ${b.email}',
                   maxLines: 2,
@@ -860,7 +957,41 @@ class _BusinessDashboardScreenState extends ConsumerState<BusinessDashboardScree
                     fontSize: 11,
                   ),
                 ),
-                const SizedBox(height: 18),
+                if (phoneDisplay.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Icon(Icons.call_rounded, color: Colors.white.withValues(alpha: 0.9), size: 12),
+                      const SizedBox(width: 4),
+                      Flexible(
+                        child: Text(
+                          phoneDisplay,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.9),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+                if (desc.isNotEmpty) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    desc,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.85),
+                      fontSize: 11.5,
+                      height: 1.35,
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 14),
                 GestureDetector(
                   onTap: () {
                     HapticFeedback.lightImpact();
@@ -949,7 +1080,112 @@ class _BusinessDashboardScreenState extends ConsumerState<BusinessDashboardScree
     );
   }
 
-  Widget _buildKpiCard(String title, String count, String trend, IconData icon, Color color) {
+  List<({String message, String cta, VoidCallback onTap})> _buildGrowthTips(
+    BusinessDto b,
+    Map<String, int> metrics,
+  ) {
+    final views = metrics['views'] ?? 0;
+    final saves = metrics['favorites'] ?? 0;
+    final clicks = metrics['clicks'] ?? 0;
+    final photoCount = b.photos.isNotEmpty
+        ? b.photos.length
+        : (b.photo != null && b.photo!.isNotEmpty ? 1 : 0);
+    final hasOpenHours = b.hours.any((h) => h.mode == 'Open');
+    final tips = <({String message, String cta, VoidCallback onTap})>[];
+
+    void addTip(String message, String cta, VoidCallback onTap) {
+      if (tips.length >= 3) return;
+      tips.add((message: message, cta: cta, onTap: onTap));
+    }
+
+    if (b.isTemporarilyClosed) {
+      addTip(
+        '⏸️ ${b.businessName} is marked temporarily closed — visitors may skip contact actions until you reopen.',
+        'Update Status',
+        () => _showTemporaryClosureDialog(context, ref, b),
+      );
+    }
+
+    if (views == 0) {
+      addTip(
+        '👀 No views yet — share your listing so local customers can discover ${b.businessName}.',
+        'View Stats',
+        () => context.push('/analytics/${b.businessId}', extra: b),
+      );
+    } else if (views < 20) {
+      addTip(
+        '👀 ${b.businessName} has $views profile view${views == 1 ? '' : 's'} so far — keep photos and hours current to improve discovery.',
+        'View Stats',
+        () => context.push('/analytics/${b.businessId}', extra: b),
+      );
+    } else if (saves == 0) {
+      addTip(
+        '❤️ $views views but no saves yet — strengthen your description and gallery so people bookmark ${b.businessName}.',
+        'Edit Listing',
+        () => context.push('/edit-business/${b.businessId}', extra: b),
+      );
+    } else if (clicks == 0) {
+      addTip(
+        '📞 ${b.businessName} has $saves save${saves == 1 ? '' : 's'} but no contact clicks — confirm phone and address are correct.',
+        'Edit Contact',
+        () => context.push('/edit-business/${b.businessId}', extra: b),
+      );
+    } else {
+      addTip(
+        '📈 ${b.businessName}: $views views · $saves saves · $clicks contact clicks. Open Analytics for AI recommendations.',
+        'View Stats',
+        () => context.push('/analytics/${b.businessId}', extra: b),
+      );
+    }
+
+    if (photoCount == 0) {
+      addTip(
+        '📸 No photos on this listing yet — add a clear storefront or product photo to earn more views.',
+        'Add Photos',
+        () => context.push('/edit-business/${b.businessId}', extra: b),
+      );
+    } else if (photoCount < 3) {
+      addTip(
+        '📸 Only $photoCount photo${photoCount == 1 ? '' : 's'} uploaded — a fuller gallery usually helps local discovery.',
+        'Manage Gallery',
+        () => context.push('/edit-business/${b.businessId}', extra: b),
+      );
+    }
+
+    if (!hasOpenHours) {
+      addTip(
+        '🕒 Opening hours look incomplete — add clear open days so customers know when to visit.',
+        'Edit Hours',
+        () => context.push('/edit-business/${b.businessId}', extra: b),
+      );
+    }
+
+    if (b.reviewCount == 0) {
+      addTip(
+        '⭐ No reviews yet — ask recent customers to leave honest feedback on your Localink listing.',
+        'View Reviews',
+        () => context.push('/analytics/${b.businessId}', extra: b),
+      );
+    } else if (b.averageRating > 0 && b.averageRating < 3.5) {
+      addTip(
+        '⭐ Average rating is ${b.averageRating.toStringAsFixed(1)} from ${b.reviewCount} review${b.reviewCount == 1 ? '' : 's'} — reply thoughtfully and improve service gaps.',
+        'View Reviews',
+        () => context.push('/analytics/${b.businessId}', extra: b),
+      );
+    }
+
+    if (tips.isEmpty) {
+      addTip(
+        '✅ Listing basics look solid for ${b.businessName}. Check Analytics for deeper AI recommendations.',
+        'View Stats',
+        () => context.push('/analytics/${b.businessId}', extra: b),
+      );
+    }
+
+    return tips.take(3).toList(growable: false);
+  }
+
+  Widget _buildKpiCard(String title, String count, IconData icon, Color color) {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -961,36 +1197,13 @@ class _BusinessDashboardScreenState extends ConsumerState<BusinessDashboardScree
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.08),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(icon, color: color, size: 14),
-              ),
-              const SizedBox(width: 6),
-              Flexible(
-                child: Align(
-                  alignment: Alignment.centerRight,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: _DashTok.successLight,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      trend,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(color: _DashTok.success, fontSize: 9.5, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                ),
-              ),
-            ],
+          Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.08),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: color, size: 14),
           ),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1022,25 +1235,24 @@ class _BusinessDashboardScreenState extends ConsumerState<BusinessDashboardScree
   Widget _buildAiCard(String title, String cta, VoidCallback onTap) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
       decoration: BoxDecoration(
         color: _DashTok.aiLight,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: _DashTok.ai.withValues(alpha: 0.15)),
       ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Expanded(
-            child: Text(
-              title,
-              maxLines: 3,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(color: _DashTok.textHigh, fontSize: 11.5, height: 1.4),
-            ),
+          Text(
+            title,
+            maxLines: 4,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(color: _DashTok.textHigh, fontSize: 11.5, height: 1.4),
           ),
-          const SizedBox(width: 12),
-          Flexible(
+          const SizedBox(height: 10),
+          Align(
+            alignment: Alignment.centerRight,
             child: GestureDetector(
               onTap: onTap,
               child: Container(
@@ -1164,6 +1376,21 @@ class _BusinessDashboardScreenState extends ConsumerState<BusinessDashboardScree
     );
   }
 
+  String _relativeTime(DateTime dateTime) {
+    final now = DateTime.now();
+    final diff = now.difference(dateTime.toLocal());
+    if (diff.inSeconds < 60) return 'just now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24) return '${diff.inHours}h ago';
+    if (diff.inDays < 7) return '${diff.inDays}d ago';
+    final weeks = (diff.inDays / 7).floor();
+    if (weeks < 5) return '${weeks}w ago';
+    final months = (diff.inDays / 30).floor();
+    if (months < 12) return '${months}mo ago';
+    final years = (diff.inDays / 365).floor();
+    return '${years}y ago';
+  }
+
   void _showTemporaryClosureDialog(BuildContext context, WidgetRef ref, BusinessDto business) {
     if (business.isTemporarilyClosed) {
       bool isReopening = false;
@@ -1260,6 +1487,11 @@ class _BusinessDashboardScreenState extends ConsumerState<BusinessDashboardScree
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  const Text(
+                    'Your listing will be hidden from customers until the reopen date. No admin approval is required.',
+                    style: TextStyle(color: _DashTok.textMedium, fontSize: 12),
+                  ),
+                  const SizedBox(height: 8),
                   const Text(
                     'Reason for temporary closure is required.',
                     style: TextStyle(color: _DashTok.textMedium, fontSize: 12),
@@ -1366,9 +1598,9 @@ class _BusinessDashboardScreenState extends ConsumerState<BusinessDashboardScree
                       }
                       if (context.mounted) {
                         if (success) {
-                          AppFeedback.showWarning(context, 'Temporary closure requested successfully.');
+                          AppFeedback.showWarning(context, 'Business temporarily closed. Customers will not see it until it reopens.');
                         } else {
-                          AppFeedback.showError(context, 'Failed to request closure.');
+                          AppFeedback.showError(context, 'Failed to close business.');
                         }
                       }
                     } catch (e) {
@@ -1385,7 +1617,7 @@ class _BusinessDashboardScreenState extends ConsumerState<BusinessDashboardScree
                           width: 16,
                           child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
                         )
-                      : const Text('Request Closure', style: TextStyle(fontWeight: FontWeight.bold)),
+                      : const Text('Close Temporarily', style: TextStyle(fontWeight: FontWeight.bold)),
                 ),
               ],
             ),
@@ -1425,7 +1657,7 @@ class _BusinessDashboardScreenState extends ConsumerState<BusinessDashboardScree
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Are you sure you want to request permanent deletion of "${business.businessName}"? A mandatory reason is required for review.',
+                    'This will permanently delete "${business.businessName}" and hide it from customers immediately. No admin approval is required. This cannot be undone.',
                     style: const TextStyle(color: _DashTok.textMedium, fontSize: 12.5, height: 1.4),
                   ),
                   const SizedBox(height: 12),
@@ -1480,7 +1712,7 @@ class _BusinessDashboardScreenState extends ConsumerState<BusinessDashboardScree
                     final reason = reasonController.text.trim();
                     if (reason.isEmpty) {
                       setDialogState(() {
-                        errorMessage = 'Reason is mandatory for deletion request';
+                        errorMessage = 'Reason is mandatory for permanent deletion';
                       });
                       return;
                     }
@@ -1495,9 +1727,9 @@ class _BusinessDashboardScreenState extends ConsumerState<BusinessDashboardScree
                       }
                       if (context.mounted) {
                         if (success) {
-                          AppFeedback.showSuccess(context, 'Deletion request submitted.');
+                          AppFeedback.showSuccess(context, 'Business permanently deleted.');
                         } else {
-                          AppFeedback.showError(context, 'Failed to request deletion.');
+                          AppFeedback.showError(context, 'Failed to delete business.');
                         }
                       }
                     } catch (e) {
@@ -1514,7 +1746,7 @@ class _BusinessDashboardScreenState extends ConsumerState<BusinessDashboardScree
                           width: 16,
                           child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
                         )
-                      : const Text('Delete Listing', style: TextStyle(fontWeight: FontWeight.bold)),
+                      : const Text('Delete Permanently', style: TextStyle(fontWeight: FontWeight.bold)),
                 ),
               ],
             ),

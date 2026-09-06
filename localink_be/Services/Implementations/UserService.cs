@@ -114,28 +114,37 @@ public class UserService : IUserService
         // Validate pincode existence via Geoapify API
         try
         {
-            var pincodeDataJson = await _pincodeService.GetPincodeData(cleanPincode);
+            var pincodeDataJson = await _pincodeService.GetPincodeData(
+                cleanPincode,
+                countryName: dto.Address.Country);
             using var doc = System.Text.Json.JsonDocument.Parse(pincodeDataJson);
             if (doc.RootElement.TryGetProperty("features", out var features))
             {
                 if (features.GetArrayLength() == 0)
                 {
-                    throw new ArgumentException("Pincode does not exist or is invalid.");
+                    // Format already passed for the selected country. Some regions have
+                    // incomplete Geoapify postcode coverage — do not hard-fail.
+                    _logger.LogInformation(
+                        "No Geoapify postcode features for {Pincode} in {Country}; accepting format-valid value.",
+                        cleanPincode,
+                        dto.Address.Country);
                 }
-
-                // Verify state matches
-                var firstFeature = features[0];
-                if (firstFeature.TryGetProperty("properties", out var props))
+                else
                 {
-                    string? geocodedState = null;
-                    if (props.TryGetProperty("state", out var stateProp))
-                        geocodedState = stateProp.GetString();
-
-                    if (!string.IsNullOrEmpty(geocodedState) && 
-                        !geocodedState.Contains(dto.Address.State.Trim(), StringComparison.OrdinalIgnoreCase) &&
-                        !dto.Address.State.Trim().Contains(geocodedState, StringComparison.OrdinalIgnoreCase))
+                    // Verify state matches when geocoder returned a result
+                    var firstFeature = features[0];
+                    if (firstFeature.TryGetProperty("properties", out var props))
                     {
-                        throw new ArgumentException($"The pincode {cleanPincode} belongs to state '{geocodedState}', not '{dto.Address.State}'.");
+                        string? geocodedState = null;
+                        if (props.TryGetProperty("state", out var stateProp))
+                            geocodedState = stateProp.GetString();
+
+                        if (!string.IsNullOrEmpty(geocodedState) &&
+                            !geocodedState.Contains(dto.Address.State.Trim(), StringComparison.OrdinalIgnoreCase) &&
+                            !dto.Address.State.Trim().Contains(geocodedState, StringComparison.OrdinalIgnoreCase))
+                        {
+                            throw new ArgumentException($"The pincode {cleanPincode} belongs to state '{geocodedState}', not '{dto.Address.State}'.");
+                        }
                     }
                 }
             }

@@ -95,6 +95,18 @@ class AuthRepository {
     }
   }
 
+  Future<AuthResponse> acceptUserConsent() async {
+    try {
+      final response = await dio.post('auth/accept-consent');
+      if (response.data['success'] == true) {
+        return AuthResponse.fromJson(response.data['data']);
+      }
+      throw Exception(response.data['message'] ?? 'Consent acceptance failed');
+    } on DioException catch (e) {
+      throw Exception(_handleDioError(e));
+    }
+  }
+
   Future<void> logout(String? refreshToken) async {
     if (refreshToken == null || refreshToken.isEmpty) return;
     try {

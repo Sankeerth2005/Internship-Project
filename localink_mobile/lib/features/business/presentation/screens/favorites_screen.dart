@@ -4,9 +4,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../providers/business_provider.dart';
 import '../../../favorites/widgets/favorite_business_card.dart';
+import '../../../auth/providers/auth_provider.dart';
+import '../../../auth/providers/auth_state.dart';
 import '../../../../core/widgets/skeleton.dart';
 import '../../../../core/network/app_error_formatter.dart';
 import '../../../../core/network/connectivity_provider.dart';
+import '../../../../core/network/signalr_service.dart';
 import '../../../shared/presentation/widgets/app_state_widget.dart';
 
 class _FavTok {
@@ -30,9 +33,40 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
   String _selectedCollection = 'All';
 
   @override
+  void initState() {
+    super.initState();
+    SignalRService().addNotificationListener(_onNotificationReceived);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final authState = ref.read(authProvider);
+      if (authState is AuthAuthenticated) {
+        // No-op if Home/Dashboard already connected (SignalRService guards duplicates).
+        SignalRService().connect(authState.userId, authState.userType, context);
+      }
+    });
+  }
+
+  @override
   void dispose() {
+    SignalRService().removeNotificationListener(_onNotificationReceived);
     _searchCtrl.dispose();
     super.dispose();
+  }
+
+  void _onNotificationReceived(String message) {
+    if (message.contains('BusinessUpdated') ||
+        message.contains('BusinessDeleted') ||
+        message.contains('status') ||
+        message.contains('closure')) {
+      // Refetch embedded BusinessDto cards; FutureProvider reload on invalidate.
+      ref.invalidate(favoriteBusinessesProvider);
+      // Keep the favorites ID list in sync when a business is removed server-side.
+      if (message.contains('BusinessDeleted')) {
+        final auth = ref.read(authProvider);
+        if (auth is AuthAuthenticated) {
+          ref.read(favoritesProvider.notifier).loadFavorites(auth.userId);
+        }
+      }
+    }
   }
 
   @override

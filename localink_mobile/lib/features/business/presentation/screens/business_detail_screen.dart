@@ -26,6 +26,7 @@ import '../../../shared/presentation/widgets/app_back_button.dart';
 import '../../../shared/presentation/widgets/app_feedback.dart';
 import '../../../../core/network/app_error_formatter.dart';
 import '../../../../core/storage/user_prefs_store.dart';
+import '../../../../core/auth/role_routes.dart';
 import '../../../catalog/presentation/providers/currency_provider.dart';
 
 // ─── DESIGN TOKENS ────────────────────────────────────────────────────────────
@@ -55,6 +56,7 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
   String? _base64Image;
   String _userCurrency = 'INR';
   final Map<String, double> _convertedPrices = {};
+  final Map<String, Future<double>> _conversionInFlight = {};
 
   Future<void> _pickImage() async {
     try {
@@ -90,6 +92,9 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
   String _aiSummary = '';
   bool _loadingSummary = false;
   bool _loadingAISuggestions = false;
+  /// Once true, do not call review-summary again until an explicit reset
+  /// (pull-to-refresh or new review). Prevents 429 retry storms on rebuild.
+  bool _aiSummaryAttempted = false;
 
   @override
   void initState() {
@@ -100,7 +105,9 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
   }
 
   Future<void> _loadUserCurrency() async {
-    final code = await UserPrefsStore.getCurrency();
+    final auth = ref.read(authProvider);
+    final userId = auth is AuthAuthenticated ? auth.userId : null;
+    final code = await UserPrefsStore.getCurrency(userId: userId);
     if (!mounted) return;
     setState(() => _userCurrency = code);
   }
@@ -112,8 +119,12 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
     if (_convertedPrices.containsKey(cacheKey)) {
       return price * _convertedPrices[cacheKey]!;
     }
+    if (_conversionInFlight.containsKey(cacheKey)) {
+      final rate = await _conversionInFlight[cacheKey]!;
+      return price * rate;
+    }
 
-    try {
+    Future<double> loadRate() async {
       await ref.read(currencyConverterProvider.notifier).convertCurrency(
         1.0,
         fromCurrency,
@@ -123,14 +134,27 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
       final conversionState = ref.read(currencyConverterProvider);
       if (conversionState.convertedAmount != null) {
         final rate = conversionState.convertedAmount!;
-        setState(() => _convertedPrices[cacheKey] = rate);
-        return price * rate;
+        if (mounted) {
+          setState(() => _convertedPrices[cacheKey] = rate);
+        } else {
+          _convertedPrices[cacheKey] = rate;
+        }
+        return rate;
       }
+      return 1.0;
+    }
+
+    final inFlight = loadRate();
+    _conversionInFlight[cacheKey] = inFlight;
+    try {
+      final rate = await inFlight;
+      return price * rate;
     } catch (e) {
       debugPrint('Currency conversion error: $e');
+      return price;
+    } finally {
+      _conversionInFlight.remove(cacheKey);
     }
-    
-    return price; // Return original price if conversion fails
   }
 
   @override
@@ -151,13 +175,19 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
 
   Future<void> _incrementViewCount() async {
     try {
-      await DioClient().dio.post('analytics/business/${widget.businessId}/view');
+      await DioClient().dio.post(
+        'analytics/business/${widget.businessId}/view',
+        options: DioClient.backgroundOptions(),
+      );
     } catch (_) {}
   }
 
   Future<void> _incrementClickCount() async {
     try {
-      await DioClient().dio.post('analytics/business/${widget.businessId}/click');
+      await DioClient().dio.post(
+        'analytics/business/${widget.businessId}/click',
+        options: DioClient.backgroundOptions(),
+      );
     } catch (_) {}
   }
 
@@ -208,11 +238,12 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
         image: _base64Image,
       );
 
-      // Reset AI summary so it is re-fetched next time
-      _aiSummary = '';
+      // Allow a single fresh AI summary after a new review.
+      _resetAiSummaryFetch();
 
-      // Refresh reviews list
+      // Refresh reviews list and detail ratings
       ref.invalidate(reviewsProvider(widget.businessId));
+      ref.invalidate(singleBusinessProvider(widget.businessId));
       
       if (mounted) {
         _commentController.clear();
@@ -344,9 +375,27 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
     );
   }
 
-  Future<void> _fetchAISummary(List<BusinessReviewDto> reviews, String bizName, double avgRating, int totalReviews) async {
-    if (reviews.isEmpty || _aiSummary.isNotEmpty || _loadingSummary) return;
+  void _resetAiSummaryFetch() {
+    _aiSummary = '';
+    _aiSummaryAttempted = false;
+    _loadingSummary = false;
+  }
 
+  Future<void> _fetchAISummary(
+    List<BusinessReviewDto> reviews,
+    String bizName,
+    double avgRating,
+    int totalReviews,
+  ) async {
+    if (reviews.isEmpty ||
+        _aiSummaryAttempted ||
+        _aiSummary.isNotEmpty ||
+        _loadingSummary) {
+      return;
+    }
+
+    // Mark attempted before the await so concurrent rebuilds cannot double-fire.
+    _aiSummaryAttempted = true;
     setState(() => _loadingSummary = true);
     try {
       final repo = ref.read(businessRepositoryProvider);
@@ -357,11 +406,13 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
         totalReviews,
         bizName,
       );
+      if (!mounted) return;
       setState(() {
-        _aiSummary = summary;
+        _aiSummary = summary.trim();
         _loadingSummary = false;
       });
     } catch (e) {
+      // Keep _aiSummaryAttempted true — do not retry on every rebuild (429 storm).
       if (mounted) {
         setState(() => _loadingSummary = false);
         debugPrint('Failed to fetch AI summary: $e');
@@ -381,14 +432,76 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
     final businessAsync = ref.watch(singleBusinessProvider(widget.businessId));
     final reviewsAsync = ref.watch(reviewsProvider(widget.businessId));
     final authState = ref.watch(authProvider);
-    final isClient = authState is AuthAuthenticated && authState.userType.toLowerCase().trim() == 'user';
+    final myBusinesses = ref.watch(myBusinessesProvider).asData?.value ?? const <BusinessDto>[];
+    final ownsThisBusiness = authState is AuthAuthenticated &&
+        myBusinesses.any((b) => b.businessId == widget.businessId);
+    final isClient = authState is AuthAuthenticated &&
+        !ownsThisBusiness &&
+        RoleRoutes.isConsumerExperience(
+          accountType: authState.userType,
+          activeExperience: authState.activeExperience,
+        );
+
+    // One-shot AI summary when reviews change (refresh / new review).
+    ref.listen<AsyncValue<List<BusinessReviewDto>>>(
+      reviewsProvider(widget.businessId),
+      (previous, next) {
+        final reviews = next.asData?.value;
+        if (reviews == null || reviews.isEmpty) return;
+        final business = ref.read(singleBusinessProvider(widget.businessId)).asData?.value;
+        if (business == null) return;
+        _fetchAISummary(
+          reviews,
+          business.businessName,
+          business.averageRating,
+          business.reviewCount,
+        );
+      },
+    );
+
+    // Cached/initial reviews: listen does not always fire for the current value.
+    // Attempt flag stops any rebuild from turning this into a 429 loop.
+    final cachedReviews = reviewsAsync.asData?.value;
+    final cachedBusiness = businessAsync.asData?.value;
+    if (cachedReviews != null &&
+        cachedReviews.isNotEmpty &&
+        cachedBusiness != null &&
+        !_aiSummaryAttempted &&
+        !_loadingSummary &&
+        _aiSummary.isEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _fetchAISummary(
+          cachedReviews,
+          cachedBusiness.businessName,
+          cachedBusiness.averageRating,
+          cachedBusiness.reviewCount,
+        );
+      });
+    }
 
     return Scaffold(
       backgroundColor: _DetailTok.bg,
       body: businessAsync.when(
         data: (business) {
-          return CustomScrollView(
-            physics: const BouncingScrollPhysics(),
+          final headerPhoto = business.photos.isNotEmpty
+              ? business.photos.first
+              : (business.photo != null && business.photo!.isNotEmpty ? business.photo : null);
+
+          return RefreshIndicator(
+            color: _DetailTok.primary,
+            onRefresh: () async {
+              _resetAiSummaryFetch();
+              ref.invalidate(singleBusinessProvider(widget.businessId));
+              ref.invalidate(reviewsProvider(widget.businessId));
+              ref.invalidate(catalogsProvider(widget.businessId));
+              await Future.wait([
+                ref.read(singleBusinessProvider(widget.businessId).future),
+                ref.read(reviewsProvider(widget.businessId).future),
+              ]);
+            },
+            child: CustomScrollView(
+            physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
             slivers: [
               // Parallax Header Image Banner
               SliverAppBar(
@@ -410,7 +523,9 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
                     fit: StackFit.expand,
                     children: [
                       OptimizedNetworkImage.business(
-                        imageUrl: business.photos.isNotEmpty ? business.photos.first : null,
+                        imageUrl: headerPhoto,
+                        // New GUID photo URLs change naturally; cacheKey still busts if path reused.
+                        cacheKey: headerPhoto,
                         placeholderColor: const Color(0xFFF5F4F0),
                         iconColor: _DetailTok.primary,
                         iconSize: 60,
@@ -811,25 +926,6 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
                         ),
                         const SizedBox(height: 24),
 
-                        // AI Review Trigger & Display
-                        reviewsAsync.when(
-                          data: (reviews) {
-                            if (reviews.isNotEmpty) {
-                              WidgetsBinding.instance.addPostFrameCallback((_) {
-                                _fetchAISummary(
-                                  reviews,
-                                  business.businessName,
-                                  business.averageRating,
-                                  business.reviewCount,
-                                );
-                              });
-                            }
-                            return const SizedBox.shrink();
-                          },
-                          loading: () => const SizedBox.shrink(),
-                          error: (err, st) => const SizedBox.shrink(),
-                        ),
-
                         if (_loadingSummary) ...[
                           Container(
                             width: double.infinity,
@@ -1133,6 +1229,7 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
                 ]),
               ),
             ],
+          ),
           );
         },
         loading: () => const Center(child: CircularProgressIndicator(color: _DetailTok.primary)),

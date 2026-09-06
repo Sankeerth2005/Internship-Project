@@ -8,10 +8,10 @@ namespace localink_be.Extensions
     /// </summary>
     public static class BusinessVisibilityExtensions
     {
-        /// <summary>
-        /// SQL fragment (AND ...) excluding businesses with an active admin-approved temporary closure.
-        /// Used by BusinessDiscoveryRepository raw SQL.
-        /// </summary>
+    /// <summary>
+    /// SQL fragment (AND ...) excluding businesses with an active owner temporary closure.
+    /// Used by BusinessDiscoveryRepository raw SQL.
+    /// </summary>
         public const string SqlAndNotActivelyTemporarilyClosed = """
               AND NOT (
                     b.temporary_closure_status = N'Approved'

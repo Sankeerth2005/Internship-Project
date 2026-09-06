@@ -201,6 +201,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
           accountType: authState.userType,
           activeExperience: authState.activeExperience,
           needsExperienceSelection: authState.needsExperienceSelection,
+          needsUserAgreement: authState.needsUserAgreement,
         ));
       } else {
         context.go('/welcome');

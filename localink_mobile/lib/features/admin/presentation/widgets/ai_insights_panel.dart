@@ -182,13 +182,13 @@ class AiInsightsPanel extends StatelessWidget {
   List<_InsightData> _generateInsights() {
     final List<_InsightData> list = [];
 
-    // 1. Scan for Deletion Requests
+    // Legacy: DeletionRequested queue (new owner deletes apply immediately).
     final deletions = businesses.where((b) => b.status.toLowerCase() == 'deletionrequested').toList();
     for (final b in deletions) {
       list.add(
         _InsightData(
-          title: 'Immediate Deletion Review',
-          description: '"${b.name}" requested permanent deletion. Verification of compliance is required.',
+          title: 'Legacy Deletion Request',
+          description: '"${b.name}" still has a pending deletion request from before owner self-delete.',
           icon: Icons.delete_forever_rounded,
           color: Colors.redAccent,
           business: b,
@@ -196,13 +196,13 @@ class AiInsightsPanel extends StatelessWidget {
       );
     }
 
-    // 2. Scan for Temporary Closure Requests
+    // Legacy pending temporary closures (new closures apply immediately as Approved).
     final closures = businesses.where((b) => b.isTemporaryClosurePending).toList();
     for (final b in closures) {
       list.add(
         _InsightData(
-          title: 'Temporary Closure Request',
-          description: '"${b.name}" requested temporary closure for ${b.temporaryClosureDays ?? 0} days.',
+          title: 'Legacy Closure Request',
+          description: '"${b.name}" still has a pending temporary closure from before owner self-close.',
           icon: Icons.hourglass_top_rounded,
           color: Colors.orangeAccent,
           business: b,

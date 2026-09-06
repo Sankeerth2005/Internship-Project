@@ -57,11 +57,19 @@ if ($CopyEnv) {
     Write-Host "No .env in output yet. Copy repo-root .env next to localink_be.dll." -ForegroundColor Yellow
 }
 
-$sqlScript = Join-Path $BeRoot "Scripts\EnsureRefreshTokensTable.sql"
-if (Test-Path $sqlScript) {
-    $scriptsOut = Join-Path $OutputDir "Scripts"
-    New-Item -ItemType Directory -Force -Path $scriptsOut | Out-Null
-    Copy-Item $sqlScript (Join-Path $scriptsOut "EnsureRefreshTokensTable.sql") -Force
+$scriptsOut = Join-Path $OutputDir "Scripts"
+New-Item -ItemType Directory -Force -Path $scriptsOut | Out-Null
+@(
+    "EnsureRefreshTokensTable.sql",
+    "EnsureBusinessReviewModerationColumns.sql",
+    "EnsureUserConsentColumn.sql",
+    "FixManagerIsFlagged.sql",
+    "DiagnoseSchemaGaps.sql"
+) | ForEach-Object {
+    $sqlScript = Join-Path $BeRoot "Scripts\$_"
+    if (Test-Path $sqlScript) {
+        Copy-Item $sqlScript (Join-Path $scriptsOut $_) -Force
+    }
 }
 
 Write-Host ""

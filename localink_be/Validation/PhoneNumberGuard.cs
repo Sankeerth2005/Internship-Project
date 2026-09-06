@@ -140,10 +140,12 @@ namespace localink_be.Validation
             if (string.IsNullOrEmpty(national))
                 return required ? "Phone number is required" : null;
 
+            var label = CountryContextLabel(countryCode, countryName);
+
             if (IsIndian(countryCode, countryName))
             {
                 if (national.Length != 10)
-                    return "Indian phone number must be exactly 10 digits";
+                    return $"Indian phone number must be exactly 10 digits for {label}";
                 if (!Regex.IsMatch(national, "^[6-9]"))
                     return "Indian mobile numbers must start with 6, 7, 8, or 9";
                 return null;
@@ -153,8 +155,8 @@ namespace localink_be.Validation
             if (!allowed.Contains(national.Length))
             {
                 if (allowed.Length == 1)
-                    return $"Phone number must be {allowed[0]} digits for the selected country";
-                return $"Phone number must be {allowed[0]}–{allowed[^1]} digits for the selected country";
+                    return $"Phone number must be {allowed[0]} digits for {label}";
+                return $"Phone number must be {allowed[0]}–{allowed[^1]} digits for {label}";
             }
 
             if (national.Length < 7 || national.Length > 15)
@@ -172,6 +174,19 @@ namespace localink_be.Validation
             var error = Validate(phone, countryCode, countryName, required);
             if (error != null)
                 throw new ArgumentException(error);
+        }
+
+        private static string CountryContextLabel(string? countryCode, string? countryName)
+        {
+            var calling = NormalizeCallingCode(countryCode);
+            var name = (countryName ?? string.Empty).Trim();
+            if (!string.IsNullOrEmpty(name) && !string.IsNullOrEmpty(calling))
+                return $"{name} (+{calling})";
+            if (!string.IsNullOrEmpty(calling))
+                return $"+{calling}";
+            if (!string.IsNullOrEmpty(name))
+                return name;
+            return "the selected country";
         }
 
         private static int[] AllowedLengths(string callingCode) =>

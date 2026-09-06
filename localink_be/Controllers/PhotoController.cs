@@ -20,7 +20,7 @@ namespace localink_be.Controllers
         }
 
         // POST: api/v1/business/{businessId}/photos
-        [Authorize(Roles = "client,businessowner,admin")]
+        [Authorize(Roles = "user,client,businessowner,admin")]
         [HttpPost]
         public async Task<IActionResult> UploadPhoto(long businessId, IFormFile file)
         {
@@ -47,7 +47,7 @@ namespace localink_be.Controllers
             }
             // Let ExceptionMiddleware handle unexpected errors (no internal message leak)
         }
-        [Authorize(Roles = "client,businessowner,admin")]
+        [Authorize(Roles = "user,client,businessowner,admin")]
         [HttpDelete("~/api/v1/photos/{photoId}")]
         public async Task<IActionResult> DeletePhoto(long photoId)
         {

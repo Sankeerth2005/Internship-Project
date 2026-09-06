@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using localink_be.Models.Entities;
+using localink_be.Services.Interfaces;
 
 [Authorize(Roles = "admin")]
 [ApiController]
@@ -92,26 +93,32 @@ public class AdminController : ControllerBase
     public async Task<IActionResult> ApprovePermanentDeletion(
         long id,
         [FromServices] localink_be.Data.AppDbContext db,
+        [FromServices] IBusinessService businessService,
         [FromServices] Microsoft.AspNetCore.SignalR.IHubContext<localink_be.Hubs.NotificationHub> hubContext)
     {
         var adminId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
         if (string.IsNullOrEmpty(adminId)) return Unauthorized();
+        if (!long.TryParse(adminId, out var adminUserId)) return Unauthorized();
 
         var business = await db.Businesses.FindAsync(id);
         if (business == null) return NotFound(new { message = "Business not found" });
 
-        var adminDash = await db.AdminDashboards.FirstOrDefaultAsync(a => a.BusinessId == id);
-        if (adminDash == null || adminDash.Status != BusinessStatus.DeletionRequested)
-            return BadRequest(new { message = "No pending deletion request found for this business" });
+        // Owners delete immediately via request-deletion. Admins may hard-delete any
+        // business (including legacy DeletionRequested rows) using the full graph delete.
+        var ownerUserId = business.UserId;
+        var businessName = business.BusinessName;
 
         try
         {
-            await hubContext.Clients.Group($"client_{business.UserId}").SendAsync("ReceiveNotification", $"Your business '{business.BusinessName}' has been permanently deleted by the admin.");
+            await hubContext.Clients.Group($"client_{ownerUserId}").SendAsync(
+                "ReceiveNotification",
+                $"Your business '{businessName}' has been permanently deleted by the admin.");
         }
         catch { /* Suppress notifications errors */ }
 
-        db.Businesses.Remove(business);
-        await db.SaveChangesAsync();
+        var deleted = await businessService.DeleteBusinessAsync(id, adminUserId, isAdmin: true);
+        if (!deleted)
+            return NotFound(new { message = "Business not found" });
 
         return Ok(new { success = true, message = "Business permanently deleted from database" });
     }

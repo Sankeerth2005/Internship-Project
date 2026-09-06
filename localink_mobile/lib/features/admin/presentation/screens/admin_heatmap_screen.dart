@@ -16,6 +16,8 @@ class _AdminHeatmapScreenState extends ConsumerState<AdminHeatmapScreen> {
   List<dynamic> _businesses = [];
   List<dynamic> _searches = [];
   String _errorMessage = "";
+  LatLng? _mapCenter;
+  double _mapZoom = 3;
 
   // OpenStreetMap styles vector tiles
   final String osmStyle = "https://tiles.openfreemap.org/styles/liberty";
@@ -24,6 +26,63 @@ class _AdminHeatmapScreenState extends ConsumerState<AdminHeatmapScreen> {
   void initState() {
     super.initState();
     _loadHeatmapData();
+  }
+
+  List<LatLng> _collectValidPoints() {
+    final points = <LatLng>[];
+
+    void addPoint(dynamic latRaw, dynamic lngRaw) {
+      final lat = double.tryParse(latRaw?.toString() ?? '');
+      final lng = double.tryParse(lngRaw?.toString() ?? '');
+      if (lat == null || lng == null) return;
+      if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return;
+      if (lat == 0 && lng == 0) return;
+      points.add(LatLng(lat, lng));
+    }
+
+    for (final b in _businesses) {
+      addPoint(b['latitude'], b['longitude']);
+    }
+    for (final s in _searches) {
+      addPoint(s['latitude'], s['longitude']);
+    }
+    return points;
+  }
+
+  /// Derive camera from real data only — never invent a city fallback.
+  void _deriveCameraFromData() {
+    final points = _collectValidPoints();
+    if (points.isEmpty) {
+      _mapCenter = null;
+      return;
+    }
+
+    double minLat = points.first.latitude;
+    double maxLat = points.first.latitude;
+    double minLng = points.first.longitude;
+    double maxLng = points.first.longitude;
+    for (final p in points.skip(1)) {
+      if (p.latitude < minLat) minLat = p.latitude;
+      if (p.latitude > maxLat) maxLat = p.latitude;
+      if (p.longitude < minLng) minLng = p.longitude;
+      if (p.longitude > maxLng) maxLng = p.longitude;
+    }
+
+    _mapCenter = LatLng((minLat + maxLat) / 2, (minLng + maxLng) / 2);
+    final latSpan = (maxLat - minLat).abs();
+    final lngSpan = (maxLng - minLng).abs();
+    final span = latSpan > lngSpan ? latSpan : lngSpan;
+    if (span < 0.05) {
+      _mapZoom = 12;
+    } else if (span < 0.5) {
+      _mapZoom = 10;
+    } else if (span < 2) {
+      _mapZoom = 8;
+    } else if (span < 10) {
+      _mapZoom = 6;
+    } else {
+      _mapZoom = 4;
+    }
   }
 
   Future<void> _loadHeatmapData() async {
@@ -39,9 +98,11 @@ class _AdminHeatmapScreenState extends ConsumerState<AdminHeatmapScreen> {
         setState(() {
           _businesses = data['businesses'] ?? [];
           _searches = data['searches'] ?? [];
+          _deriveCameraFromData();
           _loading = false;
         });
         _addHeatmapPoints();
+        _moveCameraToData();
       } else {
         setState(() {
           _errorMessage = "Failed to load heatmap data.";
@@ -59,6 +120,22 @@ class _AdminHeatmapScreenState extends ConsumerState<AdminHeatmapScreen> {
   void _onMapCreated(MapLibreMapController controller) {
     _mapController = controller;
     _addHeatmapPoints();
+    _moveCameraToData();
+  }
+
+  Future<void> _moveCameraToData() async {
+    final center = _mapCenter;
+    final controller = _mapController;
+    if (center == null || controller == null) return;
+    try {
+      await controller.animateCamera(
+        CameraUpdate.newCameraPosition(
+          CameraPosition(target: center, zoom: _mapZoom),
+        ),
+      );
+    } catch (_) {
+      // Map may not be ready yet; symbols still render.
+    }
   }
 
   void _addHeatmapPoints() {
@@ -66,15 +143,17 @@ class _AdminHeatmapScreenState extends ConsumerState<AdminHeatmapScreen> {
 
     _mapController!.clearSymbols();
 
-    // 1. Add gold pins for approved businesses
     for (var b in _businesses) {
-      double lat = double.tryParse(b['latitude']?.toString() ?? '') ?? 19.0760;
-      double lng = double.tryParse(b['longitude']?.toString() ?? '') ?? 72.8777;
+      final lat = double.tryParse(b['latitude']?.toString() ?? '');
+      final lng = double.tryParse(b['longitude']?.toString() ?? '');
+      if (lat == null || lng == null) continue;
+      if (lat < -90 || lat > 90 || lng < -180 || lng > 180) continue;
+      if (lat == 0 && lng == 0) continue;
 
       _mapController!.addSymbol(
         SymbolOptions(
           geometry: LatLng(lat, lng),
-          iconImage: "custom-marker-gold", // Custom assets fallback
+          iconImage: "marker",
           iconSize: 1.2,
           textField: b['businessName'] ?? '',
           textOffset: const Offset(0, 2),
@@ -84,10 +163,12 @@ class _AdminHeatmapScreenState extends ConsumerState<AdminHeatmapScreen> {
       );
     }
 
-    // 2. Add red pulsing radar pins for search query logs
     for (var s in _searches) {
-      double lat = double.tryParse(s['latitude']?.toString() ?? '') ?? 19.0760;
-      double lng = double.tryParse(s['longitude']?.toString() ?? '') ?? 72.8777;
+      final lat = double.tryParse(s['latitude']?.toString() ?? '');
+      final lng = double.tryParse(s['longitude']?.toString() ?? '');
+      if (lat == null || lng == null) continue;
+      if (lat < -90 || lat > 90 || lng < -180 || lng > 180) continue;
+      if (lat == 0 && lng == 0) continue;
 
       _mapController!.addSymbol(
         SymbolOptions(
@@ -157,77 +238,93 @@ class _AdminHeatmapScreenState extends ConsumerState<AdminHeatmapScreen> {
               ? Center(
                   child: Text(_errorMessage, style: const TextStyle(color: Colors.white54, fontSize: 14)),
                 )
-              : Stack(
-                  children: [
-                    // Fullscreen Vector Map
-                    Positioned.fill(
-                      child: MapLibreMap(
-                        styleString: osmStyle,
-                        initialCameraPosition: const CameraPosition(
-                          target: LatLng(19.0760, 72.8777), // Center map in Mumbai/India
-                          zoom: 11,
-                        ),
-                        onMapCreated: _onMapCreated,
+              : _mapCenter == null
+                  ? const Center(
+                      child: Text(
+                        'No valid business or search coordinates to display.',
+                        style: TextStyle(color: Colors.white54, fontSize: 14),
+                        textAlign: TextAlign.center,
                       ),
-                    ),
-
-                    // Map Legends Overlay
-                    Positioned(
-                      bottom: 20,
-                      left: 15,
-                      right: 15,
-                      child: Container(
-                        padding: const EdgeInsets.all(15),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF161616).withValues(alpha: 0.95),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
-                        ),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'OPERATIONAL LEGEND',
-                              style: TextStyle(color: Color(0xFFFF7A00), fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1.5),
+                    )
+                  : Stack(
+                      children: [
+                        Positioned.fill(
+                          child: MapLibreMap(
+                            styleString: osmStyle,
+                            initialCameraPosition: CameraPosition(
+                              target: _mapCenter!,
+                              zoom: _mapZoom,
                             ),
-                            const SizedBox(height: 10),
-                            Row(
+                            onMapCreated: _onMapCreated,
+                          ),
+                        ),
+                        Positioned(
+                          bottom: 20,
+                          left: 15,
+                          right: 15,
+                          child: Container(
+                            padding: const EdgeInsets.all(15),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF161616).withValues(alpha: 0.95),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+                            ),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Container(
-                                  width: 12,
-                                  height: 12,
-                                  decoration: const BoxDecoration(color: Color(0xFFFF7A00), shape: BoxShape.circle),
+                                const Text(
+                                  'OPERATIONAL LEGEND',
+                                  style: TextStyle(
+                                    color: Color(0xFFFF7A00),
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 1.5,
+                                  ),
                                 ),
-                                const SizedBox(width: 10),
-                                Text(
-                                  'Approved Businesses (${_businesses.length})',
-                                  style: const TextStyle(color: Colors.white70, fontSize: 11),
+                                const SizedBox(height: 10),
+                                Row(
+                                  children: [
+                                    Container(
+                                      width: 12,
+                                      height: 12,
+                                      decoration: const BoxDecoration(
+                                        color: Color(0xFFFF7A00),
+                                        shape: BoxShape.circle,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Text(
+                                      'Approved Businesses (${_businesses.length})',
+                                      style: const TextStyle(color: Colors.white70, fontSize: 11),
+                                    ),
+                                    const SizedBox(width: 20),
+                                    Container(
+                                      width: 12,
+                                      height: 12,
+                                      decoration: const BoxDecoration(
+                                        color: Colors.redAccent,
+                                        shape: BoxShape.circle,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Text(
+                                      'Active Search Queries (${_searches.length})',
+                                      style: const TextStyle(color: Colors.white70, fontSize: 11),
+                                    ),
+                                  ],
                                 ),
-                                const SizedBox(width: 20),
-                                Container(
-                                  width: 12,
-                                  height: 12,
-                                  decoration: const BoxDecoration(color: Colors.redAccent, shape: BoxShape.circle),
-                                ),
-                                const SizedBox(width: 10),
-                                Text(
-                                  'Active Search Queries (${_searches.length})',
-                                  style: const TextStyle(color: Colors.white70, fontSize: 11),
+                                const SizedBox(height: 8),
+                                const Text(
+                                  'Visual density markers display registered companies vs areas where customers query items most, helping identify underserved regions.',
+                                  style: TextStyle(color: Colors.white30, fontSize: 9, height: 1.4),
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 8),
-                            const Text(
-                              'Visual density markers display registered companies vs areas where customers query items most, helping identify underserved regions.',
-                              style: TextStyle(color: Colors.white30, fontSize: 9, height: 1.4),
-                            ),
-                          ],
+                          ),
                         ),
-                      ),
+                      ],
                     ),
-                  ],
-                ),
     );
   }
 }

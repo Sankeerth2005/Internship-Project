@@ -44,12 +44,17 @@ class UserDto {
   @JsonKey(name: 'isNewUser', defaultValue: false)
   final bool isNewUser;
 
+  /// Account-level User Agreement consent (backend source of truth).
+  @JsonKey(name: 'consentAccepted', defaultValue: false)
+  final bool consentAccepted;
+
   UserDto({
     required this.id,
     required this.name,
     required this.email,
     required this.userType,
     this.isNewUser = false,
+    this.consentAccepted = false,
   });
 
   factory UserDto.fromJson(Map<String, dynamic> json) =>

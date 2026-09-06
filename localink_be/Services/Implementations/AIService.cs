@@ -9,20 +9,30 @@ namespace localink_be.Services.Implementations
 {
     public class AIService : IAIService
     {
+        private const string DefaultChatModel = "openai/gpt-oss-20b";
+
         private readonly HttpClient _httpClient;
         private readonly IConfiguration _config;
         private readonly ILogger<AIService> _logger;
         private readonly IBusinessDiscoveryService _discoveryService;
+        private readonly IAIGatewayService _aiGateway;
+        private readonly string _chatModel;
 
         public AIService(
             IConfiguration config,
             ILogger<AIService> logger,
-            IBusinessDiscoveryService discoveryService)
+            IBusinessDiscoveryService discoveryService,
+            IAIGatewayService aiGateway)
         {
             _config = config;
             _logger = logger;
             _discoveryService = discoveryService;
+            _aiGateway = aiGateway;
+            _chatModel = string.IsNullOrWhiteSpace(_config["Groq:ChatModel"])
+                ? DefaultChatModel
+                : _config["Groq:ChatModel"]!;
             _httpClient = new HttpClient();
+            _httpClient.Timeout = TimeSpan.FromSeconds(60);
             var apiKey = _config["Groq:ApiKey"];
             if (string.IsNullOrWhiteSpace(apiKey))
             {
@@ -42,7 +52,7 @@ namespace localink_be.Services.Implementations
                 
                 var requestBody = new
                 {
-                    model = "llama-3.1-8b-instant",
+                    model = _chatModel,
                     messages = new[]
                     {
                         new { role = "system", content = "You are a helpful assistant that improves business reviews. Provide 3 improved versions of the user's review draft. Each version should be concise (max 2 sentences), natural, and helpful. Return ONLY a JSON array with 3 strings, no markdown." },
@@ -118,7 +128,7 @@ Return as JSON array: [""suggestion1"", ""suggestion2"", ""suggestion3""]";
                 
                 var requestBody = new
                 {
-                    model = "llama-3.1-8b-instant",
+                    model = _chatModel,
                     messages = new[]
                     {
                         new { role = "system", content = "You are a helpful assistant that summarizes business reviews. Provide a concise, natural summary of what people are saying about a business. Keep it under 2 sentences. Be balanced and highlight common themes." },
@@ -185,7 +195,7 @@ Return only the summary text, no quotes or markdown.";
 
                 var requestBody = new
                 {
-                    model = "llama-3.1-8b-instant",
+                    model = _chatModel,
                     messages = new[]
                     {
                         new { role = "system", content = "You are a professional copywriter that writes engaging, concise business descriptions." },
@@ -220,29 +230,84 @@ Return only the summary text, no quotes or markdown.";
         {
             try
             {
-                var searchTerms = ExtractSearchTerms(message);
-                var discovery = await _discoveryService.DiscoverAsync(new BusinessDiscoveryQuery
-                {
-                    Latitude = userLat,
-                    Longitude = userLng,
-                    Search = searchTerms,
-                    Sort = BusinessSortMode.Nearest,
-                    Page = 1,
-                    PageSize = 30
-                });
+                string? searchTerms = null;
+                string? categoryHint = null;
 
-                var ranked = (discovery.Items ?? Array.Empty<localink_be.Models.DTOs.BusinessDto>()).ToList();
-                if (ranked.Count == 0 && !string.IsNullOrWhiteSpace(searchTerms))
+                try
                 {
-                    discovery = await _discoveryService.DiscoverAsync(new BusinessDiscoveryQuery
+                    var intent = await _aiGateway.ParseIntentAsync(message);
+                    if (intent.Success)
+                    {
+                        if (!string.IsNullOrWhiteSpace(intent.Query))
+                            searchTerms = intent.Query.Trim();
+                        if (!string.IsNullOrWhiteSpace(intent.Category))
+                            categoryHint = intent.Category.Trim();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Intent parse failed for chat search; falling back to ExtractSearchTerms");
+                }
+
+                if (string.IsNullOrWhiteSpace(searchTerms))
+                    searchTerms = ExtractSearchTerms(message);
+
+                // When intent yields a category but no query, use category as the discovery search.
+                // When both exist, keep cleaned query as Search (don't worsen English path) and
+                // fold category into Search only if query is still empty after fallback.
+                if (string.IsNullOrWhiteSpace(searchTerms) && !string.IsNullOrWhiteSpace(categoryHint))
+                    searchTerms = categoryHint;
+
+                var ranked = new List<localink_be.Models.DTOs.BusinessDto>();
+                try
+                {
+                    var discovery = await _discoveryService.DiscoverAsync(new BusinessDiscoveryQuery
                     {
                         Latitude = userLat,
                         Longitude = userLng,
+                        Search = searchTerms,
                         Sort = BusinessSortMode.Nearest,
                         Page = 1,
                         PageSize = 30
                     });
+
                     ranked = (discovery.Items ?? Array.Empty<localink_be.Models.DTOs.BusinessDto>()).ToList();
+
+                    // If we had a category hint and a query but zero hits, retry with category as Search.
+                    if (ranked.Count == 0
+                        && !string.IsNullOrWhiteSpace(categoryHint)
+                        && !string.Equals(searchTerms, categoryHint, StringComparison.OrdinalIgnoreCase))
+                    {
+                        discovery = await _discoveryService.DiscoverAsync(new BusinessDiscoveryQuery
+                        {
+                            Latitude = userLat,
+                            Longitude = userLng,
+                            Search = categoryHint,
+                            Sort = BusinessSortMode.Nearest,
+                            Page = 1,
+                            PageSize = 30
+                        });
+                        ranked = (discovery.Items ?? Array.Empty<localink_be.Models.DTOs.BusinessDto>()).ToList();
+                    }
+
+                    // Nearest-only fallback when cleaned search is empty or intent/category search returned nothing.
+                    if (ranked.Count == 0)
+                    {
+                        discovery = await _discoveryService.DiscoverAsync(new BusinessDiscoveryQuery
+                        {
+                            Latitude = userLat,
+                            Longitude = userLng,
+                            Sort = BusinessSortMode.Nearest,
+                            Page = 1,
+                            PageSize = 30
+                        });
+                        ranked = (discovery.Items ?? Array.Empty<localink_be.Models.DTOs.BusinessDto>()).ToList();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Business discovery failed during chat search; continuing without listings");
+                    ranked = new List<localink_be.Models.DTOs.BusinessDto>();
                 }
 
                 var businesses = ranked.Select(b => new
@@ -250,7 +315,7 @@ Return only the summary text, no quotes or markdown.";
                     b.Name,
                     Category = b.CategoryName,
                     Subcategory = b.SubcategoryName,
-                    b.Description,
+                    Description = TruncateForPrompt(b.Description, 180),
                     b.AverageRating,
                     b.City,
                     b.State,
@@ -271,6 +336,7 @@ Here is a JSON list of matching registered businesses (already ranked by search 
 {locationHint}
 Use this list to answer the user's queries.
 Rules:
+- Always write the user-visible reply in the assistant message content field (never leave content empty).
 - Recommend matching businesses from this list and explain why (e.g. based on ratings, features, or proximity).
 - If no matching business exists in the list, politely inform the user that we don't have that type of business listed yet.
 - Keep your responses warm, helpful, and concise (max 3 sentences).";
@@ -285,12 +351,27 @@ Rules:
                         var history = JsonSerializer.Deserialize<JsonElement[]>(chatHistoryJson);
                         if (history != null)
                         {
-                            foreach (var msg in history)
+                            // Client often includes the current user turn in history; skip duplicating it.
+                            var lastIdx = history.Length - 1;
+                            for (var i = 0; i < history.Length; i++)
                             {
-                                if (msg.TryGetProperty("role", out var r) && msg.TryGetProperty("content", out var c))
+                                var msg = history[i];
+                                if (!msg.TryGetProperty("role", out var r) || !msg.TryGetProperty("content", out var c))
+                                    continue;
+
+                                var role = r.GetString();
+                                var historyContent = c.GetString();
+                                if (string.IsNullOrWhiteSpace(role) || historyContent == null)
+                                    continue;
+
+                                if (i == lastIdx
+                                    && string.Equals(role, "user", StringComparison.OrdinalIgnoreCase)
+                                    && string.Equals(historyContent.Trim(), message.Trim(), StringComparison.Ordinal))
                                 {
-                                    messagesList.Add(new { role = r.GetString(), content = c.GetString() });
+                                    continue;
                                 }
+
+                                messagesList.Add(new { role, content = historyContent });
                             }
                         }
                     }
@@ -304,7 +385,7 @@ Rules:
 
                 var requestBody = new
                 {
-                    model = "llama-3.1-8b-instant",
+                    model = _chatModel,
                     messages = messagesList.ToArray(),
                     temperature = 0.7,
                     max_tokens = 300
@@ -316,19 +397,44 @@ Rules:
 
                 if (!response.IsSuccessStatusCode)
                 {
-                    _logger.LogError("Groq API error: {StatusCode}", response.StatusCode);
+                    var errorBody = await response.Content.ReadAsStringAsync();
+                    _logger.LogError("Groq API error: {StatusCode} {Body}", response.StatusCode, TruncateForPrompt(errorBody, 500));
                     return "Sorry, I am having trouble connecting to my brain right now. Please try again in a moment.";
                 }
 
                 var result = await response.Content.ReadFromJsonAsync<GroqResponse>();
-                var content = result?.choices?.FirstOrDefault()?.message?.content;
-                return content?.Trim();
+                var assistant = result?.choices?.FirstOrDefault()?.message;
+                var content = ExtractAssistantText(assistant);
+                if (string.IsNullOrWhiteSpace(content))
+                {
+                    _logger.LogWarning("Groq chat returned empty content for model {Model}", _chatModel);
+                    return "I could not generate a reply just now. Please try again in a moment.";
+                }
+
+                return content;
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error in AI Chat Search");
                 return "Sorry, an unexpected error occurred. Please try again.";
             }
+        }
+
+        private static string? TruncateForPrompt(string? value, int maxLen)
+        {
+            if (string.IsNullOrEmpty(value) || value.Length <= maxLen) return value;
+            return value.Substring(0, maxLen) + "…";
+        }
+
+        private static string? ExtractAssistantText(GroqMessage? message)
+        {
+            if (message == null) return null;
+            if (!string.IsNullOrWhiteSpace(message.content))
+                return message.content.Trim();
+            // Reasoning models (e.g. gpt-oss) sometimes put the only text in reasoning.
+            if (!string.IsNullOrWhiteSpace(message.reasoning))
+                return message.reasoning.Trim();
+            return null;
         }
 
         private static readonly HashSet<string> ChatStopWords = new(StringComparer.OrdinalIgnoreCase)
@@ -351,18 +457,47 @@ Rules:
             return tokens.Length == 0 ? null : string.Join(" ", tokens);
         }
 
-        public async Task<string?> GetBusinessInsightsAsync(int views, int favorites, int clicks, string businessName)
+        public async Task<string?> GetBusinessInsightsAsync(
+            int views,
+            int favorites,
+            int clicks,
+            string businessName,
+            string? category = null,
+            string? city = null,
+            bool hasPhotos = false,
+            int photoCount = 0,
+            int reviewCount = 0,
+            double averageRating = 0,
+            bool isTemporarilyClosed = false)
         {
+            var fallback = BuildBusinessInsightsFallback(
+                businessName, views, favorites, clicks, category, city,
+                hasPhotos, photoCount, reviewCount, averageRating, isTemporarilyClosed);
+
             try
             {
-                var prompt = $"Write 3 bulleted business recommendations/insights for a business named '{businessName}' based on the weekly metrics: Views = {views}, Favorites = {favorites}, Contact Clicks = {clicks}. Keep the recommendations extremely concise (max 1 sentence per bullet), constructive, and formatted with emojis. Do not output any introductory or concluding text, only the 3 bullet points.";
-                
+                var categoryLabel = string.IsNullOrWhiteSpace(category) ? "unspecified" : category.Trim();
+                var cityLabel = string.IsNullOrWhiteSpace(city) ? "unspecified city" : city.Trim();
+                var photoLabel = hasPhotos ? $"{photoCount} photo(s)" : "no photos";
+                var reviewLabel = reviewCount > 0
+                    ? $"{reviewCount} review(s), avg {averageRating:0.0}"
+                    : "no reviews yet";
+                var closureLabel = isTemporarilyClosed ? "temporarily closed" : "open / not temporarily closed";
+
+                var prompt =
+                    $"Write 3 bulleted recommendations for '{businessName}' ({categoryLabel} in {cityLabel}). " +
+                    $"Listing context: photos={photoLabel}, reviews={reviewLabel}, status={closureLabel}. " +
+                    $"Lifetime metrics: Views={views}, Saves/Favorites={favorites}, Contact Clicks={clicks}. " +
+                    "Prioritize the weakest metrics and listing gaps. Be specific to this business (mention the name or city when useful). " +
+                    "Do not invent percentage growth or fake trends. Keep each bullet to one concise sentence with an emoji. " +
+                    "Output only the 3 bullet points — no intro or conclusion.";
+
                 var requestBody = new
                 {
-                    model = "llama-3.1-8b-instant",
+                    model = _chatModel,
                     messages = new[]
                     {
-                        new { role = "system", content = "You are a senior business analytics advisor." },
+                        new { role = "system", content = "You are a senior local business analytics advisor. Be honest and actionable; never invent growth percentages." },
                         new { role = "user", content = prompt }
                     },
                     temperature = 0.7,
@@ -370,33 +505,82 @@ Rules:
                 };
 
                 var response = await _httpClient.PostAsJsonAsync("https://api.groq.com/openai/v1/chat/completions", requestBody);
-                if (!response.IsSuccessStatusCode) return "• Keep posting updates to gain more views.\n• Add high-quality photos to attract favorites.\n• Verify your contact info matches client search locations.";
+                if (!response.IsSuccessStatusCode) return fallback;
 
                 var result = await response.Content.ReadFromJsonAsync<GroqResponse>();
-                return result?.choices?.FirstOrDefault()?.message?.content?.Trim();
+                var content = result?.choices?.FirstOrDefault()?.message?.content?.Trim();
+                return string.IsNullOrWhiteSpace(content) ? fallback : content;
             }
             catch
             {
-                return "• Post updates regularly to build engagement.\n• Showcase premium offers on your profile page.\n• Verify your address details are precise.";
+                return fallback;
             }
+        }
+
+        private static string BuildBusinessInsightsFallback(
+            string businessName,
+            int views,
+            int favorites,
+            int clicks,
+            string? category,
+            string? city,
+            bool hasPhotos,
+            int photoCount,
+            int reviewCount,
+            double averageRating,
+            bool isTemporarilyClosed)
+        {
+            var name = string.IsNullOrWhiteSpace(businessName) ? "Your business" : businessName.Trim();
+            var tips = new List<string>(3);
+
+            if (isTemporarilyClosed)
+                tips.Add($"• {name} is temporarily closed — reopen or update status so customers know when they can visit.");
+            else if (views == 0)
+                tips.Add($"• {name} has no profile views yet — share your listing link with local customers{(string.IsNullOrWhiteSpace(city) ? "" : $" in {city}")}.");
+            else if (views < 20)
+                tips.Add($"• {name} only has {views} view(s) so far — refresh photos and description to improve discovery.");
+            else if (favorites == 0)
+                tips.Add($"• {name} has {views} views but 0 saves — strengthen your gallery and description so people bookmark you.");
+            else if (clicks == 0)
+                tips.Add($"• {name} has {favorites} save(s) but no contact clicks — verify phone and address are correct.");
+            else
+                tips.Add($"• {name}: {views} views, {favorites} saves, {clicks} contact clicks — keep hours and contact info current.");
+
+            if (!hasPhotos || photoCount == 0)
+                tips.Add($"• Add at least one clear storefront or product photo to {name}'s listing.");
+            else if (photoCount < 3)
+                tips.Add($"• {name} only has {photoCount} photo(s) — a fuller gallery usually helps local discovery.");
+            else if (!string.IsNullOrWhiteSpace(category))
+                tips.Add($"• Highlight what makes your {category} offer unique for nearby searchers.");
+
+            if (reviewCount == 0)
+                tips.Add($"• {name} has no reviews yet — ask recent customers for honest feedback on Localink.");
+            else if (averageRating > 0 && averageRating < 3.5)
+                tips.Add($"• Average rating is {averageRating:0.0} from {reviewCount} review(s) — address common complaints quickly.");
+            else if (clicks > 0 && favorites > 0)
+                tips.Add($"• Keep responding to reviews and posting updates so {name} stays visible locally.");
+            else
+                tips.Add($"• Confirm opening hours and contact details are precise for {name}.");
+
+            return string.Join("\n", tips.Take(3));
         }
 
         public async Task<string?> GetPersonalizedWelcomeAsync(string categoryPref, string timeOfDay)
         {
             try
             {
-                var prompt = $"Write a personalized welcoming message for a local user. The current time of day is {timeOfDay}. Their favorite local category is {categoryPref}. Keep it warm, spiritual (with a subtle 'Namaste' or traditional vibe), and under 2 sentences. Do not use placeholders.";
+                var prompt = $"Write a warm 2-sentence welcome for a local discovery feed. Time of day: {timeOfDay}. Suggested local theme: {categoryPref}. Mention that nearby businesses around the user are being shown and invite them to explore. Do not reply with a title only (never just '{timeOfDay} Feed'). Do not use placeholders.";
                 
                 var requestBody = new
                 {
-                    model = "llama-3.1-8b-instant",
+                    model = _chatModel,
                     messages = new[]
                     {
-                        new { role = "system", content = "You are a warm local guide assistant." },
+                        new { role = "system", content = "You are a warm local guide. Always write two complete sentences of natural prose. Never return a heading or label like Morning Feed." },
                         new { role = "user", content = prompt }
                     },
                     temperature = 0.7,
-                    max_tokens = 150
+                    max_tokens = 220
                 };
 
                 var response = await _httpClient.PostAsJsonAsync("https://api.groq.com/openai/v1/chat/completions", requestBody);
@@ -463,7 +647,7 @@ Content to review: ""{content}""";
                 
                 var requestBody = new
                 {
-                    model = "llama-3.1-8b-instant",
+                    model = _chatModel,
                     messages = new[]
                     {
                         new { role = "system", content = "You are a strict automated moderation assistant." },
@@ -511,6 +695,7 @@ Content to review: ""{content}""";
 
     public class GroqMessage
     {
-        public string content { get; set; } = string.Empty;
+        public string? content { get; set; }
+        public string? reasoning { get; set; }
     }
 }

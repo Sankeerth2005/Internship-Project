@@ -15,12 +15,14 @@ class SecureStorageService {
   static const _userIdKey = 'user_id';
   static const _activeExperienceKey = 'active_experience';
   static const _needsExperienceSelectionKey = 'needs_experience_selection';
+  static const _needsUserAgreementKey = 'needs_user_agreement';
 
   static Future<void> saveToken(String token) async {
     try {
       await _storage.write(key: _tokenKey, value: token);
     } catch (e) {
       debugPrint('SecureStorageService: Error writing token: $e');
+      throw StateError('Failed to persist auth token');
     }
   }
 
@@ -38,6 +40,7 @@ class SecureStorageService {
       await _storage.write(key: _refreshTokenKey, value: refreshToken);
     } catch (e) {
       debugPrint('SecureStorageService: Error writing refresh token: $e');
+      throw StateError('Failed to persist refresh token');
     }
   }
 
@@ -71,6 +74,7 @@ class SecureStorageService {
       await _storage.write(key: _userTypeKey, value: userType);
     } catch (e) {
       debugPrint('SecureStorageService: Error writing userType: $e');
+      throw StateError('Failed to persist user type');
     }
   }
 
@@ -88,6 +92,7 @@ class SecureStorageService {
       await _storage.write(key: _userIdKey, value: userId.toString());
     } catch (e) {
       debugPrint('SecureStorageService: Error writing userId: $e');
+      throw StateError('Failed to persist user id');
     }
   }
 
@@ -148,6 +153,27 @@ class SecureStorageService {
     }
   }
 
+  static Future<void> saveNeedsUserAgreement(bool value) async {
+    try {
+      await _storage.write(
+        key: _needsUserAgreementKey,
+        value: value ? '1' : '0',
+      );
+    } catch (e) {
+      debugPrint('SecureStorageService: Error writing needsUserAgreement: $e');
+    }
+  }
+
+  static Future<bool> getNeedsUserAgreement() async {
+    try {
+      final val = await _storage.read(key: _needsUserAgreementKey);
+      return val == '1' || val == 'true';
+    } catch (e) {
+      debugPrint('SecureStorageService: Error reading needsUserAgreement: $e');
+      return false;
+    }
+  }
+
   /// Clears only auth-related keys (keeps other secure prefs intact).
   static Future<void> clearAuth() async {
     try {
@@ -158,6 +184,7 @@ class SecureStorageService {
         _storage.delete(key: _userIdKey),
         _storage.delete(key: _activeExperienceKey),
         _storage.delete(key: _needsExperienceSelectionKey),
+        _storage.delete(key: _needsUserAgreementKey),
       ]);
     } catch (e) {
       debugPrint('SecureStorageService: Error clearing auth: $e');

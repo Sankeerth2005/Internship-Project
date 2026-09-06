@@ -9,8 +9,8 @@ namespace localink_be.Services.Implementations
 {
     /// <summary>
     /// Personalized feed ranked from the user's current coordinates.
-    /// Candidates come from global distance-ordered discovery (no km cutoff);
-    /// ranking blends distance decay, popularity, rating, favorites affinity, and time-of-day relevance.
+    /// Candidates are limited to the nearby radius (default 30 km).
+    /// Ranking blends distance decay, popularity, rating, favorites affinity, and time-of-day relevance.
     /// </summary>
     public class PersonalizationService : IPersonalizationService
     {
@@ -44,15 +44,17 @@ namespace localink_be.Services.Implementations
             IReadOnlyDictionary<int, int>? categoryAffinity,
             CancellationToken cancellationToken = default)
         {
-            _ = radiusKm;
             var (timeOfDay, preferredLabel, preferredKeywords) = ResolveTimeOfDayContext();
-            var greeting = await _aiService.GetPersonalizedWelcomeAsync(preferredLabel, timeOfDay)
-                ?? $"Namaste! Here are personalized {preferredLabel.ToLowerInvariant()} picks near you.";
+            var greeting = NormalizeGreeting(
+                await _aiService.GetPersonalizedWelcomeAsync(preferredLabel, timeOfDay),
+                preferredLabel,
+                timeOfDay);
 
             var discovery = await _discoveryService.DiscoverAsync(new BusinessDiscoveryQuery
             {
                 Latitude = latitude,
                 Longitude = longitude,
+                RadiusKm = radiusKm,
                 Sort = BusinessSortMode.Nearest,
                 Page = 1,
                 PageSize = CandidatePageSize,
@@ -70,7 +72,7 @@ namespace localink_be.Services.Implementations
                     TimeOfDay = timeOfDay,
                     PreferredCategory = preferredLabel,
                     Greeting = greeting,
-                    AppliedRadiusKm = null,
+                    AppliedRadiusKm = discovery.AppliedRadiusKm,
                     Items = Array.Empty<PersonalizedFeedItem>(),
                     Message = "No businesses found near your location right now."
                 };
@@ -155,7 +157,7 @@ namespace localink_be.Services.Implementations
                 {
                     BusinessId = b.Id,
                     BusinessName = b.Name ?? "",
-                    Description = b.Description ?? "",
+                    Description = BuildItemDescription(b, timeOfDay, reason),
                     CategoryName = b.CategoryName ?? "",
                     SubcategoryName = b.SubcategoryName ?? "",
                     Address = b.StreetAddress ?? "",
@@ -193,7 +195,7 @@ namespace localink_be.Services.Implementations
                 TimeOfDay = timeOfDay,
                 PreferredCategory = preferredCategory,
                 Greeting = greeting,
-                AppliedRadiusKm = null,
+                AppliedRadiusKm = discovery.AppliedRadiusKm,
                 Items = scored,
                 Message = scored.Count == 0
                     ? "No businesses found near your location right now."
@@ -228,6 +230,58 @@ namespace localink_be.Services.Implementations
             if (popularity >= 0.6) return "Popular near you";
             if (distanceKm < 1) return "Very close to you";
             return "Nearby recommendation";
+        }
+
+        private static string BuildItemDescription(Models.DTOs.BusinessDto b, string timeOfDay, string reason)
+        {
+            var stored = (b.Description ?? "").Trim();
+            if (stored.Length >= 24 && !LooksLikeFeedLabel(stored))
+                return stored;
+
+            var name = string.IsNullOrWhiteSpace(b.Name) ? "This business" : b.Name.Trim();
+            var category = string.IsNullOrWhiteSpace(b.CategoryName) ? "local spot" : b.CategoryName.Trim();
+            var place = !string.IsNullOrWhiteSpace(b.City)
+                ? b.City.Trim()
+                : (!string.IsNullOrWhiteSpace(b.StreetAddress) ? b.StreetAddress.Trim() : "your area");
+            var period = string.IsNullOrWhiteSpace(timeOfDay) ? "today" : timeOfDay.Trim().ToLowerInvariant();
+            var why = string.IsNullOrWhiteSpace(reason) ? "a nearby recommendation" : reason.Trim().ToLowerInvariant();
+
+            return $"{name} is a {category} in {place}. {char.ToUpperInvariant(why[0])}{why[1..]} for your {period} — tap to see hours, photos, and contact details.";
+        }
+
+        private static string NormalizeGreeting(string? ai, string preferredLabel, string timeOfDay)
+        {
+            var period = string.IsNullOrWhiteSpace(timeOfDay) ? "day" : timeOfDay.Trim().ToLowerInvariant();
+            var category = string.IsNullOrWhiteSpace(preferredLabel) ? "local" : preferredLabel.Trim().ToLowerInvariant();
+            var fallback = $"Namaste! Here are personalized {category} picks within 30 km of you this {period}. Scroll for nearby businesses with a short note on why they were chosen.";
+
+            if (string.IsNullOrWhiteSpace(ai))
+                return fallback;
+
+            var text = ai.Trim().Trim('"').Replace('\n', ' ');
+            while (text.Contains("  ", StringComparison.Ordinal))
+                text = text.Replace("  ", " ", StringComparison.Ordinal);
+
+            var compact = text.Replace(" ", "", StringComparison.Ordinal).Replace("-", "", StringComparison.Ordinal).ToLowerInvariant();
+            if (compact is "morningfeed" or "afternoonfeed" or "eveningfeed" or "nightfeed"
+                or "morning" or "afternoon" or "evening" or "night"
+                or "morningguide" or "afternoonguide" or "eveningguide" or "nightguide")
+                return fallback;
+
+            if (text.Length < 28)
+                return fallback;
+
+            return text;
+        }
+
+        private static bool LooksLikeFeedLabel(string value)
+        {
+            var compact = value.Replace(" ", "", StringComparison.Ordinal)
+                .Replace("-", "", StringComparison.Ordinal)
+                .Replace("_", "", StringComparison.Ordinal)
+                .ToLowerInvariant();
+            return compact is "morningfeed" or "afternoonfeed" or "eveningfeed" or "nightfeed"
+                or "morning" or "afternoon" or "evening" or "night";
         }
     }
 }

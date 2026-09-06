@@ -105,6 +105,7 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
                           accountType: auth.userType,
                           activeExperience: auth.activeExperience,
                           needsExperienceSelection: auth.needsExperienceSelection,
+                          needsUserAgreement: auth.needsUserAgreement,
                         ));
                       } else {
                         context.go('/login');

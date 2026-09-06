@@ -20,11 +20,15 @@ class AuthAuthenticated extends AuthState {
   /// True only for newly created accounts that must complete Continue As.
   final bool needsExperienceSelection;
 
+  /// True for newly created accounts until User Agreement is accepted once.
+  final bool needsUserAgreement;
+
   const AuthAuthenticated(
     this.userType,
     this.userId, {
     this.activeExperience,
     this.needsExperienceSelection = false,
+    this.needsUserAgreement = false,
   });
 
   AuthAuthenticated copyWith({
@@ -32,6 +36,7 @@ class AuthAuthenticated extends AuthState {
     int? userId,
     String? activeExperience,
     bool? needsExperienceSelection,
+    bool? needsUserAgreement,
     bool clearActiveExperience = false,
   }) {
     return AuthAuthenticated(
@@ -42,6 +47,7 @@ class AuthAuthenticated extends AuthState {
           : (activeExperience ?? this.activeExperience),
       needsExperienceSelection:
           needsExperienceSelection ?? this.needsExperienceSelection,
+      needsUserAgreement: needsUserAgreement ?? this.needsUserAgreement,
     );
   }
 }

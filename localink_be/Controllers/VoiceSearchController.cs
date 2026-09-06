@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.RateLimiting;
 using System.Threading.Tasks;
 using localink_be.Models.DTOs;
 using localink_be.Services.Interfaces;
@@ -9,7 +8,6 @@ namespace localink_be.Controllers
 {
     [ApiController]
     [Route("api/v1/search")]
-    [EnableRateLimiting("AiPolicy")]
     public class VoiceSearchController : ControllerBase
     {
         private readonly IBusinessService _businessService;

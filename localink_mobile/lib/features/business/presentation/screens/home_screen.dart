@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -82,6 +83,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
       if (mounted) setState(() => _recentSearches = recent);
     });
     SignalRService().addNotificationListener(_onNotificationReceived);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final authState = ref.read(authProvider);
+      if (authState is AuthAuthenticated) {
+        SignalRService().connect(authState.userId, authState.userType, context);
+      }
+    });
 
     _searchFocusNode.addListener(() {
       setState(() {});
@@ -104,6 +111,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
       final position = await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
       );
+      // Reject Null Island / unset GPS — never seed discovery with (0,0).
+      if (position.latitude == 0.0 && position.longitude == 0.0) return;
+      if (position.latitude < -90 ||
+          position.latitude > 90 ||
+          position.longitude < -180 ||
+          position.longitude > 180) {
+        return;
+      }
       ref.read(searchQueryProvider.notifier).setLocation(position.latitude, position.longitude);
     } catch (e) {
       debugPrint('Error getting location: $e');
@@ -135,6 +150,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
       builder: (context) => const VoiceSearchDialog(),
     ).then((voiceQuery) {
       if (voiceQuery != null && voiceQuery is String && voiceQuery.isNotEmpty) {
+        _searchDebounce?.cancel();
         setState(() {
           _searchController.text = voiceQuery;
         });
@@ -509,14 +525,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
     final searchResultsAsync = ref.watch(searchResultsProvider);
     final queryState = ref.watch(searchQueryProvider);
     final favorites = ref.watch(favoritesProvider);
-    final authState = ref.watch(authProvider);
     final userProfileAsync = ref.watch(userProfileProvider);
-
-    if (authState is AuthAuthenticated) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        SignalRService().connect(authState.userId, authState.userType, context);
-      });
-    }
 
     // Determine real user name and profile picture (reactive)
     final profileData = userProfileAsync.asData?.value;
@@ -541,9 +550,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
         backgroundColor: _HomeTok.white,
         body: SafeArea(
           bottom: false,
-          child: CustomScrollView(
+          child: RefreshIndicator(
+            color: _HomeTok.primary,
+            onRefresh: () async {
+              ref.invalidate(searchFeedProvider);
+              ref.invalidate(categoriesProvider);
+              await Future.wait([
+                ref.read(searchFeedProvider.future),
+                ref.read(categoriesProvider.future),
+              ]);
+            },
+            child: CustomScrollView(
             controller: _scrollController,
-            physics: const BouncingScrollPhysics(),
+            physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
             slivers: [
               // ─── 1. HEADER BAR ───
               SliverToBoxAdapter(
@@ -776,6 +795,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
               ),
             ],
           ),
+          ),
         ),
       ),
     );
@@ -927,9 +947,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
   }
 
   Widget _buildBusinessCard(BuildContext context, WidgetRef ref, BusinessDto business, bool isFav) {
+    final query = ref.read(searchQueryProvider);
+    final km = _distanceKmFor(business, query);
     String locationText = business.city;
-    if (business.distance != null) {
-      locationText = '${business.distance!.toStringAsFixed(1)} km away';
+    if (km != null) {
+      locationText = '${km.toStringAsFixed(1)} km away';
     } else if (business.address.isNotEmpty) {
       locationText = business.address;
     }
@@ -1185,4 +1207,32 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
       ),
     );
   }
+
+  double? _distanceKmFor(BusinessDto business, SearchQueryState query) {
+    final userLat = query.latitude;
+    final userLng = query.longitude;
+    final bizLat = business.latitude;
+    final bizLng = business.longitude;
+    if (userLat != null &&
+        userLng != null &&
+        bizLat != null &&
+        bizLng != null &&
+        !(userLat == 0 && userLng == 0) &&
+        !(bizLat == 0 && bizLng == 0)) {
+      return _haversineKm(userLat, userLng, bizLat, bizLng);
+    }
+    return business.distance;
+  }
+
+  static double _haversineKm(double lat1, double lng1, double lat2, double lng2) {
+    const earthRadiusKm = 6371.0;
+    final dLat = _degToRad(lat2 - lat1);
+    final dLng = _degToRad(lng2 - lng1);
+    final a = math.sin(dLat / 2) * math.sin(dLat / 2) +
+        math.cos(_degToRad(lat1)) * math.cos(_degToRad(lat2)) * math.sin(dLng / 2) * math.sin(dLng / 2);
+    final c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
+    return earthRadiusKm * c;
+  }
+
+  static double _degToRad(double deg) => deg * math.pi / 180.0;
 }

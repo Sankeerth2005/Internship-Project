@@ -33,6 +33,11 @@ namespace localink_be.Services.Implementations
             if (dto.Rating < 1 || dto.Rating > 5)
                 throw new Exception("Rating must be between 1 and 5");
 
+            var ownsBusiness = await _context.Businesses.AsNoTracking()
+                .AnyAsync(b => b.BusinessId == dto.BusinessId && b.UserId == userId);
+            if (ownsBusiness)
+                throw new InvalidOperationException("You cannot review your own business listing.");
+
             string? reviewImageUrl = null;
             if (!string.IsNullOrWhiteSpace(dto.Image))
             {
@@ -93,7 +98,7 @@ namespace localink_be.Services.Implementations
         {
             return await _context.BusinessReviews
                 .AsNoTracking() 
-                .Where(r => r.BusinessId == businessId)
+                .Where(r => r.BusinessId == businessId && !r.IsFlagged)
                 .OrderByDescending(r => r.CreatedAt)
                 .Select(r => new ReviewResponseDto
                 {
@@ -111,7 +116,7 @@ namespace localink_be.Services.Implementations
         public async Task<ReviewSummaryDto> GetSummary(long businessId)
         {
             var query = _context.BusinessReviews
-                .Where(r => r.BusinessId == businessId);
+                .Where(r => r.BusinessId == businessId && !r.IsFlagged);
 
             var avg = await query
                 .AverageAsync(r => (double?)r.Rating) ?? 0;

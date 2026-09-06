@@ -40,11 +40,10 @@ namespace localink_be.Repositories.Implementations
             var page = query.Page < 1 ? 1 : query.Page;
             var pageSize = query.PageSize < 1 ? 10 : Math.Min(query.PageSize, maxPageSize);
             var offset = (page - 1) * pageSize;
-            _ = (defaultRadiusKm, maxRadiusKm);
 
             _logger.LogDebug(
-                "Business discovery: sort={Sort} page={Page} size={PageSize} lat={Lat} lng={Lng}",
-                query.Sort, page, pageSize, query.Latitude, query.Longitude);
+                "Business discovery: sort={Sort} page={Page} size={PageSize} lat={Lat} lng={Lng} radius={Radius}",
+                query.Sort, page, pageSize, query.Latitude, query.Longitude, query.RadiusKm);
 
             var hasLocation = query.Latitude.HasValue
                               && query.Longitude.HasValue
@@ -52,8 +51,13 @@ namespace localink_be.Repositories.Implementations
                               && query.Longitude is >= -180 and <= 180
                               && !(query.Latitude == 0 && query.Longitude == 0);
 
-            // Radius is never a visibility cutoff. Location only ranks results by distance.
             double? appliedRadiusKm = null;
+            if (hasLocation)
+            {
+                var radius = query.RadiusKm is > 0 ? query.RadiusKm.Value : defaultRadiusKm;
+                appliedRadiusKm = Math.Clamp(radius, 1, maxRadiusKm);
+            }
+
             if (!hasLocation && query.RequireLocation)
             {
                 return EmptyPage(page, pageSize, query.Sort);
@@ -64,7 +68,14 @@ namespace localink_be.Repositories.Implementations
             var pincode = string.IsNullOrWhiteSpace(query.UserPincode) ? null : query.UserPincode.Trim();
             var city = string.IsNullOrWhiteSpace(query.UserCity) ? null : query.UserCity.Trim();
 
-            var (countSql, dataSql) = BuildSql(query.Sort, hasLocation, searchPattern != null, query.CategoryId.HasValue, query.SubcategoryId.HasValue);
+            var applyRadius = hasLocation && appliedRadiusKm.HasValue;
+            var (countSql, dataSql) = BuildSql(
+                query.Sort,
+                hasLocation,
+                searchPattern != null,
+                query.CategoryId.HasValue,
+                query.SubcategoryId.HasValue,
+                applyRadius);
 
             var connection = _db.Database.GetDbConnection();
             if (connection.State != ConnectionState.Open)
@@ -73,7 +84,7 @@ namespace localink_be.Repositories.Implementations
             await using var countCmd = connection.CreateCommand();
             countCmd.CommandText = countSql;
             countCmd.CommandType = CommandType.Text;
-            BindCommonParameters(countCmd, query, hasLocation, searchPattern, search, pincode, city);
+            BindCommonParameters(countCmd, query, hasLocation, searchPattern, search, pincode, city, appliedRadiusKm);
 
             var totalCount = Convert.ToInt32(await countCmd.ExecuteScalarAsync(cancellationToken) ?? 0);
 
@@ -83,7 +94,7 @@ namespace localink_be.Repositories.Implementations
                 await using var dataCmd = connection.CreateCommand();
                 dataCmd.CommandText = dataSql;
                 dataCmd.CommandType = CommandType.Text;
-                BindCommonParameters(dataCmd, query, hasLocation, searchPattern, search, pincode, city);
+                BindCommonParameters(dataCmd, query, hasLocation, searchPattern, search, pincode, city, appliedRadiusKm);
                 AddParameter(dataCmd, "@Offset", offset);
                 AddParameter(dataCmd, "@PageSize", pageSize);
 
@@ -120,8 +131,8 @@ namespace localink_be.Repositories.Implementations
             {
                 var dto = items.FirstOrDefault(x => x.Id == id);
                 if (dto == null) continue;
-                if (distanceMap.TryGetValue(id, out var d))
-                    dto.Distance = d;
+                if (distanceMap.TryGetValue(id, out var d) && d.HasValue)
+                    dto.Distance = Math.Round(d.Value, 2);
                 ordered.Add(dto);
             }
 
@@ -156,7 +167,8 @@ namespace localink_be.Repositories.Implementations
             bool hasLocation,
             bool hasSearch,
             bool hasCategory,
-            bool hasSubcategory)
+            bool hasSubcategory,
+            bool applyRadius)
         {
             var filters = new StringBuilder();
             filters.AppendLine("WHERE ad.Status = @ApprovedStatus");
@@ -183,9 +195,41 @@ namespace localink_be.Repositories.Implementations
                 """);
             }
 
+            // Haversine from stored lat/lng so displayed km matches map navigation.
             var distanceExpr = hasLocation
-                ? "CASE WHEN c.geo_location IS NOT NULL THEN (c.geo_location.STDistance(@UserPoint) / 1000.0) ELSE CAST(NULL AS float) END"
+                ? """
+                CASE
+                  WHEN c.latitude IS NULL OR c.longitude IS NULL OR (c.latitude = 0 AND c.longitude = 0)
+                    THEN CAST(NULL AS float)
+                  ELSE 6371.0 * 2 * ASIN(SQRT(
+                    CASE
+                      WHEN (
+                        POWER(SIN(RADIANS(c.latitude - @UserLat) / 2.0), 2)
+                        + COS(RADIANS(@UserLat)) * COS(RADIANS(c.latitude))
+                          * POWER(SIN(RADIANS(c.longitude - @UserLng) / 2.0), 2)
+                      ) > 1 THEN 1
+                      WHEN (
+                        POWER(SIN(RADIANS(c.latitude - @UserLat) / 2.0), 2)
+                        + COS(RADIANS(@UserLat)) * COS(RADIANS(c.latitude))
+                          * POWER(SIN(RADIANS(c.longitude - @UserLng) / 2.0), 2)
+                      ) < 0 THEN 0
+                      ELSE (
+                        POWER(SIN(RADIANS(c.latitude - @UserLat) / 2.0), 2)
+                        + COS(RADIANS(@UserLat)) * COS(RADIANS(c.latitude))
+                          * POWER(SIN(RADIANS(c.longitude - @UserLng) / 2.0), 2)
+                      )
+                    END
+                  ))
+                END
+                """
                 : "CAST(NULL AS float)";
+
+            if (applyRadius)
+            {
+                filters.AppendLine("  AND c.latitude IS NOT NULL AND c.longitude IS NOT NULL");
+                filters.AppendLine("  AND NOT (c.latitude = 0 AND c.longitude = 0)");
+                filters.AppendLine($"  AND ({distanceExpr}) <= @RadiusKm");
+            }
 
             // Chosen sort mode is primary; distance is only primary for Nearest.
             // Search uses relevance first so a weak nearby match cannot bury a true name/category hit.
@@ -203,6 +247,7 @@ namespace localink_be.Repositories.Implementations
                         COUNT_BIG(*) AS TotalReviews
                     FROM dbo.business_reviews r
                     WHERE r.business_id = b.business_id
+                      AND ISNULL(r.is_flagged, 0) = 0
                 ) rev
                 OUTER APPLY (
                     SELECT
@@ -257,7 +302,7 @@ namespace localink_be.Repositories.Implementations
 
             // Missing coordinates are ranked after businesses with a real distance. Never invent coords.
             var missingGeoLast = hasLocation
-                ? "CASE WHEN c.geo_location IS NULL THEN 1 ELSE 0 END ASC, "
+                ? "CASE WHEN c.latitude IS NULL OR c.longitude IS NULL OR (c.latitude = 0 AND c.longitude = 0) THEN 1 ELSE 0 END ASC, "
                 : string.Empty;
 
             var distanceTiebreak = hasLocation
@@ -298,7 +343,8 @@ namespace localink_be.Repositories.Implementations
             string? searchPattern,
             string? searchExact,
             string? pincode,
-            string? city)
+            string? city,
+            double? radiusKm)
         {
             AddParameter(cmd, "@ApprovedStatus", ApprovedStatus);
 
@@ -306,11 +352,10 @@ namespace localink_be.Repositories.Implementations
             {
                 AddParameter(cmd, "@UserLat", query.Latitude!.Value);
                 AddParameter(cmd, "@UserLng", query.Longitude!.Value);
-
-                cmd.CommandText = """
-                    DECLARE @UserPoint geography = geography::Point(@UserLat, @UserLng, 4326);
-                    """ + cmd.CommandText;
             }
+
+            if (radiusKm.HasValue)
+                AddParameter(cmd, "@RadiusKm", radiusKm.Value);
 
             if (query.CategoryId.HasValue)
                 AddParameter(cmd, "@CategoryId", query.CategoryId.Value);
@@ -365,8 +410,8 @@ namespace localink_be.Repositories.Implementations
                     Status = _db.AdminDashboards.Where(a => a.BusinessId == b.BusinessId).Select(a => a.Status.ToString()).FirstOrDefault(),
                     PrimaryImage = _db.BusinessPhotos.Where(p => p.BusinessId == b.BusinessId).OrderByDescending(p => p.IsPrimary).Select(p => p.ImageUrl).FirstOrDefault(),
                     Photos = _db.BusinessPhotos.Where(p => p.BusinessId == b.BusinessId).OrderByDescending(p => p.IsPrimary).Select(p => p.ImageUrl).ToList(),
-                    AverageRating = _db.BusinessReviews.Where(r => r.BusinessId == b.BusinessId).Select(r => (double?)r.Rating).Average() ?? 0.0,
-                    TotalReviews = _db.BusinessReviews.Count(r => r.BusinessId == b.BusinessId),
+                    AverageRating = _db.BusinessReviews.Where(r => r.BusinessId == b.BusinessId && !r.IsFlagged).Select(r => (double?)r.Rating).Average() ?? 0.0,
+                    TotalReviews = _db.BusinessReviews.Count(r => r.BusinessId == b.BusinessId && !r.IsFlagged),
                     IsTemporarilyClosed = b.TemporaryClosureStatus == "Approved" && b.TemporaryClosureReopenDate.HasValue && b.TemporaryClosureReopenDate.Value > DateTime.UtcNow,
                     TemporaryClosureReason = b.TemporaryClosureReason,
                     TemporaryClosureStatus = b.TemporaryClosureStatus,

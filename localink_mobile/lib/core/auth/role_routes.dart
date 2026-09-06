@@ -26,16 +26,21 @@ class RoleRoutes {
     return 'user';
   }
 
+  static const userAgreement = '/user-agreement';
+
   /// Post-auth destination.
-  /// Continue As when [needsExperienceSelection] is true (new account or
-  /// interactive login/Google sign-in). Session restore skips this.
+  /// New accounts hit User Agreement first, then Continue As when
+  /// [needsExperienceSelection] is true. Session restore skips both when done.
   static String resolvePostAuthRoute({
     required String? accountType,
     String? activeExperience,
     bool needsExperienceSelection = false,
+    bool needsUserAgreement = false,
   }) {
     final account = normalize(accountType);
     if (account == 'admin') return '/admin-dashboard';
+
+    if (needsUserAgreement) return userAgreement;
 
     if (needsExperienceSelection) return continueAs;
 
@@ -72,5 +77,19 @@ class RoleRoutes {
   static bool canAccessOwnerRoutes(String? userType) {
     final role = normalize(userType);
     return role == 'businessowner' || role == 'admin';
+  }
+
+  /// True when this session is in consumer mode (Continue As → User).
+  /// Owners keep `account_type=businessowner` in DB/JWT, but can still use
+  /// consumer features (reviews, etc.) when [activeExperience] is `user`.
+  static bool isConsumerExperience({
+    required String? accountType,
+    String? activeExperience,
+  }) {
+    if (isAdmin(accountType)) return false;
+    final experience = normalize(
+      activeExperience ?? experienceForAccountType(accountType),
+    );
+    return experience == 'user' || experience == 'client';
   }
 }

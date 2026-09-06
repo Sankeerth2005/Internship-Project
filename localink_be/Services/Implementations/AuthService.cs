@@ -187,6 +187,9 @@ namespace localink_be.Services.Implementations
 
                 var payload = await GoogleJsonWebSignature.ValidateAsync(idToken, settings);
 
+                if (payload.EmailVerified != true)
+                    throw new UnauthorizedAccessException("Google email is not verified");
+
                 var email = payload.Email.ToLower();
                 var name = payload.Name;
                 var picture = payload.Picture;
@@ -196,6 +199,30 @@ namespace localink_be.Services.Implementations
 
                 if (user != null)
                 {
+                    // Verified Google email matches an existing account → sign in (password and Google both OK).
+                    var changed = false;
+                    if (!string.Equals(user.AuthProvider, "google", StringComparison.OrdinalIgnoreCase)
+                        || string.IsNullOrEmpty(user.ProviderId))
+                    {
+                        user.AuthProvider = "google";
+                        user.ProviderId = payload.Subject;
+                        changed = true;
+                    }
+                    else if (!string.Equals(user.ProviderId, payload.Subject, StringComparison.Ordinal))
+                    {
+                        user.ProviderId = payload.Subject;
+                        changed = true;
+                    }
+
+                    if (string.IsNullOrWhiteSpace(user.ProfilePicture) && !string.IsNullOrWhiteSpace(picture))
+                    {
+                        user.ProfilePicture = picture;
+                        changed = true;
+                    }
+
+                    if (changed)
+                        await _context.SaveChangesAsync();
+
                     return await IssueSessionAsync(user, isNewUser: false);
                 }
 
@@ -303,8 +330,9 @@ namespace localink_be.Services.Implementations
             if (user == null)
                 return "If the email exists, an OTP has been sent";
 
+            // Same response + silent cooldown for known emails to avoid enumeration.
             if (user.OtpExpiry != null && user.OtpExpiry > DateTime.UtcNow.AddMinutes(-1))
-                throw new InvalidOperationException("Please wait before requesting another OTP");
+                return "If the email exists, an OTP has been sent";
 
             var otp = GenerateOtp();
 
@@ -321,6 +349,11 @@ namespace localink_be.Services.Implementations
             }
             catch (Exception ex)
             {
+                // Roll back OTP so a mail failure cannot lock the user into a 15m dead code.
+                user.PasswordResetOtp = null;
+                user.OtpExpiry = null;
+                user.OtpAttempts = 0;
+                await _context.SaveChangesAsync();
                 _logger.LogError(ex, "Email sending failed during OTP generation for {Email}", normalizedEmail);
             }
 
@@ -335,21 +368,26 @@ namespace localink_be.Services.Implementations
                 .FirstOrDefaultAsync(u => u.Email == normalizedEmail);
 
             if (user == null)
-                throw new UnauthorizedAccessException("Invalid request");
+                throw new UnauthorizedAccessException("Invalid OTP or request");
 
             if (user.OtpAttempts >= 5)
-                throw new UnauthorizedAccessException("Too many attempts. Request new OTP");
+                throw new UnauthorizedAccessException("Invalid OTP or request");
+
+            // Check expiry before BCrypt to avoid expensive hash work on expired OTPs (DoS).
+            if (user.OtpExpiry == null || user.OtpExpiry < DateTime.UtcNow)
+            {
+                user.OtpAttempts += 1;
+                await _context.SaveChangesAsync();
+                throw new UnauthorizedAccessException("Invalid OTP or request");
+            }
 
             if (string.IsNullOrEmpty(user.PasswordResetOtp) ||
                 !BCrypt.Net.BCrypt.Verify(otp, user.PasswordResetOtp))
             {
                 user.OtpAttempts += 1;
                 await _context.SaveChangesAsync();
-                throw new UnauthorizedAccessException("Invalid OTP");
+                throw new UnauthorizedAccessException("Invalid OTP or request");
             }
-
-            if (user.OtpExpiry < DateTime.UtcNow)
-                throw new UnauthorizedAccessException("OTP expired");
 
             user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(newPassword, 12);
             user.OtpAttempts = 0;
@@ -391,7 +429,7 @@ namespace localink_be.Services.Implementations
 
             var accountType = NormalizeAccountType(user.AccountType);
             var ownsBusiness = await _context.Businesses.AnyAsync(b => b.UserId == userId);
-            var canOwner = accountType == "businessowner" || accountType == "admin" || ownsBusiness;
+            var canOwner = accountType == "businessowner" || ownsBusiness;
             var canUser = accountType != "admin";
 
             var experiences = new List<string>();
@@ -461,11 +499,29 @@ namespace localink_be.Services.Implementations
             };
         }
 
+        public async Task<object> AcceptUserConsentAsync(long userId)
+        {
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.UserId == userId)
+                ?? throw new UnauthorizedAccessException("User not found");
+
+            if (!user.ConsentAccepted && NormalizeAccountType(user.AccountType) != "admin")
+            {
+                user.ConsentAccepted = true;
+                user.UpdatedAt = DateTime.UtcNow;
+                await _context.SaveChangesAsync();
+            }
+
+            return await IssueSessionAsync(user);
+        }
+
         private static string NormalizeAccountType(string? accountType) =>
             (accountType ?? "user").Trim().ToLowerInvariant();
 
         private async Task<object> IssueSessionAsync(User user, bool isNewUser = false)
         {
+            // One active refresh family per login — revoke prior sessions.
+            await RevokeAllUserTokensAsync(user.UserId);
+
             var accessToken = GenerateAccessToken(user);
             var (refreshToken, entity) = CreateRefreshTokenEntity(user.UserId);
             _context.RefreshTokens.Add(entity);
@@ -487,7 +543,8 @@ namespace localink_be.Services.Implementations
                     name = user.FullName,
                     email = user.Email,
                     userType = user.AccountType,
-                    isNewUser
+                    isNewUser,
+                    consentAccepted = user.ConsentAccepted
                 }
             };
         }
@@ -531,12 +588,13 @@ namespace localink_be.Services.Implementations
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
-            var claims = new[]
+            var claims = new List<Claim>
             {
                 new Claim(ClaimTypes.NameIdentifier, user.UserId.ToString()),
                 new Claim(ClaimTypes.Email, user.Email),
                 new Claim(ClaimTypes.Role, user.AccountType ?? "user"),
-                new Claim(ClaimTypes.Name, user.FullName ?? "")
+                new Claim(ClaimTypes.Name, user.FullName ?? ""),
+                new Claim("consent_accepted", user.ConsentAccepted ? "true" : "false")
             };
 
             var token = new JwtSecurityToken(

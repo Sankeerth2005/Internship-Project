@@ -17,7 +17,7 @@ void main() {
     test('rejects short Indian number', () {
       expect(
         AppValidators.phone('98765', countryCode: '91'),
-        'Indian phone number must be exactly 10 digits',
+        contains('exactly 10 digits'),
       );
     });
 
@@ -52,6 +52,10 @@ void main() {
         AppValidators.phone('202555012', countryCode: '1'),
         contains('10 digits'),
       );
+      expect(
+        AppValidators.phone('202555012', countryCode: '1', countryName: 'United States'),
+        contains('+1'),
+      );
     });
 
     test('revalidation after country change', () {
@@ -59,6 +63,31 @@ void main() {
       expect(
         AppValidators.phone('9876543210', countryCode: '33'),
         contains('9 digits'),
+      );
+      expect(
+        AppValidators.hasValidLengthForCountry(
+          '9876543210',
+          countryCode: '33',
+        ),
+        isFalse,
+      );
+      expect(
+        AppValidators.hasValidLengthForCountry(
+          '9876543210',
+          countryCode: '91',
+        ),
+        isTrue,
+      );
+    });
+
+    test('rejects empty calling code', () {
+      expect(
+        AppValidators.phone('9876543210', countryCode: ''),
+        'Country code is required',
+      );
+      expect(
+        AppValidators.phone('9876543210', countryCode: null),
+        'Country code is required',
       );
     });
   });

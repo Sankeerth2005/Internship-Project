@@ -25,6 +25,9 @@ class OptimizedNetworkImage extends StatefulWidget {
   final int maxRetries;
   final int? memCacheWidth;
   final int? memCacheHeight;
+  /// Optional cache key / version. When set, used as [CachedNetworkImage.cacheKey]
+  /// and appended as `?v=` / `&v=` so updated photos bust disk/memory cache.
+  final String? cacheKey;
 
   const OptimizedNetworkImage({
     super.key,
@@ -43,6 +46,7 @@ class OptimizedNetworkImage extends StatefulWidget {
     this.maxRetries = 2,
     this.memCacheWidth,
     this.memCacheHeight,
+    this.cacheKey,
   });
 
   /// Convenience for business cover / list thumbnails.
@@ -56,6 +60,7 @@ class OptimizedNetworkImage extends StatefulWidget {
     Color placeholderColor = const Color(0xFFF0EFEA),
     Color iconColor = const Color(0xFFFF6600),
     double iconSize = 36,
+    String? cacheKey,
   }) {
     return OptimizedNetworkImage(
       key: key,
@@ -68,10 +73,21 @@ class OptimizedNetworkImage extends StatefulWidget {
       errorIcon: Icons.storefront_rounded,
       errorIconColor: iconColor,
       errorIconSize: iconSize,
+      cacheKey: cacheKey,
       // Decode near display size to cut RAM on list scrolls
       memCacheWidth: width != null && width.isFinite ? (width * 2).round() : 800,
       memCacheHeight: height != null && height.isFinite ? (height * 2).round() : 600,
     );
+  }
+
+  /// Evict a resolved image URL from the disk/memory cache (e.g. after photo replace).
+  static Future<void> evict(String? imageUrl) async {
+    if (imageUrl == null || imageUrl.isEmpty) return;
+    final resolved = DioClient.resolveUrl(imageUrl);
+    if (resolved == null || resolved.isEmpty) return;
+    try {
+      await CachedNetworkImage.evictFromCache(resolved);
+    } catch (_) {}
   }
 
   @override
@@ -142,9 +158,17 @@ class _OptimizedNetworkImageState extends State<OptimizedNetworkImage> {
     if (url == null) {
       child = _error();
     } else {
-      final requestUrl = _cacheBust == 0 ? url : '$url${url.contains('?') ? '&' : '?'}_r=$_cacheBust';
+      var requestUrl = url;
+      final version = widget.cacheKey;
+      if (version != null && version.isNotEmpty) {
+        requestUrl = '$requestUrl${requestUrl.contains('?') ? '&' : '?'}v=${Uri.encodeQueryComponent(version)}';
+      }
+      if (_cacheBust > 0) {
+        requestUrl = '$requestUrl${requestUrl.contains('?') ? '&' : '?'}_r=$_cacheBust';
+      }
       child = CachedNetworkImage(
         imageUrl: requestUrl,
+        cacheKey: version?.isNotEmpty == true ? version : null,
         width: widget.width,
         height: widget.height,
         fit: widget.fit,

@@ -1,10 +1,11 @@
 namespace localink_be.Models.Enums
 {
     /// <summary>
-    /// Server-side business discovery sort modes.
-    /// Coordinates rank results by distance and never hide farther businesses.
-    /// Only <see cref="Nearest"/> ranks primarily by distance (after search relevance when querying).
-    /// Other modes rank by their criterion, using distance as a tiebreaker.
+        /// Server-side business discovery sort modes.
+        /// When the viewer has coordinates, results are limited to the nearby radius
+        /// (default 30 km). Only <see cref="Nearest"/> ranks primarily by distance
+        /// (after search relevance when querying). Other modes rank by their criterion,
+        /// using distance as a tiebreaker.
     /// </summary>
     public enum BusinessSortMode
     {

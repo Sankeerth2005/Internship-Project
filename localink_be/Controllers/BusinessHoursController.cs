@@ -42,7 +42,7 @@ namespace localink_be.Controllers
                 throw new UnauthorizedAccessException("You do not own this business");
         }
 
-        [Authorize(Roles = "client,businessowner,admin")]
+        [Authorize(Roles = "user,client,businessowner,admin")]
         [HttpPost]
         public async Task<IActionResult> CreateOrReplaceBusinessHours(long businessId, [FromBody] System.Collections.Generic.List<DayHoursDto> dto)
         {

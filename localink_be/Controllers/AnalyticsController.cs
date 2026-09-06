@@ -106,7 +106,7 @@ namespace localink_be.Controllers
             return Ok(new { success = true, clicks });
         }
 
-        [Authorize(Roles = "client,businessowner,admin")]
+        [Authorize(Roles = "user,client,businessowner,admin")]
         [HttpGet("business/{id}")]
         public async Task<IActionResult> GetMetrics(long id)
         {
@@ -132,23 +132,48 @@ namespace localink_be.Controllers
             });
         }
 
-        [Authorize(Roles = "client,businessowner,admin")]
+        [Authorize(Roles = "user,client,businessowner,admin")]
         [HttpPost("ai-insights/{id}")]
         public async Task<IActionResult> GetAiInsights(long id)
         {
             if (!await OwnsBusinessAsync(id))
                 return Forbid();
 
-            var business = await _db.Businesses.FirstOrDefaultAsync(b => b.BusinessId == id);
+            var business = await _db.Businesses
+                .Include(b => b.Category)
+                .FirstOrDefaultAsync(b => b.BusinessId == id);
             if (business == null) return NotFound("Business not found");
 
             var metric = await _db.BusinessMetrics.FirstOrDefaultAsync(m => m.BusinessId == id);
             var favoritesCount = await _db.Favorites.CountAsync(f => f.BusinessId == id);
+            var photoCount = await _db.BusinessPhotos.CountAsync(p => p.BusinessId == id);
+            var reviewCount = await _db.BusinessReviews.CountAsync(r => r.BusinessId == id && !r.IsFlagged);
+            var averageRating = reviewCount > 0
+                ? await _db.BusinessReviews.Where(r => r.BusinessId == id && !r.IsFlagged).AverageAsync(r => (double)r.Rating)
+                : 0d;
+            var city = await _db.BusinessContacts
+                .Where(c => c.BusinessId == id)
+                .Select(c => c.City)
+                .FirstOrDefaultAsync();
 
             int views = metric?.Views ?? 0;
             int clicks = metric?.ContactClicks ?? 0;
+            var isTemporarilyClosed = business.TemporaryClosureStatus == "Approved"
+                && business.TemporaryClosureReopenDate.HasValue
+                && business.TemporaryClosureReopenDate.Value > DateTime.UtcNow;
 
-            var insights = await _aiService.GetBusinessInsightsAsync(views, favoritesCount, clicks, business.BusinessName);
+            var insights = await _aiService.GetBusinessInsightsAsync(
+                views,
+                favoritesCount,
+                clicks,
+                business.BusinessName,
+                category: business.Category?.CategoryName,
+                city: city,
+                hasPhotos: photoCount > 0,
+                photoCount: photoCount,
+                reviewCount: reviewCount,
+                averageRating: averageRating,
+                isTemporarilyClosed: isTemporarilyClosed);
             return Ok(new { success = true, data = insights });
         }
 

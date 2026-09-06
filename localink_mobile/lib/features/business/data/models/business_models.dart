@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 class CategoryDto {
   final int categoryId;
   final String categoryName;
@@ -61,9 +63,16 @@ class SlotDto {
   SlotDto({required this.open, required this.close});
 
   factory SlotDto.fromJson(Map<String, dynamic> json) {
+    String coerceTime(dynamic value) {
+      if (value == null) return '';
+      if (value is String) return value;
+      // ASP.NET TimeSpan occasionally serializes as an object; toString is a safe fallback.
+      return value.toString();
+    }
+
     return SlotDto(
-      open: json['open'] ?? json['openTime'] ?? '',
-      close: json['close'] ?? json['closeTime'] ?? '',
+      open: coerceTime(json['open'] ?? json['openTime'] ?? json['OpenTime']),
+      close: coerceTime(json['close'] ?? json['closeTime'] ?? json['CloseTime']),
     );
   }
 
@@ -95,11 +104,14 @@ class DayHoursDto {
   });
 
   factory DayHoursDto.fromJson(Map<String, dynamic> json) {
-    var slotsJson = json['slots'] as List? ?? [];
+    var slotsJson = json['slots'] as List? ?? json['Slots'] as List? ?? [];
     return DayHoursDto(
-      day: json['day'] ?? json['dayOfWeek'] ?? '',
-      mode: json['mode'] ?? '',
-      slots: slotsJson.map((e) => SlotDto.fromJson(e)).toList(),
+      day: json['day'] ?? json['dayOfWeek'] ?? json['DayOfWeek'] ?? '',
+      mode: json['mode'] ?? json['Mode'] ?? '',
+      slots: slotsJson
+          .whereType<Map>()
+          .map((e) => SlotDto.fromJson(Map<String, dynamic>.from(e)))
+          .toList(),
     );
   }
 
@@ -177,7 +189,7 @@ class BusinessDto {
   });
 
   factory BusinessDto.fromJson(Map<String, dynamic> json) {
-    var hoursJson = json['hours'] as List? ?? [];
+    var hoursJson = json['hours'] as List? ?? json['Hours'] as List? ?? [];
     var photosJson = json['photos'] as List? ?? [];
     if (photosJson.isEmpty) {
       final primImg = json['primaryImage'] ?? json['primary_image'] ?? json['PrimaryImage'];
@@ -226,7 +238,10 @@ class BusinessDto {
       averageRating: ((json['averageRating'] ?? json['average_rating'] ?? 0.0) as num).toDouble(),
       reviewCount: json['reviewCount'] ?? json['review_count'] ?? json['totalReviews'] ?? json['total_reviews'] ?? 0,
       status: json['status'],
-      hours: hoursJson.map((e) => DayHoursDto.fromJson(e)).toList(),
+      hours: hoursJson
+          .whereType<Map>()
+          .map((e) => DayHoursDto.fromJson(Map<String, dynamic>.from(e)))
+          .toList(),
       photos: parsedPhotos,
       photo: json['photo'],
       isTemporarilyClosed: json['isTemporarilyClosed'] ?? json['is_temporarily_closed'] ?? false,
@@ -243,6 +258,8 @@ class BusinessDto {
         'description': description,
         'categoryId': categoryId,
         'subcategoryId': subcategoryId,
+        'categoryName': categoryName,
+        'subcategoryName': subcategoryName,
         'phoneCode': phoneCode,
         'phoneNumber': phoneNumber,
         'email': email,
@@ -255,9 +272,31 @@ class BusinessDto {
         'latitude': latitude,
         'longitude': longitude,
         'distance': distance,
+        'averageRating': averageRating,
+        'reviewCount': reviewCount,
+        'status': status,
         'hours': hours.map((e) => e.toJson()).toList(),
+        'photos': photos,
         'photo': photo,
+        'isTemporarilyClosed': isTemporarilyClosed,
+        'temporaryClosureReason': temporaryClosureReason,
+        'temporaryClosureStatus': temporaryClosureStatus,
+        'temporaryClosureDays': temporaryClosureDays,
+        'temporaryClosureReopenDate': temporaryClosureReopenDate?.toIso8601String(),
       };
+}
+
+/// Response from POST /api/v1/search/voice (intent-aware discovery).
+class VoiceSearchResult {
+  final List<BusinessDto> results;
+  final int totalCount;
+  final String message;
+
+  const VoiceSearchResult({
+    required this.results,
+    required this.totalCount,
+    this.message = '',
+  });
 }
 
 /// Server-side paged discovery response from GET /api/v1/businesses
@@ -342,7 +381,7 @@ class BusinessReviewDto {
       reviewId: json['reviewId'] ?? json['review_id'] ?? 0,
       businessId: json['businessId'] ?? json['business_id'] ?? 0,
       rating: ((json['rating'] ?? 0.0) as num).toDouble(),
-      comment: json['comment'] ?? '',
+      comment: sanitizeReviewComment(json['comment']),
       userName: json['userName'] ?? json['user_name'] ?? 'Anonymous',
       createdAt: json['createdAt'] != null 
           ? DateTime.parse(json['createdAt']) 
@@ -350,4 +389,38 @@ class BusinessReviewDto {
       imageUrl: json['imageUrl'] as String?,
     );
   }
+}
+
+String sanitizeReviewComment(dynamic raw) {
+  if (raw == null) return '';
+  if (raw is List) {
+    for (final item in raw) {
+      final text = sanitizeReviewComment(item);
+      if (text.isNotEmpty) return text;
+    }
+    return '';
+  }
+
+  var text = raw.toString().trim();
+  if (text.isEmpty) return '';
+  if (text == '[]' || text == 'null') return '';
+
+  final looksLikeJsonList = text.startsWith('[') && (text.contains('"') || text == '[]');
+  final looksLikeQuoted = text.startsWith('"') && text.endsWith('"') && text.length > 1;
+  if (looksLikeJsonList || looksLikeQuoted) {
+    try {
+      final decoded = jsonDecode(text);
+      final nested = sanitizeReviewComment(decoded);
+      if (nested.isNotEmpty) return nested;
+      if (decoded is List) return '';
+    } catch (_) {
+      text = text.replaceAll(RegExp(r'[\[\]"]'), ' ').replaceAll(RegExp(r'\s+'), ' ').trim();
+      if (text.contains(',')) {
+        final first = text.split(',').map((e) => e.trim()).firstWhere((e) => e.isNotEmpty, orElse: () => '');
+        if (first.isNotEmpty) return first;
+      }
+    }
+  }
+
+  return text;
 }

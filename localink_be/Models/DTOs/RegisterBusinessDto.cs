@@ -52,10 +52,12 @@ namespace localink_be.Models.DTOs
         [StringLength(100, ErrorMessage = "Country cannot exceed 100 characters")]
         public string Country { get; set; } = string.Empty;
 
-        [RegularExpression(@"^$|^[A-Za-z0-9\-\s]{3,10}$", ErrorMessage = "Invalid pincode format")]
+        [RegularExpression(@"^$|^[A-Za-z0-9\-\s]{3,16}$", ErrorMessage = "Invalid pincode format")]
         public string Pincode { get; set; } = string.Empty;
 
-        public int UserId { get; set; }
+        public int UserId { get; set; } // unused — ownership comes from JWT; retained for wire compat only
+
+        // JsonIgnore would break older clients that still send it; server ignores this value.
 
         [Range(-90, 90, ErrorMessage = "Latitude must be between -90 and 90")]
         public double? Latitude { get; set; }

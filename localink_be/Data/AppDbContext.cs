@@ -192,6 +192,9 @@ namespace localink_be.Data
                 entity.Property(u => u.ProviderId).HasColumnName("provider_id");
                 entity.Property(u => u.CreatedAt).HasColumnName("created_at");
                 entity.Property(u => u.UpdatedAt).HasColumnName("updated_at");
+                entity.Property(u => u.ConsentAccepted)
+                    .HasColumnName("consent_accepted")
+                    .HasDefaultValue(false);
 
                 entity.HasIndex(u => u.PhoneNumber).IsUnique();
                 entity.HasIndex(u => u.Email).IsUnique();
@@ -237,9 +240,12 @@ namespace localink_be.Data
                 entity.Property(r => r.CreatedAt).HasColumnName("created_at");
                 entity.Property(r => r.UpdatedAt).HasColumnName("updated_at");
                 entity.Property(r => r.ImageUrl).HasColumnName("image_url");
+                entity.Property(r => r.IsFlagged).HasColumnName("is_flagged").HasDefaultValue(false);
+                entity.Property(r => r.ModerationReason).HasColumnName("moderation_reason").HasMaxLength(500);
 
                 entity.HasIndex(r => r.BusinessId);
                 entity.HasIndex(r => r.UserId);
+                entity.HasIndex(r => r.IsFlagged);
 
                 entity.HasOne(r => r.User)
                     .WithMany()

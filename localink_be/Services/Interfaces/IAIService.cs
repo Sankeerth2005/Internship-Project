@@ -6,7 +6,18 @@ namespace localink_be.Services.Interfaces
         Task<string?> GetReviewSummaryAsync(string[] reviews, double averageRating, int totalReviews, string businessName);
         Task<string?> GenerateDescriptionAsync(string businessName, string category, string[] keywords);
         Task<string?> ChatSearchAsync(string message, string chatHistoryJson, double? userLat = null, double? userLng = null);
-        Task<string?> GetBusinessInsightsAsync(int views, int favorites, int clicks, string businessName);
+        Task<string?> GetBusinessInsightsAsync(
+            int views,
+            int favorites,
+            int clicks,
+            string businessName,
+            string? category = null,
+            string? city = null,
+            bool hasPhotos = false,
+            int photoCount = 0,
+            int reviewCount = 0,
+            double averageRating = 0,
+            bool isTemporarilyClosed = false);
         Task<string?> GetPersonalizedWelcomeAsync(string categoryPref, string timeOfDay);
         Task<string?> TranscribeAudioAsync(Microsoft.AspNetCore.Http.IFormFile file);
         Task<(bool isFlagged, string reason)> ModerateContentAsync(string content);

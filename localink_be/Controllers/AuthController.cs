@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.RateLimiting;
 using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
@@ -12,7 +11,6 @@ namespace localink_be.Controllers
     [AllowAnonymous]
     [ApiController]
     [Route("api/v1/auth")]
-    [EnableRateLimiting("AuthPolicy")]
     public class AuthController : ControllerBase
     {
         private readonly IAuthService _authService;
@@ -179,6 +177,24 @@ namespace localink_be.Controllers
             {
                 success = true,
                 message = result
+            });
+        }
+
+        // ACCEPT USER AGREEMENT (mandatory consent gate)
+        [Authorize]
+        [HttpPost("accept-consent")]
+        public async Task<IActionResult> AcceptUserConsent()
+        {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userIdClaim) || !long.TryParse(userIdClaim, out var userId))
+                return Unauthorized(new { success = false, message = "Unauthorized" });
+
+            var result = await _authService.AcceptUserConsentAsync(userId);
+
+            return Ok(new
+            {
+                success = true,
+                data = result
             });
         }
 

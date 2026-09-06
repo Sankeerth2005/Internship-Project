@@ -3,6 +3,7 @@ import '../../../core/auth/role_routes.dart';
 import '../../../core/network/dio_client.dart';
 import '../../../core/network/signalr_service.dart';
 import '../../../core/storage/secure_storage_service.dart';
+import '../../../core/storage/user_prefs_store.dart';
 import '../../../core/network/app_error_formatter.dart';
 import '../data/models/login_request.dart';
 import '../data/models/register_request.dart';
@@ -59,8 +60,10 @@ class AuthNotifier extends Notifier<AuthState> {
     final activeExperience = await SecureStorageService.getActiveExperience();
     final needsSelection =
         await SecureStorageService.getNeedsExperienceSelection();
+    final needsAgreement = await SecureStorageService.getNeedsUserAgreement();
 
     if (userType == null || userId == null) {
+      await SecureStorageService.clearAuth();
       state = const AuthUnauthenticated();
       return;
     }
@@ -90,10 +93,12 @@ class AuthNotifier extends Notifier<AuthState> {
         userId,
         activeExperience: activeExperience,
         needsExperienceSelection: needsSelection,
+        needsUserAgreement: needsAgreement,
       );
       return;
     }
 
+    await SecureStorageService.clearAuth();
     state = const AuthUnauthenticated();
   }
 
@@ -104,13 +109,22 @@ class AuthNotifier extends Notifier<AuthState> {
     bool promptExperienceSelection = false,
   }) async {
     final parsedUserId = int.tryParse(response.user.id) ?? 0;
-
-    await SecureStorageService.saveToken(response.token);
-    if (response.refreshToken != null && response.refreshToken!.isNotEmpty) {
-      await SecureStorageService.saveRefreshToken(response.refreshToken!);
+    if (parsedUserId < 1) {
+      await SecureStorageService.clearAuth();
+      throw StateError('Invalid user id in auth response');
     }
-    await SecureStorageService.saveUserType(response.user.userType);
-    await SecureStorageService.saveUserId(parsedUserId);
+
+    try {
+      await SecureStorageService.saveToken(response.token);
+      if (response.refreshToken != null && response.refreshToken!.isNotEmpty) {
+        await SecureStorageService.saveRefreshToken(response.refreshToken!);
+      }
+      await SecureStorageService.saveUserType(response.user.userType);
+      await SecureStorageService.saveUserId(parsedUserId);
+    } catch (e) {
+      await SecureStorageService.clearAuth();
+      rethrow;
+    }
 
     String? experience;
     var needsSelection = false;
@@ -118,6 +132,7 @@ class AuthNotifier extends Notifier<AuthState> {
 
     if (!isAdmin && (isNewUser || promptExperienceSelection)) {
       // Interactive login / signup / Google auth → Continue As (does not create accounts).
+      await SecureStorageService.clearActiveExperience();
       await SecureStorageService.saveNeedsExperienceSelection(true);
       experience = null;
       needsSelection = true;
@@ -137,6 +152,9 @@ class AuthNotifier extends Notifier<AuthState> {
       needsSelection = false;
     }
 
+    final needsAgreement = !isAdmin && !response.user.consentAccepted;
+    await SecureStorageService.saveNeedsUserAgreement(needsAgreement);
+
     ref.read(userRepositoryProvider).clearCache();
     ref.invalidate(userProfileProvider);
     ref.invalidate(myBusinessesProvider);
@@ -145,6 +163,7 @@ class AuthNotifier extends Notifier<AuthState> {
       parsedUserId,
       activeExperience: experience,
       needsExperienceSelection: needsSelection,
+      needsUserAgreement: needsAgreement,
     );
   }
 
@@ -160,6 +179,7 @@ class AuthNotifier extends Notifier<AuthState> {
       );
 
       final response = await _repository.login(request);
+
       // Existing account: still choose User / Business Owner for this session.
       await _persistSession(
         response,
@@ -175,6 +195,7 @@ class AuthNotifier extends Notifier<AuthState> {
     state = const AuthLoading();
     try {
       final message = await _repository.register(request);
+      await UserPrefsStore.markPendingAgreementEmail(request.email);
       state = const AuthUnauthenticated();
       return message;
     } catch (e) {
@@ -223,6 +244,24 @@ class AuthNotifier extends Notifier<AuthState> {
     return result;
   }
 
+  /// Persists mandatory User Agreement acceptance on the account (backend).
+  Future<void> acceptUserAgreement() async {
+    final current = state;
+    if (current is! AuthAuthenticated) {
+      throw Exception('Not authenticated');
+    }
+
+    final response = await _repository.acceptUserConsent();
+    await UserPrefsStore.setAcceptedUserAgreement(current.userId);
+    await UserPrefsStore.clearPendingAgreementEmail();
+    await _persistSession(
+      response,
+      isNewUser: false,
+      preserveActiveExperience: current.activeExperience,
+      promptExperienceSelection: current.needsExperienceSelection,
+    );
+  }
+
   /// After first business registration, refresh JWT/account type and enter Owner.
   Future<void> syncSessionAfterOwnerOnboarding() async {
     final refreshToken = await SecureStorageService.getRefreshToken();
@@ -238,21 +277,12 @@ class AuthNotifier extends Notifier<AuthState> {
         );
         return;
       } catch (_) {
-        // Fall through to local promotion if refresh fails.
+        // Do not fake businessowner in local storage without a matching JWT —
+        // owner APIs would 403. Keep session as-is until refresh succeeds.
       }
     }
 
-    final current = state;
-    if (current is AuthAuthenticated) {
-      await SecureStorageService.saveUserType('businessowner');
-      await SecureStorageService.saveActiveExperience('businessowner');
-      await SecureStorageService.saveNeedsExperienceSelection(false);
-      state = current.copyWith(
-        userType: 'businessowner',
-        activeExperience: 'businessowner',
-        needsExperienceSelection: false,
-      );
-    }
+    // Soft-landing removed: experience must not claim Owner without refreshed JWT Role.
   }
 
   Future<void> logout({bool revokeServerSession = true}) async {
@@ -269,6 +299,9 @@ class AuthNotifier extends Notifier<AuthState> {
 
       await SignalRService().disconnect(currentUserId);
       await SecureStorageService.clearAuth();
+      // Drop legacy global currency so User A's preference cannot apply to User B.
+      // Per-user keys (user_currency_v1_{userId}) are kept for the same account.
+      await UserPrefsStore.clearLegacyCurrency();
       ref.read(userRepositoryProvider).clearCache();
       ref.invalidate(userProfileProvider);
       ref.invalidate(myBusinessesProvider);

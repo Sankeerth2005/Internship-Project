@@ -1414,7 +1414,8 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                   itemCount: reviewsList.length,
                   itemBuilder: (context, index) {
                     final review = reviewsList[index] as Map<String, dynamic>;
-                    final id = review['id'] as int;
+                    final id = (review['id'] as num?)?.toInt();
+                    if (id == null) return const SizedBox.shrink();
                     final businessId = review['businessId'];
                     final authorName = review['authorName']?.toString() ?? 'Unknown';
                     final comment = review['comment']?.toString() ?? 'No comment';

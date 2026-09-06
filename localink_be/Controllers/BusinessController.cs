@@ -23,6 +23,12 @@ namespace localink_be.Controllers
             _config = config;
         }
 
+        /// <summary>
+        /// Legacy unpaginated dump. Mobile discovery uses GET /api/v1/businesses.
+        /// Restricted to admin; prefer the paged discovery endpoint for consumers.
+        /// </summary>
+        [Obsolete("Use GET /api/v1/businesses for paged discovery.")]
+        [Authorize(Roles = "admin")]
         [HttpGet]
         public async Task<IActionResult> GetAllBusinesses()
         {
@@ -30,11 +36,40 @@ namespace localink_be.Controllers
         }
 
         [HttpGet("{id}")]
-        public async Task<IActionResult> GetBusinessById(long id)
+        public async Task<IActionResult> GetBusinessById(
+            long id,
+            [FromServices] localink_be.Data.AppDbContext db)
         {
             var business = await _service.GetByIdAsync(id);
             if (business == null) return NotFound();
+
+            // Public consumers only see Approved listings. Owners/admins may view any status.
+            if (!IsPubliclyVisibleStatus(business.Status))
+            {
+                var userIdStr = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                var isAdmin = User.IsInRole("admin");
+                var isOwner = false;
+                if (!string.IsNullOrEmpty(userIdStr) && long.TryParse(userIdStr, out var uid))
+                {
+                    var ownerId = await db.Businesses
+                        .Where(b => b.BusinessId == id)
+                        .Select(b => (long?)b.UserId)
+                        .FirstOrDefaultAsync();
+                    isOwner = ownerId == uid;
+                }
+
+                if (!isAdmin && !isOwner)
+                    return NotFound();
+            }
+
             return Ok(business);
+        }
+
+        private static bool IsPubliclyVisibleStatus(string? status)
+        {
+            if (string.IsNullOrWhiteSpace(status)) return false;
+            return status.Equals("Approved", StringComparison.OrdinalIgnoreCase)
+                || status.Equals("Active", StringComparison.OrdinalIgnoreCase);
         }
 
         [Authorize(Roles = "user,client,businessowner")]
@@ -65,7 +100,7 @@ namespace localink_be.Controllers
             });
         }
 
-        [Authorize(Roles = "client,businessowner")]
+        [Authorize(Roles = "user,client,businessowner")]
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateBusiness(long id, [FromBody] UpdateBusinessDto dto)
         {
@@ -97,7 +132,7 @@ namespace localink_be.Controllers
             }
         }
 
-        [Authorize(Roles = "client,businessowner")]
+        [Authorize(Roles = "user,client,businessowner,admin")]
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteBusiness(long id)
         {
@@ -221,7 +256,7 @@ namespace localink_be.Controllers
             public int Days { get; set; }
         }
 
-        [Authorize(Roles = "client,businessowner")]
+        [Authorize(Roles = "user,client,businessowner,admin")]
         [HttpPost("{id}/temporary-closure")]
         public async Task<IActionResult> RequestTemporaryClosure(
             long id, 
@@ -233,29 +268,45 @@ namespace localink_be.Controllers
             if (string.IsNullOrEmpty(userIdVal)) return Unauthorized();
             var userId = long.Parse(userIdVal);
 
+            if (dto == null || string.IsNullOrWhiteSpace(dto.Reason))
+                return BadRequest(new { success = false, message = "Reason is required" });
+
+            var days = dto.Days <= 0 ? 1 : dto.Days;
+            if (days > 365) days = 365;
+
             var business = await db.Businesses.FindAsync(id);
             if (business == null) return NotFound(new { message = "Business not found" });
 
             if (business.UserId != userId) return Forbid();
 
-            business.TemporaryClosureReason = dto.Reason;
-            business.TemporaryClosureDays = dto.Days;
-            business.TemporaryClosureStatus = "Pending";
-            business.TemporaryClosureReopenDate = null;
+            // Owner-applied immediately — no admin approval required.
+            business.TemporaryClosureReason = dto.Reason.Trim();
+            business.TemporaryClosureDays = days;
+            business.TemporaryClosureStatus = "Approved";
+            business.TemporaryClosureReopenDate = DateTime.UtcNow.AddDays(days);
+            business.UpdatedAt = DateTime.UtcNow;
 
             await db.SaveChangesAsync();
 
-            // Notify admin
-            await hubContext.Clients.Group("admin").SendAsync("ReceiveNotification", $"Business '{business.BusinessName}' has requested temporary closure for {dto.Days} days. Reason: {dto.Reason}");
+            await hubContext.Clients.All.SendAsync("ReceiveNotification", $"BusinessUpdated:{id}");
+            await hubContext.Clients.Group("admin").SendAsync(
+                "ReceiveNotification",
+                $"Business '{business.BusinessName}' was temporarily closed by the owner for {days} days. Reason: {dto.Reason.Trim()}");
 
-            return Ok(new { success = true, message = "Closure request submitted for admin approval" });
+            return Ok(new
+            {
+                success = true,
+                message = "Business temporarily closed",
+                reopenDate = business.TemporaryClosureReopenDate
+            });
         }
 
-        [Authorize(Roles = "client,businessowner")]
+        [Authorize(Roles = "user,client,businessowner,admin")]
         [HttpPost("{id}/cancel-temporary-closure")]
         public async Task<IActionResult> CancelTemporaryClosure(
             long id,
-            [FromServices] localink_be.Data.AppDbContext db)
+            [FromServices] localink_be.Data.AppDbContext db,
+            [FromServices] Microsoft.AspNetCore.SignalR.IHubContext<localink_be.Hubs.NotificationHub> hubContext)
         {
             var userIdVal = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(userIdVal)) return Unauthorized();
@@ -270,8 +321,11 @@ namespace localink_be.Controllers
             business.TemporaryClosureDays = null;
             business.TemporaryClosureStatus = null;
             business.TemporaryClosureReopenDate = null;
+            business.UpdatedAt = DateTime.UtcNow;
 
             await db.SaveChangesAsync();
+
+            await hubContext.Clients.All.SendAsync("ReceiveNotification", $"BusinessUpdated:{id}");
 
             return Ok(new { success = true, message = "Business is now open / temporary closure cancelled" });
         }
@@ -281,7 +335,7 @@ namespace localink_be.Controllers
             public string Reason { get; set; } = null!;
         }
 
-        [Authorize(Roles = "client,businessowner")]
+        [Authorize(Roles = "user,client,businessowner,admin")]
         [HttpPost("{id}/request-deletion")]
         public async Task<IActionResult> RequestDeletion(
             long id,
@@ -293,32 +347,31 @@ namespace localink_be.Controllers
             if (string.IsNullOrEmpty(userIdVal)) return Unauthorized();
             var userId = long.Parse(userIdVal);
 
+            if (dto == null || string.IsNullOrWhiteSpace(dto.Reason))
+                return BadRequest(new { success = false, message = "Reason is required" });
+
             var business = await db.Businesses.FindAsync(id);
             if (business == null) return NotFound(new { message = "Business not found" });
 
             if (business.UserId != userId) return Forbid();
 
-            var adminDash = await db.AdminDashboards.FirstOrDefaultAsync(a => a.BusinessId == id);
-            if (adminDash == null)
+            var businessName = business.BusinessName;
+
+            // Owner deletes immediately — no admin approval required.
+            try
             {
-                adminDash = new AdminDashboard
-                {
-                    BusinessId = id,
-                    CreatedAt = DateTime.UtcNow
-                };
-                await db.AdminDashboards.AddAsync(adminDash);
+                await hubContext.Clients.All.SendAsync("ReceiveNotification", $"BusinessDeleted:{id}");
+                await hubContext.Clients.Group("admin").SendAsync(
+                    "ReceiveNotification",
+                    $"Business '{businessName}' was permanently deleted by the owner. Reason: {dto.Reason.Trim()}");
             }
+            catch { /* notifications must not block deletion */ }
 
-            adminDash.Status = BusinessStatus.DeletionRequested;
-            adminDash.RejectionReason = dto.Reason;
-            adminDash.UpdatedAt = DateTime.UtcNow;
+            var deleted = await _service.DeleteBusinessAsync(id, userId, isAdmin: false);
+            if (!deleted)
+                return NotFound(new { message = "Business not found" });
 
-            await db.SaveChangesAsync();
-
-            // Notify admin
-            await hubContext.Clients.Group("admin").SendAsync("ReceiveNotification", $"Business '{business.BusinessName}' has requested permanent deletion. Reason: {dto.Reason}");
-
-            return Ok(new { success = true, message = "Permanent deletion request submitted for admin approval" });
+            return Ok(new { success = true, message = "Business permanently deleted" });
         }
     }
 }

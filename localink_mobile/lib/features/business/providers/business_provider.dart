@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/dio_client.dart';
+import '../../../core/storage/favorites_cache_store.dart';
 import '../data/models/business_models.dart';
 import '../data/repositories/business_repository.dart';
 import '../../auth/providers/auth_provider.dart';
@@ -57,13 +58,32 @@ class MyBusinessesNotifier extends AsyncNotifier<List<BusinessDto>> {
   Future<void> refresh() async {
     state = const AsyncValue.loading();
     state = await AsyncValue.guard(() => _fetch());
-    ref.invalidate(searchFeedProvider);
+    await _reloadSearchFeed();
+  }
+
+  /// Invalidate detail/favorites/metrics after a successful register/update.
+  /// Search feed refresh is handled by [refresh] → [_reloadSearchFeed].
+  void _invalidateAfterSave(int id) {
+    ref.invalidate(singleBusinessProvider(id));
+    ref.invalidate(favoriteBusinessesProvider);
+    ref.invalidate(businessMetricsProvider(id));
+  }
+
+  Future<void> _reloadSearchFeed() async {
+    // If Home (or another listener) already holds the feed, reload in place.
+    // Otherwise invalidate so the next watch rebuilds from page 1.
+    if (ref.exists(searchFeedProvider)) {
+      await ref.read(searchFeedProvider.notifier).reload();
+    } else {
+      ref.invalidate(searchFeedProvider);
+    }
   }
 
   Future<int> register(BusinessDto business) async {
     final repo = ref.read(businessRepositoryProvider);
     final id = await repo.registerBusiness(business);
     await refresh();
+    _invalidateAfterSave(id);
     return id;
   }
 
@@ -71,8 +91,7 @@ class MyBusinessesNotifier extends AsyncNotifier<List<BusinessDto>> {
     final repo = ref.read(businessRepositoryProvider);
     final success = await repo.updateBusiness(id, business);
     await refresh();
-    // Invalidate single business provider to refresh user's view
-    ref.invalidate(singleBusinessProvider);
+    _invalidateAfterSave(id);
     return success;
   }
 
@@ -80,7 +99,7 @@ class MyBusinessesNotifier extends AsyncNotifier<List<BusinessDto>> {
     final repo = ref.read(businessRepositoryProvider);
     final success = await repo.requestTemporaryClosure(id, reason, days);
     await refresh();
-    ref.invalidate(singleBusinessProvider);
+    ref.invalidate(singleBusinessProvider(id));
     return success;
   }
 
@@ -88,7 +107,7 @@ class MyBusinessesNotifier extends AsyncNotifier<List<BusinessDto>> {
     final repo = ref.read(businessRepositoryProvider);
     final success = await repo.cancelTemporaryClosure(id);
     await refresh();
-    ref.invalidate(singleBusinessProvider);
+    ref.invalidate(singleBusinessProvider(id));
     return success;
   }
 
@@ -96,7 +115,7 @@ class MyBusinessesNotifier extends AsyncNotifier<List<BusinessDto>> {
     final repo = ref.read(businessRepositoryProvider);
     final success = await repo.requestDeletion(id, reason);
     await refresh();
-    ref.invalidate(singleBusinessProvider);
+    ref.invalidate(singleBusinessProvider(id));
     return success;
   }
 }
@@ -128,7 +147,7 @@ class SearchQueryState {
     this.isVoiceSearch = false,
     this.sortBy = 'nearest',
     this.userPincode = '',
-    this.radiusKm = 25,
+    this.radiusKm = 30,
     this.page = 1,
     this.pageSize = 10,
   });
@@ -178,9 +197,9 @@ class SearchQueryNotifier extends Notifier<SearchQueryState> {
   void clearCategory() => state = state.copyWith(clearCategory: true, clearSubcategory: true, isVoiceSearch: false, page: 1);
   void clearSubcategory() => state = state.copyWith(clearSubcategory: true, isVoiceSearch: false, page: 1);
   void setLocation(double lat, double lng) => state = state.copyWith(latitude: lat, longitude: lng, page: 1);
-  void setSortBy(String sort) => state = state.copyWith(sortBy: sort, page: 1);
+  void setSortBy(String sort) => state = state.copyWith(sortBy: sort, isVoiceSearch: false, page: 1);
   void setPincode(String pin) => state = state.copyWith(userPincode: pin, page: 1);
-  void setRadius(double km) => state = state.copyWith(radiusKm: km, page: 1);
+  void setRadius(double km) => state = state.copyWith(radiusKm: km, isVoiceSearch: false, page: 1);
   void setPage(int page) => state = state.copyWith(page: page < 1 ? 1 : page);
 }
 
@@ -279,6 +298,32 @@ class SearchFeedNotifier extends AsyncNotifier<SearchFeedState> {
       }
     } catch (_) {}
 
+    // Voice/intent path: fresh page-1 query via POST search/voice.
+    // On failure (429, timeout, 5xx), fall through to typed text search.
+    if (queryState.isVoiceSearch &&
+        page == 1 &&
+        queryState.query.trim().isNotEmpty) {
+      try {
+        final voice = await repo.voiceSearchText(
+          queryState.query.trim(),
+          radius: queryState.radiusKm.round().clamp(1, 100),
+          lat: queryState.latitude,
+          lng: queryState.longitude,
+        );
+        final total = voice.totalCount > 0 ? voice.totalCount : voice.results.length;
+        return SearchFeedState(
+          items: voice.results,
+          hasNextPage: false,
+          hasPreviousPage: false,
+          page: 1,
+          totalPages: total == 0 ? 0 : 1,
+          totalCount: total,
+        );
+      } catch (_) {
+        // Graceful fallback — keep results flowing via plain search.
+      }
+    }
+
     final paged = await repo.searchBusinesses(
       queryState.query,
       latitude: queryState.latitude,
@@ -288,6 +333,7 @@ class SearchFeedNotifier extends AsyncNotifier<SearchFeedState> {
       userCity: resolvedCity,
       categoryId: queryState.selectedCategoryId,
       subcategoryId: queryState.selectedSubcategoryId,
+      radiusKm: queryState.radiusKm,
       page: page,
       pageSize: queryState.pageSize,
     );
@@ -320,6 +366,13 @@ class SearchFeedNotifier extends AsyncNotifier<SearchFeedState> {
     } catch (e) {
       state = AsyncData(current.copyWith(isLoadingPage: false, error: e));
     }
+  }
+
+  /// Reset to page 1 and refetch so Home shows fresh data after mutations.
+  Future<void> reload() async {
+    ref.read(searchQueryProvider.notifier).setPage(1);
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(() => _fetchPage(page: 1));
   }
 }
 
@@ -358,7 +411,11 @@ class FavoritesNotifier extends Notifier<List<int>> {
     try {
       final repo = ref.read(businessRepositoryProvider);
       final list = await repo.getFavorites(userId);
-      state = list;
+      final auth = ref.read(authProvider);
+      // Ignore stale responses after account switch.
+      if (auth is AuthAuthenticated && auth.userId == userId) {
+        state = list;
+      }
     } catch (_) {}
   }
 
@@ -397,6 +454,7 @@ final favoritesProvider = NotifierProvider<FavoritesNotifier, List<int>>(
 );
 
 /// Loads full business records for saved favorite IDs in one API call.
+/// Persists to disk on success; falls back to cache when offline/failed.
 final favoriteBusinessesProvider = FutureProvider<List<BusinessDto>>((ref) async {
   final ids = ref.watch(favoritesProvider);
   if (ids.isEmpty) return [];
@@ -404,28 +462,44 @@ final favoriteBusinessesProvider = FutureProvider<List<BusinessDto>>((ref) async
   final auth = ref.watch(authProvider);
   if (auth is! AuthAuthenticated) return [];
 
+  final userId = auth.userId;
   final repo = ref.watch(businessRepositoryProvider);
-  try {
-    final list = await repo.getFavoriteBusinesses(auth.userId);
-    // Preserve favorites-list order when possible
+
+  List<BusinessDto> orderByFavorites(List<BusinessDto> list) {
     final byId = {for (final b in list) b.businessId: b};
     return ids.map((id) => byId[id]).whereType<BusinessDto>().toList();
+  }
+
+  try {
+    final list = await repo.getFavoriteBusinesses(userId);
+    final ordered = orderByFavorites(list);
+    await FavoritesCacheStore.save(userId, ordered);
+    return ordered;
   } catch (_) {
     // Fallback: limited parallel fetch if batch endpoint unavailable
-    const chunk = 4;
-    final out = <BusinessDto>[];
-    for (var i = 0; i < ids.length; i += chunk) {
-      final slice = ids.skip(i).take(chunk);
-      final part = await Future.wait(slice.map((id) async {
-        try {
-          return await repo.getBusinessById(id);
-        } catch (_) {
-          return null;
-        }
-      }));
-      out.addAll(part.whereType<BusinessDto>());
-    }
-    return out;
+    try {
+      const chunk = 4;
+      final out = <BusinessDto>[];
+      for (var i = 0; i < ids.length; i += chunk) {
+        final slice = ids.skip(i).take(chunk);
+        final part = await Future.wait(slice.map((id) async {
+          try {
+            return await repo.getBusinessById(id);
+          } catch (_) {
+            return null;
+          }
+        }));
+        out.addAll(part.whereType<BusinessDto>());
+      }
+      if (out.isNotEmpty) {
+        await FavoritesCacheStore.save(userId, out);
+        return out;
+      }
+    } catch (_) {}
+
+    final cached = await FavoritesCacheStore.load(userId);
+    if (cached.isNotEmpty) return orderByFavorites(cached);
+    return [];
   }
 });
 

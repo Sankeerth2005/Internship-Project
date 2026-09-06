@@ -68,11 +68,11 @@ namespace localink_be.Services.Implementations
                     .Select(p => p.ImageUrl)
                     .FirstOrDefault(),
                 AverageRating = _db.BusinessReviews
-                    .Where(r => r.BusinessId == b.BusinessId)
+                    .Where(r => r.BusinessId == b.BusinessId && !r.IsFlagged)
                     .Select(r => (double?)r.Rating)
                     .Average() ?? 0,
                 TotalReviews = _db.BusinessReviews
-                    .Count(r => r.BusinessId == b.BusinessId),
+                    .Count(r => r.BusinessId == b.BusinessId && !r.IsFlagged),
                 StreetAddress = _db.BusinessContacts
                     .Where(c => c.BusinessId == b.BusinessId)
                     .Select(c => c.StreetAddress)
@@ -182,6 +182,7 @@ namespace localink_be.Services.Implementations
         business.Description = dto.Description;
         business.CategoryId = dto.CategoryId;
         business.SubcategoryId = dto.SubcategoryId;
+        business.UpdatedAt = DateTime.UtcNow;
 
         var contact = await _db.BusinessContacts
             .FirstOrDefaultAsync(c => c.BusinessId == id);
@@ -224,8 +225,17 @@ namespace localink_be.Services.Implementations
             contact.Country = dto.Country;
             contact.Pincode = dto.Pincode;
             contact.StreetAddress = dto.StreetAddress;
-            contact.Latitude = dto.Latitude;
-            contact.Longitude = dto.Longitude;
+
+            // Only overwrite coordinates when the client supplies a valid pair.
+            // Omitting lat/lng must never wipe an existing business location.
+            if (dto.Latitude.HasValue && dto.Longitude.HasValue)
+            {
+                contact.Latitude = dto.Latitude;
+                contact.Longitude = dto.Longitude;
+                contact.GeoLocation = new NetTopologySuite.Geometries.Point(
+                    dto.Longitude.Value, dto.Latitude.Value)
+                { SRID = 4326 };
+            }
         }
 
         // Save new photo if provided
@@ -261,14 +271,66 @@ namespace localink_be.Services.Implementations
             throw new UnauthorizedAccessException("You do not own this business.");
         }
 
-        _db.Businesses.Remove(business);
-        await _db.SaveChangesAsync();
+        await DeleteBusinessGraphAsync(id);
         try
         {
             await _hubContext.Clients.All.SendAsync("ReceiveNotification", $"BusinessDeleted:{id}");
         }
         catch { /* fail silently */ }
         return true;
+    }
+
+    /// <summary>
+    /// Removes a business and dependent rows that are not cascade-deleted by EF.
+    /// </summary>
+    private async Task DeleteBusinessGraphAsync(long businessId)
+    {
+        var hourIds = await _db.BusinessHours
+            .Where(h => h.BusinessId == businessId)
+            .Select(h => h.BusinessHourId)
+            .ToListAsync();
+        if (hourIds.Count > 0)
+        {
+            var slots = _db.BusinessHourSlots.Where(s => hourIds.Contains(s.BusinessHourId));
+            _db.BusinessHourSlots.RemoveRange(slots);
+            var hours = _db.BusinessHours.Where(h => h.BusinessId == businessId);
+            _db.BusinessHours.RemoveRange(hours);
+        }
+
+        _db.BusinessPhotos.RemoveRange(_db.BusinessPhotos.Where(p => p.BusinessId == businessId));
+        _db.BusinessContacts.RemoveRange(_db.BusinessContacts.Where(c => c.BusinessId == businessId));
+        _db.BusinessReviews.RemoveRange(_db.BusinessReviews.Where(r => r.BusinessId == businessId));
+        _db.BusinessMetrics.RemoveRange(_db.BusinessMetrics.Where(m => m.BusinessId == businessId));
+        _db.Favorites.RemoveRange(_db.Favorites.Where(f => f.BusinessId == businessId));
+
+        // Explicit chat cleanup — do not rely solely on SQL cascade (may be missing without migrations).
+        var conversationIds = await _db.Conversations
+            .Where(c => c.BusinessId == businessId)
+            .Select(c => c.Id)
+            .ToListAsync();
+        if (conversationIds.Count > 0)
+        {
+            _db.Messages.RemoveRange(_db.Messages.Where(m => conversationIds.Contains(m.ConversationId)));
+            _db.Conversations.RemoveRange(_db.Conversations.Where(c => c.BusinessId == businessId));
+        }
+
+        var catalogs = await _db.Catalogs.Where(c => c.BusinessId == businessId).ToListAsync();
+        if (catalogs.Count > 0)
+        {
+            var catalogIds = catalogs.Select(c => c.Id).ToList();
+            _db.CatalogItems.RemoveRange(_db.CatalogItems.Where(i => catalogIds.Contains(i.CatalogId)));
+            _db.Catalogs.RemoveRange(catalogs);
+        }
+
+        var adminDash = await _db.AdminDashboards.FirstOrDefaultAsync(a => a.BusinessId == businessId);
+        if (adminDash != null)
+            _db.AdminDashboards.Remove(adminDash);
+
+        var business = await _db.Businesses.FindAsync(businessId);
+        if (business != null)
+            _db.Businesses.Remove(business);
+
+        await _db.SaveChangesAsync();
     }
 
     public async Task<long> RegisterBusinessAsync(RegisterBusinessDto dto, long userId)
@@ -403,6 +465,11 @@ namespace localink_be.Services.Implementations
                         }
 
                         await _hubContext.Clients.Group("admin").SendAsync("ReceiveNotification", $"New Business Alert: '{business.BusinessName}' has been registered and is pending approval.");
+                        try
+                        {
+                            await _hubContext.Clients.All.SendAsync("ReceiveNotification", $"BusinessUpdated:{business.BusinessId}");
+                        }
+                        catch { /* fail silently */ }
                     }
                     catch (Exception)
                     {
@@ -569,6 +636,22 @@ namespace localink_be.Services.Implementations
                         .OrderByDescending(p => p.IsPrimary)
                         .Select(p => p.ImageUrl)
                         .ToList(),
+                    Hours = _db.BusinessHours
+                        .Where(h => h.BusinessId == b.BusinessId)
+                        .Select(h => new DayHoursDto
+                        {
+                            DayOfWeek = h.DayOfWeek,
+                            Mode = h.Mode,
+                            Slots = _db.BusinessHourSlots
+                                .Where(s => s.BusinessHourId == h.BusinessHourId)
+                                .Select(s => new TimeSlotDto
+                                {
+                                    OpenTime = s.OpenTime,
+                                    CloseTime = s.CloseTime
+                                })
+                                .ToList()
+                        })
+                        .ToList(),
                     IsTemporarilyClosed = b.TemporaryClosureStatus == "Approved" && b.TemporaryClosureReopenDate.HasValue && b.TemporaryClosureReopenDate.Value > DateTime.UtcNow,
                     TemporaryClosureReason = b.TemporaryClosureReason,
                     TemporaryClosureStatus = b.TemporaryClosureStatus,
@@ -706,6 +789,12 @@ namespace localink_be.Services.Implementations
                         .OrderByDescending(p => p.IsPrimary)
                         .Select(p => p.ImageUrl)
                         .ToList(),
+                    AverageRating = _db.BusinessReviews
+                        .Where(r => r.BusinessId == b.BusinessId && !r.IsFlagged)
+                        .Select(r => (double?)r.Rating)
+                        .Average() ?? 0.0,
+                    TotalReviews = _db.BusinessReviews
+                        .Count(r => r.BusinessId == b.BusinessId && !r.IsFlagged),
                     Hours = _db.BusinessHours
                         .Where(h => h.BusinessId == b.BusinessId)
                         .Select(h => new DayHoursDto
@@ -855,17 +944,18 @@ namespace localink_be.Services.Implementations
                     }
                 }
 
-                // Apply "open now" filter if requested
+                // Apply "open now" filter if requested (hours stored as Monday..Sunday / Open|Closed).
                 if (request.OpenNow)
                 {
-                    var currentDay = (int)DateTime.UtcNow.DayOfWeek;
-                    var currentTime = DateTime.UtcNow.TimeOfDay;
+                    var nowIst = DateTime.UtcNow.AddHours(5.5);
+                    var currentDayName = nowIst.DayOfWeek.ToString(); // e.g. Monday
+                    var currentTime = nowIst.TimeOfDay;
 
                     businessesQuery = businessesQuery.Where(b =>
                         _db.BusinessHours.Any(h =>
                             h.BusinessId == b.BusinessId &&
-                            h.DayOfWeek == currentDay.ToString() &&
-                            h.Mode == "open" &&
+                            h.DayOfWeek == currentDayName &&
+                            (h.Mode == "Open" || h.Mode == "open") &&
                             _db.BusinessHourSlots.Any(s =>
                                 s.BusinessHourId == h.BusinessHourId &&
                                 s.OpenTime <= currentTime &&
@@ -949,10 +1039,26 @@ namespace localink_be.Services.Implementations
                 var results = await (hasUserLocation
                     ? projectedQuery.OrderBy(b => b.Distance.HasValue ? 0 : 1).ThenBy(b => b.Distance ?? double.MaxValue)
                     : projectedQuery.OrderBy(b => b.Name))
-                    .Take(20)
+                    .Take(80)
                     .ToListAsync();
 
-                // FALLBACK: relax keyword filters; still rank globally by distance (no km cutoff).
+                // Match home discovery: keep only businesses within the nearby radius (default 30 km).
+                var appliedRadiusKm = request.Radius > 0
+                    ? Math.Clamp(request.Radius, 1, 100)
+                    : 30;
+                if (hasUserLocation)
+                {
+                    results = results
+                        .Where(b => b.Distance.HasValue && b.Distance.Value <= appliedRadiusKm)
+                        .Take(20)
+                        .ToList();
+                }
+                else
+                {
+                    results = results.Take(20).ToList();
+                }
+
+                // FALLBACK: relax keyword filters; still apply the same nearby radius when location exists.
                 if (results.Count == 0 && (!string.IsNullOrEmpty(query) || !string.IsNullOrEmpty(request.Category)))
                 {
                     var fallbackQuery = _db.Businesses
@@ -1027,8 +1133,20 @@ namespace localink_be.Services.Implementations
                     results = await (hasUserLocation
                         ? projectedFallback.OrderBy(b => b.Distance.HasValue ? 0 : 1).ThenBy(b => b.Distance ?? double.MaxValue)
                         : projectedFallback.OrderBy(b => b.Name))
-                        .Take(20)
+                        .Take(80)
                         .ToListAsync();
+
+                    if (hasUserLocation)
+                    {
+                        results = results
+                            .Where(b => b.Distance.HasValue && b.Distance.Value <= appliedRadiusKm)
+                            .Take(20)
+                            .ToList();
+                    }
+                    else
+                    {
+                        results = results.Take(20).ToList();
+                    }
                 }
 
                 return new VoiceSearchResponse
@@ -1041,7 +1159,7 @@ namespace localink_be.Services.Implementations
                     {
                         Query = query,
                         OpenNow = request.OpenNow,
-                        RadiusKm = request.Radius,
+                        RadiusKm = appliedRadiusKm,
                         Category = request.Category
                     }
                 };

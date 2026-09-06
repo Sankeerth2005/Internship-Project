@@ -113,6 +113,8 @@ namespace localink_be.Validation
             ["AM"] = Compile(@"^[0-9]{4}$"),
             ["AZ"] = Compile(@"^[0-9]{4}$"),
             ["MD"] = Compile(@"^[A-Z]{2}-?[0-9]{4}$"),
+            ["AE"] = Compile(@"^[0-9]{5,6}$"),
+            ["QA"] = Compile(@"^[0-9]{4,6}$"),
             ["PR"] = Compile(@"^[0-9]{5}(-[0-9]{4})?$"),
         };
 

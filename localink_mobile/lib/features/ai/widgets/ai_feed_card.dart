@@ -33,6 +33,33 @@ class _AiFeedCardState extends State<AiFeedCard> {
     return city.isNotEmpty ? city : 'Near you';
   }
 
+  String _cardDescription(String reason) {
+    final stored = (widget.item['description'] ?? '').toString().trim();
+    if (stored.length >= 24 && !_looksLikeFeedLabel(stored)) {
+      return stored;
+    }
+
+    final name = (widget.item['businessName'] ?? 'This place').toString().trim();
+    final category = (widget.item['categoryName'] ?? '').toString().trim();
+    final city = (widget.item['city'] ?? '').toString().trim();
+    final place = city.isNotEmpty ? city : 'your area';
+    final kind = category.isNotEmpty ? category : 'local business';
+    final why = reason.isNotEmpty ? reason : 'Nearby recommendation';
+    return '$name is a $kind in $place. $why — open the listing for hours, photos, and contact details.';
+  }
+
+  bool _looksLikeFeedLabel(String value) {
+    final compact = value.replaceAll(RegExp(r'[\s\-_]'), '').toLowerCase();
+    return compact == 'morningfeed' ||
+        compact == 'afternoonfeed' ||
+        compact == 'eveningfeed' ||
+        compact == 'nightfeed' ||
+        compact == 'morning' ||
+        compact == 'afternoon' ||
+        compact == 'evening' ||
+        compact == 'night';
+  }
+
   @override
   Widget build(BuildContext context) {
     final List<dynamic> photos = widget.item['photos'] ?? [];
@@ -40,6 +67,7 @@ class _AiFeedCardState extends State<AiFeedCard> {
         ? '${DioClient.backendOrigin}${photos.first}'
         : null;
     final reason = (widget.item['reason'] ?? '').toString().trim();
+    final description = _cardDescription(reason);
 
     return GestureDetector(
       onTapDown: (_) => setState(() => _scale = 0.98),
@@ -127,8 +155,8 @@ class _AiFeedCardState extends State<AiFeedCard> {
                     ],
                     const SizedBox(height: 6),
                     Text(
-                      widget.item['description'] ?? '',
-                      maxLines: 2,
+                      description,
+                      maxLines: 3,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         color: Color(0xFF5F5C58),

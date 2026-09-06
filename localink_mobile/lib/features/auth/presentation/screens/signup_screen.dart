@@ -132,8 +132,10 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
       setState(() {
         _countries = countries;
         _selectedCountry = india ?? (countries.isNotEmpty ? countries.first : null);
-        final code = _selectedCountry?.phoneCode?.replaceAll('+', '').trim();
-        if (code != null && code.isNotEmpty) _selectedPhoneCode = code;
+        // Prefer India's +91; otherwise use selected country's code (may be empty).
+        _selectedPhoneCode = AppValidators.normalizeCallingCode(
+          _selectedCountry?.phoneCode,
+        );
         _loadingCountries = false;
       });
     } catch (e, st) {
@@ -143,20 +145,58 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   }
 
   void _onCountrySelected(Country country) {
-    final newCode = (country.phoneCode ?? '').replaceAll('+', '').trim();
+    final newCode = AppValidators.normalizeCallingCode(country.phoneCode);
+    final hadNumber = _phoneController.text.trim().isNotEmpty;
+    final lengthInvalid = hadNumber &&
+        newCode.isNotEmpty &&
+        !AppValidators.hasValidLengthForCountry(
+          _phoneController.text,
+          countryCode: newCode,
+          countryName: country.name,
+        );
+
     setState(() {
       _selectedCountry = country;
-      if (newCode.isNotEmpty) _selectedPhoneCode = newCode;
+      // Never keep a stale dial code when the API returns an empty phonecode.
+      _selectedPhoneCode = newCode;
+      if (lengthInvalid) {
+        _phoneController.clear();
+      }
     });
-    _stepFormKeys[0].currentState?.validate();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _stepFormKeys[0].currentState?.validate();
+    });
+  }
+
+  String? _validatePhoneStep() {
+    final codeError = AppValidators.callingCode(_selectedPhoneCode);
+    if (codeError != null) {
+      final name = (_selectedCountry?.name ?? '').trim();
+      if (name.isNotEmpty && _selectedPhoneCode.isEmpty) {
+        return 'Calling code is unavailable for $name. Choose another country.';
+      }
+      return codeError;
+    }
+    return AppValidators.phone(
+      _phoneController.text,
+      countryCode: _selectedPhoneCode,
+      countryName: _selectedCountry?.name,
+    );
   }
 
   void _nextStep() {
     HapticFeedback.lightImpact();
     if (_currentStep == 0) {
-      if (_stepFormKeys[0].currentState?.validate() == true) {
+      final phoneStepError = _validatePhoneStep();
+      final formOk = _stepFormKeys[0].currentState?.validate() == true;
+      if (formOk && phoneStepError == null) {
         setState(() => _currentStep = 1);
       } else {
+        if (phoneStepError != null && mounted) {
+          AppFeedback.showError(context, phoneStepError);
+        }
         _shakeKey.currentState?.shake();
       }
     }
@@ -169,6 +209,21 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
 
   Future<void> _onSubmit() async {
     if (_isSubmitting) return;
+
+    // Re-check phone + calling code on final submit (not only the password step).
+    final phoneStepError = _validatePhoneStep();
+    if (phoneStepError != null) {
+      setState(() => _currentStep = 0);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _stepFormKeys[0].currentState?.validate();
+      });
+      if (mounted) AppFeedback.showError(context, phoneStepError);
+      _shakeKey.currentState?.shake();
+      HapticFeedback.mediumImpact();
+      return;
+    }
+
     if (_stepFormKeys[1].currentState?.validate() != true) {
       _shakeKey.currentState?.shake();
       HapticFeedback.mediumImpact();
@@ -244,6 +299,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
           accountType: next.userType,
           activeExperience: next.activeExperience,
           needsExperienceSelection: next.needsExperienceSelection,
+          needsUserAgreement: next.needsUserAgreement,
         ));
       }
     });
@@ -473,15 +529,24 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
               controller: _phoneController,
               labelText: 'Phone *',
               hintText: _selectedPhoneCode.isEmpty
-                  ? 'Phone number'
-                  : 'Number ($_selectedPhoneCode)',
+                  ? 'Select a country with a calling code'
+                  : 'Number (+$_selectedPhoneCode)',
               keyboardType: TextInputType.phone,
               prefixIcon: Icons.phone_outlined,
-              validator: (v) => AppValidators.phone(
-                v,
-                countryCode: _selectedPhoneCode,
-                countryName: _selectedCountry?.name,
-              ),
+              validator: (v) {
+                if (_selectedPhoneCode.isEmpty) {
+                  final name = (_selectedCountry?.name ?? '').trim();
+                  if (name.isNotEmpty) {
+                    return 'Calling code is unavailable for $name. Choose another country.';
+                  }
+                  return 'Country code is required';
+                }
+                return AppValidators.phone(
+                  v,
+                  countryCode: _selectedPhoneCode,
+                  countryName: _selectedCountry?.name,
+                );
+              },
               focusNode: _phoneFocus,
               autofillHints: const [AutofillHints.telephoneNumber],
               textInputAction: TextInputAction.next,

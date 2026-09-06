@@ -31,6 +31,7 @@ import 'features/admin/presentation/screens/admin_dashboard_screen.dart';
 import 'features/auth/presentation/screens/splash_screen.dart';
 import 'features/auth/presentation/screens/welcome_screen.dart';
 import 'features/auth/presentation/screens/continue_as_screen.dart';
+import 'features/auth/presentation/screens/user_agreement_consent_screen.dart';
 import 'features/chat/presentation/screens/conversations_screen.dart';
 import 'features/chat/presentation/screens/chat_screen.dart';
 import 'features/catalog/presentation/screens/manage_catalog_screen.dart';
@@ -38,7 +39,6 @@ import 'features/catalog/presentation/screens/manage_catalog_screen.dart';
 import 'core/config/app_config.dart';
 import 'core/theme/app_theme.dart';
 import 'core/auth/role_routes.dart';
-import 'core/network/dio_client.dart';
 import 'core/monitoring/crash_reporter.dart';
 import 'features/shared/presentation/widgets/offline_banner.dart';
 
@@ -75,11 +75,41 @@ void main() {
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
 
+/// Safe path-parameter parse — never throws on malformed /:id routes.
+int? _tryParseRouteId(GoRouterState state) =>
+    int.tryParse(state.pathParameters['id'] ?? '');
+
+Widget _invalidRouteIdScreen(BuildContext context) {
+  return Scaffold(
+    appBar: AppBar(title: const Text('Invalid link')),
+    body: Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'This link is invalid or incomplete.',
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            FilledButton(
+              onPressed: () => context.go('/'),
+              child: const Text('Go home'),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
 String _postAuthRoute(AuthAuthenticated auth) =>
     RoleRoutes.resolvePostAuthRoute(
       accountType: auth.userType,
       activeExperience: auth.activeExperience,
       needsExperienceSelection: auth.needsExperienceSelection,
+      needsUserAgreement: auth.needsUserAgreement,
     );
 
 bool _isAdminRoute(String location) =>
@@ -141,10 +171,18 @@ final routerProvider = Provider<GoRouter>((ref) {
           return postAuth;
         }
 
+        // New accounts must accept User Agreement before Continue As / app.
+        if (authState.needsUserAgreement &&
+            currentLocation != RoleRoutes.userAgreement) {
+          return RoleRoutes.userAgreement;
+        }
+
         // Role selection until an experience is chosen for this session.
-        if (authState.needsExperienceSelection &&
+        if (!authState.needsUserAgreement &&
+            authState.needsExperienceSelection &&
             !RoleRoutes.isAdmin(authState.userType) &&
             currentLocation != RoleRoutes.continueAs &&
+            currentLocation != RoleRoutes.userAgreement &&
             !currentLocation.startsWith('/register-business')) {
           return RoleRoutes.continueAs;
         }
@@ -156,16 +194,23 @@ final routerProvider = Provider<GoRouter>((ref) {
           return postAuth;
         }
 
+        // Agreement accepted — leave consent screen.
+        if (currentLocation == RoleRoutes.userAgreement &&
+            !authState.needsUserAgreement) {
+          return postAuth;
+        }
+
         final role = authState.userType;
         if (_isAdminRoute(currentLocation) && !RoleRoutes.isAdmin(role)) {
           return postAuth;
         }
         if (_isOwnerRoute(currentLocation) && !RoleRoutes.isAdmin(role)) {
-          final canAccount = RoleRoutes.canAccessOwnerRoutes(role);
           final choseOwner =
               RoleRoutes.normalize(authState.activeExperience) ==
                   'businessowner';
-          if (!canAccount || !choseOwner) {
+          // Allow owner surfaces when Continue As Owner is active.
+          // API ownership checks still enforce listing ownership.
+          if (!choseOwner) {
             return postAuth;
           }
         }
@@ -185,6 +230,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/continue-as',
         builder: (context, state) => const ContinueAsScreen(),
+      ),
+      GoRoute(
+        path: '/user-agreement',
+        builder: (context, state) => const UserAgreementConsentScreen(),
       ),
       GoRoute(
         path: '/login',
@@ -298,7 +347,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/chat/:id',
         builder: (context, state) {
-          final id = int.parse(state.pathParameters['id']!);
+          final id = _tryParseRouteId(state);
+          if (id == null || id <= 0) return _invalidRouteIdScreen(context);
           final role = state.uri.queryParameters['role'] ?? 'User';
           final title = state.uri.queryParameters['title'] ?? 'Chat';
           return ChatScreen(conversationId: id, role: role, title: title);
@@ -315,8 +365,12 @@ final routerProvider = Provider<GoRouter>((ref) {
         parentNavigatorKey: _rootNavigatorKey,
         path: '/edit-business/:id',
         builder: (context, state) {
+          final id = int.tryParse(state.pathParameters['id'] ?? '') ?? 0;
           final business = state.extra as BusinessDto?;
-          return BusinessRegistrationScreen(businessToEdit: business);
+          return BusinessRegistrationScreen(
+            businessId: id > 0 ? id : null,
+            businessToEdit: business,
+          );
         },
       ),
       GoRoute(
@@ -331,15 +385,18 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         parentNavigatorKey: _rootNavigatorKey,
         path: '/business-detail/:id',
-        builder: (context, state) => BusinessDetailScreen(
-          businessId: int.parse(state.pathParameters['id']!),
-        ),
+        builder: (context, state) {
+          final id = _tryParseRouteId(state);
+          if (id == null || id <= 0) return _invalidRouteIdScreen(context);
+          return BusinessDetailScreen(businessId: id);
+        },
       ),
       GoRoute(
         parentNavigatorKey: _rootNavigatorKey,
         path: '/analytics/:id',
         builder: (context, state) {
-          final id = int.parse(state.pathParameters['id']!);
+          final id = _tryParseRouteId(state);
+          if (id == null || id <= 0) return _invalidRouteIdScreen(context);
           final business = state.extra as BusinessDto?;
           return AnalyticsDashboardScreen(
             businessId: id,
@@ -353,10 +410,14 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/owner-analytics/:id/:name',
-        builder: (context, state) => AnalyticsDashboardScreen(
-          businessId: int.parse(state.pathParameters['id']!),
-          businessName: state.pathParameters['name']!,
-        ),
+        builder: (context, state) {
+          final id = _tryParseRouteId(state);
+          if (id == null || id <= 0) return _invalidRouteIdScreen(context);
+          return AnalyticsDashboardScreen(
+            businessId: id,
+            businessName: state.pathParameters['name'] ?? 'Business Performance',
+          );
+        },
       ),
       GoRoute(
         path: '/admin-heatmap',
@@ -364,9 +425,11 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/manage-catalog/:id',
-        builder: (context, state) => ManageCatalogScreen(
-          businessId: int.parse(state.pathParameters['id']!),
-        ),
+        builder: (context, state) {
+          final id = _tryParseRouteId(state);
+          if (id == null || id <= 0) return _invalidRouteIdScreen(context);
+          return ManageCatalogScreen(businessId: id);
+        },
       ),
       GoRoute(
         parentNavigatorKey: _rootNavigatorKey,
@@ -407,18 +470,6 @@ class LocalinkApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(routerProvider);
-
-    DioClient.onRateLimited = () {
-      scaffoldMessengerKey.currentState?.clearSnackBars();
-      scaffoldMessengerKey.currentState?.showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Too many requests. Please wait a moment before trying again.',
-          ),
-          backgroundColor: Color(0xFFFF4D4F),
-        ),
-      );
-    };
 
     return MaterialApp.router(
       title: 'Vocal For Sanatan',

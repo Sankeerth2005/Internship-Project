@@ -99,7 +99,10 @@ class _AnalyticsDashboardScreenState extends ConsumerState<AnalyticsDashboardScr
     });
 
     try {
-      final response = await DioClient().dio.post('analytics/ai-insights/${widget.businessId}');
+      final response = await DioClient().dio.post(
+        'analytics/ai-insights/${widget.businessId}',
+        options: DioClient.backgroundOptions(),
+      );
       final data = response.data;
       if (data != null && data['success'] == true) {
         setState(() {
@@ -231,14 +234,14 @@ class _AnalyticsDashboardScreenState extends ConsumerState<AnalyticsDashboardScr
                       ),
                       const SizedBox(height: 24),
 
-                      // Chart 1: Profile Views Trend
+                      // Chart 1: illustrative split of lifetime views (no daily history yet)
                       const Text(
-                        'Profile Views Trend',
+                        'Profile Views (illustrative)',
                         style: TextStyle(color: _AnalTok.textHigh, fontSize: 14, fontWeight: FontWeight.w900),
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'Detailed daily interaction mapping for the selected $_selectedTimeframe timeframe.',
+                        'Illustrative split of your $_views total views for the $_selectedTimeframe layout — daily history is not stored yet.',
                         style: const TextStyle(color: _AnalTok.textMedium, fontSize: 11),
                       ),
                       const SizedBox(height: 14),
@@ -252,77 +255,91 @@ class _AnalyticsDashboardScreenState extends ConsumerState<AnalyticsDashboardScr
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(color: _AnalTok.border),
                         ),
-                        child: LineChart(
-                          LineChartData(
-                            gridData: FlGridData(
-                              show: true,
-                              drawVerticalLine: false,
-                              horizontalInterval: 1,
-                              getDrawingHorizontalLine: (value) {
-                                return FlLine(
-                                  color: _AnalTok.border,
-                                  strokeWidth: 1,
-                                );
-                              },
-                            ),
-                            titlesData: FlTitlesData(
-                              show: true,
-                              rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                              topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                              bottomTitles: AxisTitles(
-                                sideTitles: SideTitles(
-                                  showTitles: true,
-                                  reservedSize: 22,
-                                  interval: 1,
-                                  getTitlesWidget: (value, meta) {
-                                    return SideTitleWidget(
-                                      meta: meta,
-                                      child: Text(
-                                        'Day ${value.toInt() + 1}',
-                                        style: const TextStyle(color: _AnalTok.textMedium, fontSize: 10),
-                                      ),
-                                    );
-                                  },
-                                ),
-                              ),
-                              leftTitles: AxisTitles(
-                                sideTitles: SideTitles(
-                                  showTitles: true,
-                                  interval: 1,
-                                  reservedSize: 28,
-                                  getTitlesWidget: (value, meta) {
-                                    if (value % 2 != 0) return const SizedBox.shrink();
-                                    return Text(
-                                      value.toInt().toString(),
-                                      style: const TextStyle(color: _AnalTok.textMedium, fontSize: 10),
-                                      textAlign: TextAlign.right,
-                                    );
-                                  },
-                                ),
-                              ),
-                            ),
-                            borderData: FlBorderData(show: false),
-                            minX: 0,
-                            maxX: 6,
-                            minY: 0,
-                            maxY: (_views.toDouble() * 0.3).clamp(5, double.infinity),
-                            lineBarsData: [
-                              LineChartBarData(
-                                spots: _getFlChartTrendData(_selectedTimeframe, _views),
-                                isCurved: true,
-                                color: _AnalTok.primary,
-                                barWidth: 3,
-                                isStrokeCapRound: true,
-                                dotData: const FlDotData(show: true),
-                                belowBarData: BarAreaData(
+                        child: Builder(
+                          builder: (context) {
+                            final spots = _getFlChartTrendData(_selectedTimeframe, _views);
+                            final maxX = (spots.length - 1).clamp(1, 100).toDouble();
+                            final maxY = spots
+                                .map((s) => s.y)
+                                .fold<double>(0, (a, b) => a > b ? a : b)
+                                .clamp(5.0, double.infinity)
+                                .toDouble();
+                            final pointLabel = _selectedTimeframe == 'Weekly'
+                                ? 'Day'
+                                : (_selectedTimeframe == 'Monthly' ? 'Wk' : 'Mo');
+                            return LineChart(
+                              LineChartData(
+                                gridData: FlGridData(
                                   show: true,
-                                  color: _AnalTok.primary.withValues(alpha: 0.15),
+                                  drawVerticalLine: false,
+                                  horizontalInterval: 1,
+                                  getDrawingHorizontalLine: (value) {
+                                    return FlLine(
+                                      color: _AnalTok.border,
+                                      strokeWidth: 1,
+                                    );
+                                  },
                                 ),
+                                titlesData: FlTitlesData(
+                                  show: true,
+                                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                                  bottomTitles: AxisTitles(
+                                    sideTitles: SideTitles(
+                                      showTitles: true,
+                                      reservedSize: 22,
+                                      interval: 1,
+                                      getTitlesWidget: (value, meta) {
+                                        return SideTitleWidget(
+                                          meta: meta,
+                                          child: Text(
+                                            '$pointLabel ${value.toInt() + 1}',
+                                            style: const TextStyle(color: _AnalTok.textMedium, fontSize: 10),
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                  leftTitles: AxisTitles(
+                                    sideTitles: SideTitles(
+                                      showTitles: true,
+                                      interval: 1,
+                                      reservedSize: 28,
+                                      getTitlesWidget: (value, meta) {
+                                        if (value % 2 != 0) return const SizedBox.shrink();
+                                        return Text(
+                                          value.toInt().toString(),
+                                          style: const TextStyle(color: _AnalTok.textMedium, fontSize: 10),
+                                          textAlign: TextAlign.right,
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                ),
+                                borderData: FlBorderData(show: false),
+                                minX: 0,
+                                maxX: maxX,
+                                minY: 0,
+                                maxY: maxY,
+                                lineBarsData: [
+                                  LineChartBarData(
+                                    spots: spots,
+                                    isCurved: true,
+                                    color: _AnalTok.primary,
+                                    barWidth: 3,
+                                    isStrokeCapRound: true,
+                                    dotData: const FlDotData(show: true),
+                                    belowBarData: BarAreaData(
+                                      show: true,
+                                      color: _AnalTok.primary.withValues(alpha: 0.15),
+                                    ),
+                                  ),
+                                ],
                               ),
-                            ],
-                          ),
-                          duration: const Duration(milliseconds: 800),
-                          curve: Curves.easeOutCubic,
+                              duration: const Duration(milliseconds: 800),
+                              curve: Curves.easeOutCubic,
+                            );
+                          },
                         ),
                       ),
                       const SizedBox(height: 28),

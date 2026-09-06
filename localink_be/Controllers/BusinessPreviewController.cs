@@ -27,6 +27,14 @@ namespace localink_be.Controllers
             if (business == null)
                 return NotFound("Business not found");
 
+            // Anonymous preview must not leak Pending/Rejected contact PII.
+            var status = await _db.AdminDashboards
+                .Where(a => a.BusinessId == businessId)
+                .Select(a => (BusinessStatus?)a.Status)
+                .FirstOrDefaultAsync();
+            if (status != BusinessStatus.Approved && status != BusinessStatus.Active)
+                return NotFound("Business not found");
+
             var category = await _db.Categories
                 .Where(c => c.CategoryId == business.CategoryId)
                 .Select(c => c.CategoryName)

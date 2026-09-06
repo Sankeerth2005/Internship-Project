@@ -27,6 +27,12 @@ namespace localink_be.Models.Entities
         
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime? UpdatedAt { get; set; }
+
+        /// <summary>
+        /// True after the user explicitly accepts the User Agreement on the consent screen.
+        /// New accounts default to false until accepted.
+        /// </summary>
+        public bool ConsentAccepted { get; set; }
         
         public ICollection<Business> Businesses { get; set; } = new List<Business>();
     }

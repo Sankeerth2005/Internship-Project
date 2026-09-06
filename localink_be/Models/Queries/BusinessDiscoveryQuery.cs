@@ -11,8 +11,8 @@ namespace localink_be.Models.Queries
         public double? Longitude { get; set; }
 
         /// <summary>
-        /// Optional search radius in kilometers. Ignored as a visibility cutoff;
-        /// eligible matching businesses are ranked by distance instead.
+        /// Search radius in kilometers. When the viewer has coordinates, businesses
+        /// farther than this are excluded (default 30 km).
         /// </summary>
         public double? RadiusKm { get; set; }
 

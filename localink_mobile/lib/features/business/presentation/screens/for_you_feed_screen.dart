@@ -70,10 +70,13 @@ class _ForYouFeedScreenState extends ConsumerState<ForYouFeedScreen> {
             timeLimit: Duration(seconds: 8),
           ),
         );
+        if (!_isValidLatLng(pos.latitude, pos.longitude)) {
+          return (lat: null, lng: null, denied: true);
+        }
         return (lat: pos.latitude, lng: pos.longitude, denied: false);
       } catch (_) {
         final last = await Geolocator.getLastKnownPosition();
-        if (last != null) {
+        if (last != null && _isValidLatLng(last.latitude, last.longitude)) {
           return (lat: last.latitude, lng: last.longitude, denied: false);
         }
         return (lat: null, lng: null, denied: true);
@@ -81,6 +84,13 @@ class _ForYouFeedScreenState extends ConsumerState<ForYouFeedScreen> {
     } catch (_) {
       return (lat: null, lng: null, denied: true);
     }
+  }
+
+  static bool _isValidLatLng(double lat, double lng) {
+    if (lat.isNaN || lng.isNaN) return false;
+    if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return false;
+    if (lat == 0.0 && lng == 0.0) return false;
+    return true;
   }
 
   String _buildCategoryAffinityQuery() {
@@ -123,6 +133,7 @@ class _ForYouFeedScreenState extends ConsumerState<ForYouFeedScreen> {
         queryParameters: {
           'lat': lat,
           'lng': lng,
+          'radius': 30,
           if (affinity.isNotEmpty) 'categoryAffinity': affinity,
         },
         options: Options(
@@ -162,6 +173,33 @@ class _ForYouFeedScreenState extends ConsumerState<ForYouFeedScreen> {
         _loading = false;
       });
     }
+  }
+
+  String _displayGreeting() {
+    final text = _greeting.trim();
+    final compact = text.replaceAll(RegExp(r'[\s\-_]'), '').toLowerCase();
+    const labels = {
+      'morningfeed',
+      'afternoonfeed',
+      'eveningfeed',
+      'nightfeed',
+      'morning',
+      'afternoon',
+      'evening',
+      'night',
+      'morningguide',
+      'afternoonguide',
+      'eveningguide',
+      'nightguide',
+    };
+    if (text.length < 28 || labels.contains(compact)) {
+      final period = _timeOfDay.trim().isEmpty ? 'day' : _timeOfDay.trim().toLowerCase();
+      final category = _preferredCategory.trim().isEmpty
+          ? 'local'
+          : _preferredCategory.trim().toLowerCase();
+      return 'Namaste! Here are personalized $category picks within 30 km of you this $period. Each card includes a short note about the business so you can decide what to visit.';
+    }
+    return text;
   }
 
   @override
@@ -273,7 +311,7 @@ class _ForYouFeedScreenState extends ConsumerState<ForYouFeedScreen> {
                               ),
                               const SizedBox(height: 12),
                               Text(
-                                _greeting,
+                                _displayGreeting(),
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 16,

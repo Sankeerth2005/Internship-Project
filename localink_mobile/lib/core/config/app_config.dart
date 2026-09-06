@@ -38,6 +38,15 @@ class AppConfig {
 
   static bool get isConfigured => geoapifyApiKey.isNotEmpty;
 
+  /// Call before Geoapify HTTP — empty keys produce silent geocode failures.
+  static void ensureGeoapifyConfigured() {
+    if (!isConfigured) {
+      throw StateError(
+        'Geoapify API key is not configured. Pass --dart-define=GEOAPIFY_API_KEY=...',
+      );
+    }
+  }
+
   static bool get isLocalHost =>
       backendHost.startsWith('127.0.0.1') ||
       backendHost.startsWith('localhost') ||

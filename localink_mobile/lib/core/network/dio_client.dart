@@ -16,7 +16,15 @@ class DioClient {
 
   /// Called only when refresh fails or session is intentionally ended.
   static VoidCallback? onUnauthorized;
-  static VoidCallback? onRateLimited;
+
+  /// Set on background requests (analytics, auto AI summary) to avoid user-facing 429 toasts.
+  static const String suppressRateLimitToastKey = 'suppressRateLimitToast';
+
+  static Options backgroundOptions([Options? base]) {
+    final merged = Map<String, dynamic>.from(base?.extra ?? {});
+    merged[suppressRateLimitToastKey] = true;
+    return (base ?? Options()).copyWith(extra: merged);
+  }
 
   static bool _isRefreshing = false;
   static Completer<bool>? _refreshCompleter;
@@ -62,7 +70,8 @@ class DioClient {
       BaseOptions(
         baseUrl: baseUrlStr,
         connectTimeout: const Duration(seconds: 15),
-        receiveTimeout: const Duration(seconds: 20),
+        // AI chat (intent + discovery + completion) can exceed 20s on cold paths.
+        receiveTimeout: const Duration(seconds: 45),
         headers: defaultHeaders,
       ),
     );
@@ -107,8 +116,6 @@ class DioClient {
             }
 
             onUnauthorized?.call();
-          } else if (e.response?.statusCode == 429) {
-            onRateLimited?.call();
           }
           return handler.next(e);
         },

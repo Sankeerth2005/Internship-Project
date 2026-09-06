@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Microsoft.Extensions.Caching.Memory;
 
 namespace localink_be.Services.Implementations
@@ -34,10 +35,19 @@ namespace localink_be.Services.Implementations
     {
         private readonly IMemoryCache _memoryCache;
         private readonly ILogger<CacheService> _logger;
-        
-        // SemaphoreSlim dictionary to prevent concurrent API calls for same key
-        private static readonly Dictionary<string, SemaphoreSlim> _locks = new();
-        private static readonly object _lockCreationLock = new();
+
+        // Per-key locks to prevent concurrent factory calls; pruned so the map cannot grow forever.
+        private static readonly ConcurrentDictionary<string, LockEntry> _locks = new();
+        private const int MaxLockEntries = 512;
+        private const int PruneTargetEntries = 256;
+        private static readonly long LockIdlePruneMs = (long)TimeSpan.FromMinutes(10).TotalMilliseconds;
+        private static int _pruneGate;
+
+        private sealed class LockEntry
+        {
+            public SemaphoreSlim Semaphore { get; } = new(1, 1);
+            public long LastUsedTicks;
+        }
 
         public CacheService(IMemoryCache memoryCache, ILogger<CacheService> logger)
         {
@@ -92,7 +102,7 @@ namespace localink_be.Services.Implementations
                         .SetPriority(CacheItemPriority.Normal);
 
                     _memoryCache.Set(key, result, cacheOptions);
-                    _logger.LogInformation("Cached data for key: {CacheKey} with expiration: {Expiration}", 
+                    _logger.LogInformation("Cached data for key: {CacheKey} with expiration: {Expiration}",
                         key, expiration);
                 }
 
@@ -125,7 +135,7 @@ namespace localink_be.Services.Implementations
                 .SetPriority(CacheItemPriority.Normal);
 
             _memoryCache.Set(key, value, cacheOptions);
-            _logger.LogInformation("Manually cached data for key: {CacheKey} with expiration: {Expiration}", 
+            _logger.LogInformation("Manually cached data for key: {CacheKey} with expiration: {Expiration}",
                 key, expiration);
 
             return Task.CompletedTask;
@@ -145,24 +155,47 @@ namespace localink_be.Services.Implementations
         /// </summary>
         private static SemaphoreSlim GetOrCreateSemaphore(string key)
         {
-            // Fast path - check if semaphore exists
-            if (_locks.TryGetValue(key, out var existingSemaphore))
-            {
-                return existingSemaphore;
-            }
+            var entry = _locks.GetOrAdd(key, static _ => new LockEntry());
+            Interlocked.Exchange(ref entry.LastUsedTicks, Environment.TickCount64);
 
-            // Slow path - create new semaphore
-            lock (_lockCreationLock)
+            if (_locks.Count > MaxLockEntries)
+                TryPruneUnusedLocks();
+
+            return entry.Semaphore;
+        }
+
+        /// <summary>
+        /// Removes idle, unlocked semaphore entries so the static map stays bounded.
+        /// Semaphores are not disposed after removal to avoid racing with in-flight WaitAsync holders.
+        /// </summary>
+        private static void TryPruneUnusedLocks()
+        {
+            if (Interlocked.CompareExchange(ref _pruneGate, 1, 0) != 0)
+                return;
+
+            try
             {
-                // Double-check after acquiring lock
-                if (_locks.TryGetValue(key, out existingSemaphore))
+                if (_locks.Count <= MaxLockEntries)
+                    return;
+
+                var now = Environment.TickCount64;
+                foreach (var kvp in _locks)
                 {
-                    return existingSemaphore;
-                }
+                    if (_locks.Count <= PruneTargetEntries)
+                        break;
 
-                var newSemaphore = new SemaphoreSlim(1, 1);
-                _locks[key] = newSemaphore;
-                return newSemaphore;
+                    var entry = kvp.Value;
+                    var idleMs = now - Volatile.Read(ref entry.LastUsedTicks);
+                    // Only prune unlocked keys that have been idle long enough.
+                    if (idleMs < LockIdlePruneMs || entry.Semaphore.CurrentCount != 1)
+                        continue;
+
+                    _locks.TryRemove(kvp.Key, out _);
+                }
+            }
+            finally
+            {
+                Interlocked.Exchange(ref _pruneGate, 0);
             }
         }
     }

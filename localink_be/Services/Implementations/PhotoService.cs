@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System;
@@ -8,6 +9,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using localink_be.Data;
+using localink_be.Hubs;
 using localink_be.Models.Entities;
 using localink_be.Options;
 using localink_be.Services.Interfaces;
@@ -21,6 +23,7 @@ namespace localink_be.Services.Implementations
         private readonly IImageOptimizationService _optimizer;
         private readonly IUploadStorageService _storage;
         private readonly UploadSettings _uploadSettings;
+        private readonly IHubContext<NotificationHub> _hubContext;
 
         private static readonly HashSet<string> AllowedExtensions = new(StringComparer.OrdinalIgnoreCase)
         {
@@ -38,13 +41,15 @@ namespace localink_be.Services.Implementations
             ILogger<PhotoService> logger,
             IImageOptimizationService optimizer,
             IUploadStorageService storage,
-            IOptions<UploadSettings> uploadSettings)
+            IOptions<UploadSettings> uploadSettings,
+            IHubContext<NotificationHub> hubContext)
         {
             _db = db;
             _logger = logger;
             _optimizer = optimizer;
             _storage = storage;
             _uploadSettings = uploadSettings.Value;
+            _hubContext = hubContext;
         }
 
         public async Task<BusinessPhoto?> UploadPhotoAsync(long businessId, IFormFile file, long currentUserId, bool isAdmin)
@@ -93,6 +98,8 @@ namespace localink_be.Services.Implementations
                 _db.BusinessPhotos.Add(photo);
                 await _db.SaveChangesAsync();
 
+                await EmitBusinessUpdatedAsync(businessId);
+
                 _logger.LogInformation(
                     "Successfully uploaded optimized photo for BusinessId={BusinessId}, PhotoId={PhotoId}, Path={Path}, Ratio={Ratio}%",
                     businessId, photo.PhotoId, optimized.RelativePath, optimized.CompressionRatio);
@@ -126,7 +133,7 @@ namespace localink_be.Services.Implementations
             if (photo == null) return false;
 
             var business = await _db.Businesses.FindAsync(photo.BusinessId);
-            if (business != null && !isAdmin && business.UserId != currentUserId)
+            if (!isAdmin && (business == null || business.UserId != currentUserId))
             {
                 _logger.LogWarning(
                     "Unauthorized delete photo attempt by user {UserId} for business {BusinessId}, PhotoId {PhotoId}",
@@ -136,10 +143,13 @@ namespace localink_be.Services.Implementations
 
             _storage.TryDeleteRelativePath(photo.ImageUrl);
 
+            var businessId = photo.BusinessId;
             _db.BusinessPhotos.Remove(photo);
             await _db.SaveChangesAsync();
 
-            _logger.LogInformation("Successfully deleted photo with PhotoId={PhotoId} for BusinessId={BusinessId}", photoId, photo.BusinessId);
+            await EmitBusinessUpdatedAsync(businessId);
+
+            _logger.LogInformation("Successfully deleted photo with PhotoId={PhotoId} for BusinessId={BusinessId}", photoId, businessId);
             return true;
         }
 
@@ -286,6 +296,15 @@ namespace localink_be.Services.Implementations
                 _logger.LogError(ex, "SaveReviewPhotoAsync failure");
                 throw;
             }
+        }
+
+        private async Task EmitBusinessUpdatedAsync(long businessId)
+        {
+            try
+            {
+                await _hubContext.Clients.All.SendAsync("ReceiveNotification", $"BusinessUpdated:{businessId}");
+            }
+            catch { /* fail silently */ }
         }
 
         private void ValidateUploadHeaders(IFormFile file)

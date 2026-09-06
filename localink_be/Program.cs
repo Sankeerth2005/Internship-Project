@@ -8,8 +8,6 @@ using localink_be.Data;
 using localink_be.Services.Interfaces;
 using localink_be.Services.Implementations;
 using localink_be.Middleware;
-using Microsoft.AspNetCore.RateLimiting;
-using System.Threading.RateLimiting;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.HttpOverrides;
@@ -27,6 +25,11 @@ static string? ResolveEnvFilePath()
     var besideDll = Path.Combine(baseDir.FullName, ".env");
     if (File.Exists(besideDll))
         return besideDll;
+
+    // Manager runs often use `dotnet localink_be.dll` from the publish folder.
+    var cwdEnv = Path.Combine(Environment.CurrentDirectory, ".env");
+    if (File.Exists(cwdEnv))
+        return Path.GetFullPath(cwdEnv);
 
     for (var dir = baseDir; dir != null; dir = dir.Parent)
     {
@@ -75,6 +78,7 @@ var envMappings = new Dictionary<string, string>
     { "COUNTRY_CSC_API_KEY", "CountryApi:ApiKey" },
     { "GEOAPIFY_API_KEY", "Geoapify:ApiKey" },
     { "GROQ_API_KEY", "Groq:ApiKey" },
+    { "GROQ_CHAT_MODEL", "Groq:ChatModel" },
     { "CURRENCY_CONVERTER_API_KEY", "CurrencyConverter:ApiKey" },
     { "ADMIN_EMAIL", "AdminEmail" },
     { "EMAIL_HOST", "Email:Host" },
@@ -195,50 +199,6 @@ builder.Services.AddHttpClient<ICurrencyService, CurrencyService>();
 // AI GATEWAY SERVICE - Unified AI operations
 builder.Services.AddHttpClient("GroqAI");
 builder.Services.AddScoped<IAIGatewayService, AIGatewayService>();
-
-// GLOBAL RATE LIMITER CONFIGURATION (100 requests per minute per IP address)
-builder.Services.AddRateLimiter(options =>
-{
-    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
-    options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
-        RateLimitPartition.GetSlidingWindowLimiter(
-            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? httpContext.Request.Headers.Host.ToString(),
-            factory: partition => new SlidingWindowRateLimiterOptions
-            {
-                AutoReplenishment = true,
-                PermitLimit = 100,
-                QueueLimit = 0,
-                Window = TimeSpan.FromMinutes(1),
-                SegmentsPerWindow = 4
-            }));
-    
-    // Stricter rate limiting for authentication endpoints
-    options.AddPolicy("AuthPolicy", context =>
-        RateLimitPartition.GetSlidingWindowLimiter(
-            partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? context.Request.Headers.Host.ToString(),
-            factory: _ => new SlidingWindowRateLimiterOptions
-            {
-                AutoReplenishment = true,
-                PermitLimit = 10,
-                QueueLimit = 0,
-                Window = TimeSpan.FromMinutes(1),
-                SegmentsPerWindow = 2
-            }));
-
-    options.AddPolicy("AiPolicy", context =>
-        RateLimitPartition.GetSlidingWindowLimiter(
-            partitionKey: context.User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
-                ?? context.Connection.RemoteIpAddress?.ToString()
-                ?? context.Request.Headers.Host.ToString(),
-            factory: _ => new SlidingWindowRateLimiterOptions
-            {
-                AutoReplenishment = true,
-                PermitLimit = 20,
-                QueueLimit = 0,
-                Window = TimeSpan.FromMinutes(1),
-                SegmentsPerWindow = 4
-            }));
-});
 
 builder.Services.AddHealthChecks();
 
@@ -392,7 +352,7 @@ if (app.Environment.IsDevelopment())
 // GLOBAL ERROR HANDLER
 app.UseMiddleware<ExceptionMiddleware>();
 
-// TRANSLATION MIDDLEWARE - Global response translation
+// TRANSLATION MIDDLEWARE - Opt-in via Translation:EnableResponseMiddleware (default false)
 app.UseResponseTranslation();
 
 if (!app.Environment.IsDevelopment())
@@ -431,7 +391,7 @@ var webRootPath = builder.Environment.WebRootPath ?? Path.Combine(Directory.GetC
 if (!Directory.Exists(webRootPath)) Directory.CreateDirectory(webRootPath);
 app.UseStaticFiles();
 
-// Ensure refresh_tokens table exists (production-safe idempotent DDL)
+// Ensure schema patches exist (production-safe idempotent DDL)
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -460,17 +420,109 @@ END");
     {
         logger.LogWarning(ex, "Could not ensure refresh_tokens table exists. Run Scripts/EnsureRefreshTokensTable.sql if needed.");
     }
+
+    try
+    {
+        await db.Database.ExecuteSqlRawAsync(@"
+SET QUOTED_IDENTIFIER ON;
+SET ANSI_NULLS ON;
+
+IF EXISTS (
+    SELECT 1 FROM sys.columns
+    WHERE object_id = OBJECT_ID(N'dbo.business_reviews')
+      AND name = N'IsFlagged'
+)
+AND NOT EXISTS (
+    SELECT 1 FROM sys.columns
+    WHERE object_id = OBJECT_ID(N'dbo.business_reviews')
+      AND name = N'is_flagged'
+)
+BEGIN
+    EXEC sp_rename N'dbo.business_reviews.IsFlagged', N'is_flagged', N'COLUMN';
+END
+
+IF NOT EXISTS (
+    SELECT 1 FROM sys.columns
+    WHERE object_id = OBJECT_ID(N'dbo.business_reviews')
+      AND name = N'is_flagged'
+)
+BEGIN
+    ALTER TABLE dbo.business_reviews
+        ADD is_flagged BIT NOT NULL
+            CONSTRAINT DF_business_reviews_is_flagged DEFAULT (0);
+END
+
+IF EXISTS (
+    SELECT 1 FROM sys.columns
+    WHERE object_id = OBJECT_ID(N'dbo.business_reviews')
+      AND name = N'ModerationReason'
+)
+AND NOT EXISTS (
+    SELECT 1 FROM sys.columns
+    WHERE object_id = OBJECT_ID(N'dbo.business_reviews')
+      AND name = N'moderation_reason'
+)
+BEGIN
+    EXEC sp_rename N'dbo.business_reviews.ModerationReason', N'moderation_reason', N'COLUMN';
+END
+
+IF NOT EXISTS (
+    SELECT 1 FROM sys.columns
+    WHERE object_id = OBJECT_ID(N'dbo.business_reviews')
+      AND name = N'moderation_reason'
+)
+BEGIN
+    ALTER TABLE dbo.business_reviews
+        ADD moderation_reason NVARCHAR(500) NULL;
+END
+
+IF NOT EXISTS (
+    SELECT 1
+    FROM sys.indexes
+    WHERE name = N'IX_business_reviews_is_flagged'
+      AND object_id = OBJECT_ID(N'dbo.business_reviews')
+)
+BEGIN
+    CREATE INDEX IX_business_reviews_is_flagged
+        ON dbo.business_reviews(is_flagged)
+        WHERE is_flagged = 1;
+END");
+    }
+    catch (Exception ex)
+    {
+        logger.LogWarning(ex, "Could not ensure business_reviews moderation columns. Run Scripts/EnsureBusinessReviewModerationColumns.sql if needed.");
+    }
+
+    try
+    {
+        await db.Database.ExecuteSqlRawAsync(@"
+SET QUOTED_IDENTIFIER ON;
+SET ANSI_NULLS ON;
+
+IF NOT EXISTS (
+    SELECT 1 FROM sys.columns
+    WHERE object_id = OBJECT_ID(N'dbo.users')
+      AND name = N'consent_accepted'
+)
+BEGIN
+    ALTER TABLE dbo.users
+        ADD consent_accepted BIT NOT NULL
+            CONSTRAINT DF_users_consent_accepted DEFAULT (0);
+END");
+    }
+    catch (Exception ex)
+    {
+        logger.LogWarning(ex, "Could not ensure users.consent_accepted column. Run Scripts/EnsureUserConsentColumn.sql if needed.");
+    }
 }
 
 // CORS FIRST
 app.UseCors("AllowFrontend");
 
-// RATE LIMITER MIDDLEWARE
-app.UseRateLimiter();
-
 // AUTH PIPELINE (IMPORTANT)
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseMiddleware<ConsentMiddleware>();
 
 // ROUTES
 app.MapGet("/", () => "Vocal For Sanatan API is running");

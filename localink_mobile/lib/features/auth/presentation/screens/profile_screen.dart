@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -17,6 +16,7 @@ import '../../providers/user_provider.dart';
 import '../../data/models/user_profile.dart';
 import '../../data/models/location_models.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/auth_state.dart';
 import '../../providers/location_provider.dart';
 import '../../../catalog/presentation/providers/currency_provider.dart';
 import '../../../profile/widgets/profile_info_tile.dart';
@@ -202,8 +202,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     _loadCurrency();
   }
 
+  int? get _authUserId {
+    final auth = ref.read(authProvider);
+    return auth is AuthAuthenticated ? auth.userId : null;
+  }
+
   Future<void> _loadCurrency() async {
-    final currency = await UserPrefsStore.getCurrency();
+    final currency = await UserPrefsStore.getCurrency(userId: _authUserId);
     var currencies = List<String>.from(UserPrefsStore.fallbackCurrencies);
 
     try {
@@ -281,14 +286,22 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       final repo = ref.read(locationRepositoryProvider);
       final res = await repo.validatePincode(
         pincode,
+        countryIso2: _selectedCountry?.iso2,
+        countryName: _selectedCountry?.name ?? _countryCtrl.text,
         cancelToken: _pincodeCancel,
       );
       if (!mounted || !_pincodeGuard.isLatest(requestId)) return;
       if (_pincodeCtrl.text.trim() != pincode) return;
 
       if (!res.isValid) {
+        final formatOk = AppValidators.pincode(
+              pincode,
+              countryName: _selectedCountry?.name ?? _countryCtrl.text,
+              countryIso2: _selectedCountry?.iso2,
+            ) ==
+            null;
         setState(() {
-          _pincodeError = 'Invalid or unverified pincode';
+          _pincodeError = formatOk ? null : 'Invalid or unverified pincode';
           _pincodeValidating = false;
         });
         return;
@@ -334,15 +347,27 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     } on DioException catch (e) {
       if (CancelToken.isCancel(e)) return;
       if (!mounted || !_pincodeGuard.isLatest(requestId)) return;
+      final formatOk = AppValidators.pincode(
+            pincode,
+            countryName: _selectedCountry?.name ?? _countryCtrl.text,
+            countryIso2: _selectedCountry?.iso2,
+          ) ==
+          null;
       setState(() {
         _pincodeValidating = false;
-        _pincodeError = 'Could not verify pincode. Try again.';
+        _pincodeError = formatOk ? null : 'Could not verify pincode. Try again.';
       });
     } catch (e) {
       if (!mounted || !_pincodeGuard.isLatest(requestId)) return;
+      final formatOk = AppValidators.pincode(
+            pincode,
+            countryName: _selectedCountry?.name ?? _countryCtrl.text,
+            countryIso2: _selectedCountry?.iso2,
+          ) ==
+          null;
       setState(() {
         _pincodeValidating = false;
-        _pincodeError = 'Could not verify pincode. Try again.';
+        _pincodeError = formatOk ? null : 'Could not verify pincode. Try again.';
       });
     }
   }
@@ -557,7 +582,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     }
 
     if (_isSaving) return;
-    _profileFormKey.currentState?.validate();
+    if (!(_profileFormKey.currentState?.validate() ?? false)) {
+      return;
+    }
     setState(() => _isSaving = true);
     try {
       final repo = ref.read(userRepositoryProvider);
@@ -739,40 +766,70 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Expanded(
-                                  flex: 3,
-                                  child: TextField(
-                                    controller: _phoneCodeCtrl,
-                                    style: const TextStyle(color: Color(0xFF1A1918), fontSize: 14),
-                                    keyboardType: TextInputType.phone,
-                                    inputFormatters: [
-                                      FilteringTextInputFormatter.allow(RegExp(r'[0-9+]')),
-                                    ],
-                                    decoration: InputDecoration(
-                                      labelText: 'Code',
-                                      labelStyle: const TextStyle(color: Color(0xFF5F5C58), fontSize: 13),
-                                      floatingLabelBehavior: FloatingLabelBehavior.always,
-                                      prefixIcon: const Icon(Icons.add_rounded, color: Color(0xFFFF6600), size: 16),
-                                      filled: true,
-                                      fillColor: Colors.white,
-                                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
-                                      border: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                        borderSide: const BorderSide(color: Color(0xFFEAE8E3)),
-                                      ),
-                                      enabledBorder: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                        borderSide: const BorderSide(color: Color(0xFFEAE8E3)),
-                                      ),
-                                      focusedBorder: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                        borderSide: const BorderSide(color: Color(0xFFFF6600), width: 1.5),
-                                      ),
-                                    ),
+                                  flex: 40,
+                                  child: Builder(
+                                    builder: (context) {
+                                      final normalizedCode = _phoneCodeCtrl.text.replaceAll('+', '').trim();
+                                      Country? codeCountry = _selectedCountry;
+                                      if (codeCountry == null && normalizedCode.isNotEmpty) {
+                                        codeCountry = _countries.cast<Country?>().firstWhere(
+                                          (c) => c != null && c.phoneCode?.replaceAll('+', '').trim() == normalizedCode,
+                                          orElse: () => null,
+                                        );
+                                      }
+                                      final emoji = codeCountry?.emoji;
+                                      final flag = (emoji != null && emoji.isNotEmpty) ? emoji : '🏳️';
+                                      final displayCode = normalizedCode.isEmpty ? '--' : '+$normalizedCode';
+
+                                      return InputDecorator(
+                                        isEmpty: normalizedCode.isEmpty,
+                                        decoration: InputDecoration(
+                                          labelText: 'Code',
+                                          labelStyle: const TextStyle(color: Color(0xFF5F5C58), fontSize: 13),
+                                          floatingLabelBehavior: FloatingLabelBehavior.always,
+                                          prefixIconConstraints: const BoxConstraints(minWidth: 36),
+                                          prefixIcon: Padding(
+                                            padding: const EdgeInsets.only(left: 10, right: 2),
+                                            child: Center(
+                                              child: Text(
+                                                flag,
+                                                style: const TextStyle(fontSize: 17),
+                                              ),
+                                            ),
+                                          ),
+                                          filled: true,
+                                          fillColor: Colors.white,
+                                          contentPadding: const EdgeInsets.fromLTRB(8, 16, 12, 14),
+                                          border: OutlineInputBorder(
+                                            borderRadius: BorderRadius.circular(12),
+                                            borderSide: const BorderSide(color: Color(0xFFEAE8E3)),
+                                          ),
+                                          enabledBorder: OutlineInputBorder(
+                                            borderRadius: BorderRadius.circular(12),
+                                            borderSide: const BorderSide(color: Color(0xFFEAE8E3)),
+                                          ),
+                                          focusedBorder: OutlineInputBorder(
+                                            borderRadius: BorderRadius.circular(12),
+                                            borderSide: const BorderSide(color: Color(0xFFFF6600), width: 1.5),
+                                          ),
+                                        ),
+                                        child: Text(
+                                          displayCode,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(
+                                            color: Color(0xFF1A1918),
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      );
+                                    },
                                   ),
                                 ),
                                 const SizedBox(width: 8),
                                 Expanded(
-                                  flex: 7,
+                                  flex: 60,
                                   child: ProfileInfoTile(
                                     label: 'Phone Number',
                                     controller: _phoneCtrl,
@@ -1006,7 +1063,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                       .toList(),
                                   onChanged: (v) async {
                                     if (v == null) return;
-                                    await UserPrefsStore.setCurrency(v);
+                                    await UserPrefsStore.setCurrency(
+                                      userId: _authUserId,
+                                      code: v,
+                                    );
                                     if (!mounted) return;
                                     setState(() => _currency = v);
                                     if (!context.mounted) return;

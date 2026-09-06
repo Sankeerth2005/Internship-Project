@@ -13,20 +13,21 @@ public class BusinessPincodeController : ControllerBase
     }
 
     [HttpGet("validate")]
-    public async Task<IActionResult> Validate(string postcode)
+    public async Task<IActionResult> Validate(
+        [FromQuery] string postcode,
+        [FromQuery] string? country = null,
+        [FromQuery] string? countryIso2 = null)
     {
         if (string.IsNullOrWhiteSpace(postcode))
             return BadRequest("Invalid pincode");
 
         try
         {
-            var result = await _service.GetPincodeData(postcode);
+            var result = await _service.GetPincodeData(postcode, countryIso2, country);
 
             var jsonDoc = JsonDocument.Parse(result);
-            var features = jsonDoc.RootElement.GetProperty("features");
-
-            // ❌ INVALID PINCODE
-            if (features.GetArrayLength() == 0)
+            if (!jsonDoc.RootElement.TryGetProperty("features", out var features) ||
+                features.GetArrayLength() == 0)
             {
                 return NotFound(new
                 {
@@ -34,16 +35,19 @@ public class BusinessPincodeController : ControllerBase
                 });
             }
 
-            // ✅ RETURN FIRST MATCH (IMPORTANT)
             var firstResult = features[0].GetProperty("properties");
 
             return Ok(new
             {
-                country = firstResult.GetProperty("country").GetString(),
-                state = firstResult.GetProperty("state").GetString(),
+                country = firstResult.TryGetProperty("country", out var countryProp)
+                    ? countryProp.GetString()
+                    : null,
+                state = firstResult.TryGetProperty("state", out var stateProp)
+                    ? stateProp.GetString()
+                    : null,
                 city = firstResult.TryGetProperty("city", out var cityProp)
-                        ? cityProp.GetString()
-                        : null
+                    ? cityProp.GetString()
+                    : null
             });
         }
         catch (JsonException)
@@ -51,6 +55,10 @@ public class BusinessPincodeController : ControllerBase
             return StatusCode(500, new { message = "Business pincode validation failed" });
         }
         catch (InvalidOperationException)
+        {
+            return StatusCode(502, new { message = "Business pincode validation failed" });
+        }
+        catch (Exception)
         {
             return StatusCode(502, new { message = "Business pincode validation failed" });
         }

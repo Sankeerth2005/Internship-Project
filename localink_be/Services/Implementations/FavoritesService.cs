@@ -42,6 +42,24 @@ namespace localink_be.Services.Implementations
             };
 
             _context.Favorites.Add(favorite);
+
+            var metric = await _context.BusinessMetrics
+                .FirstOrDefaultAsync(m => m.BusinessId == dto.BusinessId);
+            if (metric == null)
+            {
+                _context.BusinessMetrics.Add(new BusinessMetric
+                {
+                    BusinessId = dto.BusinessId,
+                    FavoritesCount = 1,
+                    Views = 0,
+                    ContactClicks = 0
+                });
+            }
+            else
+            {
+                metric.FavoritesCount += 1;
+            }
+
             await _context.SaveChangesAsync();
 
             return "Added to favorites";
@@ -56,6 +74,12 @@ namespace localink_be.Services.Implementations
                 return "Not found";
 
             _context.Favorites.Remove(fav);
+
+            var metric = await _context.BusinessMetrics
+                .FirstOrDefaultAsync(m => m.BusinessId == businessId);
+            if (metric != null && metric.FavoritesCount > 0)
+                metric.FavoritesCount -= 1;
+
             await _context.SaveChangesAsync();
 
             return "Removed from favorites";
@@ -77,6 +101,9 @@ namespace localink_be.Services.Implementations
             return await _context.Businesses
                 .AsNoTracking()
                 .Where(b => ids.Contains(b.BusinessId))
+                .Where(b => _context.AdminDashboards.Any(a =>
+                    a.BusinessId == b.BusinessId &&
+                    (a.Status == BusinessStatus.Approved || a.Status == BusinessStatus.Active)))
                 .WhereVisibleToConsumers()
                 .Select(b => new BusinessDto
                 {
@@ -100,8 +127,8 @@ namespace localink_be.Services.Implementations
                     Longitude = _context.BusinessContacts.Where(c => c.BusinessId == b.BusinessId).Select(c => c.Longitude).FirstOrDefault(),
                     PrimaryImage = _context.BusinessPhotos.Where(p => p.BusinessId == b.BusinessId).OrderByDescending(p => p.IsPrimary).Select(p => p.ImageUrl).FirstOrDefault(),
                     Photos = _context.BusinessPhotos.Where(p => p.BusinessId == b.BusinessId).OrderByDescending(p => p.IsPrimary).Select(p => p.ImageUrl).ToList(),
-                    AverageRating = _context.BusinessReviews.Where(r => r.BusinessId == b.BusinessId).Select(r => (double?)r.Rating).Average() ?? 0.0,
-                    TotalReviews = _context.BusinessReviews.Count(r => r.BusinessId == b.BusinessId),
+                    AverageRating = _context.BusinessReviews.Where(r => r.BusinessId == b.BusinessId && !r.IsFlagged).Select(r => (double?)r.Rating).Average() ?? 0.0,
+                    TotalReviews = _context.BusinessReviews.Count(r => r.BusinessId == b.BusinessId && !r.IsFlagged),
                     IsTemporarilyClosed = b.TemporaryClosureStatus == "Approved" && b.TemporaryClosureReopenDate.HasValue && b.TemporaryClosureReopenDate.Value > DateTime.UtcNow,
                     TemporaryClosureReason = b.TemporaryClosureReason,
                     TemporaryClosureStatus = b.TemporaryClosureStatus,

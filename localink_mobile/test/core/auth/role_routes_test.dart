@@ -35,6 +35,35 @@ void main() {
       expect(RoleRoutes.canAccessOwnerRoutes('client'), isFalse);
       expect(RoleRoutes.canAccessOwnerRoutes('user'), isFalse);
     });
+
+    test('isConsumerExperience uses Continue As, not DB account type alone', () {
+      expect(
+        RoleRoutes.isConsumerExperience(
+          accountType: 'businessowner',
+          activeExperience: 'user',
+        ),
+        isTrue,
+      );
+      expect(
+        RoleRoutes.isConsumerExperience(
+          accountType: 'businessowner',
+          activeExperience: 'businessowner',
+        ),
+        isFalse,
+      );
+      expect(
+        RoleRoutes.isConsumerExperience(accountType: 'user'),
+        isTrue,
+      );
+      expect(
+        RoleRoutes.isConsumerExperience(accountType: 'client'),
+        isTrue,
+      );
+      expect(
+        RoleRoutes.isConsumerExperience(accountType: 'admin'),
+        isFalse,
+      );
+    });
   });
 
   group('RoleRoutes.resolvePostAuthRoute', () {
@@ -52,6 +81,17 @@ void main() {
           needsExperienceSelection: true,
         ),
         RoleRoutes.continueAs,
+      );
+    });
+
+    test('user agreement comes before continue-as', () {
+      expect(
+        RoleRoutes.resolvePostAuthRoute(
+          accountType: 'user',
+          needsExperienceSelection: true,
+          needsUserAgreement: true,
+        ),
+        RoleRoutes.userAgreement,
       );
     });
 

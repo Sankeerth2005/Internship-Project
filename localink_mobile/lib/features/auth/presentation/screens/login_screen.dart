@@ -217,6 +217,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
           accountType: next.userType,
           activeExperience: next.activeExperience,
           needsExperienceSelection: next.needsExperienceSelection,
+          needsUserAgreement: next.needsUserAgreement,
         ));
       }
     });
