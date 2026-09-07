@@ -6,8 +6,11 @@ using System.Threading.Tasks;
 using localink_be.Data;
 using localink_be.Models.Entities;
 using localink_be.Models.DTOs;
+using localink_be.Options;
+using localink_be.Services;
 using localink_be.Services.Interfaces;
 using localink_be.Validation;
+using Microsoft.Extensions.Options;
 
 namespace localink_be.Services.Implementations
 {
@@ -16,48 +19,66 @@ public class UserService : IUserService
     private readonly AppDbContext _db;
     private readonly IBusinessPincodeService _pincodeService;
     private readonly IBusinessLocationService _locationService;
+    private readonly IReferralService _referralService;
+    private readonly ReferralOptions _referralOptions;
     private readonly Microsoft.Extensions.Logging.ILogger<UserService> _logger;
 
     public UserService(
         AppDbContext db, 
         IBusinessPincodeService pincodeService, 
         IBusinessLocationService locationService,
+        IReferralService referralService,
+        IOptions<ReferralOptions> referralOptions,
         Microsoft.Extensions.Logging.ILogger<UserService> logger)
     {
         _db = db;
         _pincodeService = pincodeService;
         _locationService = locationService;
+        _referralService = referralService;
+        _referralOptions = referralOptions.Value;
         _logger = logger;
     }
 
     public async Task<UserProfileDto?> GetUserProfileAsync(long userId)
     {
-        var user = await _db.Users
-            .Where(u => u.UserId == userId)
-            .Select(u => new UserProfileDto
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.UserId == userId);
+        if (user == null)
+            return null;
+
+        if (string.IsNullOrWhiteSpace(user.ReferralCode))
+        {
+            await _referralService.EnsureReferralCodeAsync(user);
+            await _db.SaveChangesAsync();
+        }
+
+        var achievement = ReferralTagCalculator.FromCount(user.SuccessfulReferralCount, _referralOptions);
+
+        var address = await _db.Addresses
+            .Where(a => a.UserId == user.UserId)
+            .Select(a => new AddressDto
             {
-                UserId = u.UserId,
-                FullName = u.FullName,
-                Email = u.Email,
-                Phone = u.PhoneNumber ?? string.Empty,
-                CountryCode = u.CountryCode,
-                ProfilePicture = u.ProfilePicture,
-
-                Address = _db.Addresses
-                    .Where(a => a.UserId == u.UserId)
-                    .Select(a => new AddressDto
-                    {
-                        Street = a.StreetAddress,
-                        City = a.City,
-                        State = a.State,
-                        Country = a.Country,
-                        Pincode = a.Pincode
-                    })
-                    .FirstOrDefault() ?? new AddressDto()
+                Street = a.StreetAddress,
+                City = a.City,
+                State = a.State,
+                Country = a.Country,
+                Pincode = a.Pincode
             })
-            .FirstOrDefaultAsync();
+            .FirstOrDefaultAsync() ?? new AddressDto();
 
-        return user;
+        return new UserProfileDto
+        {
+            UserId = user.UserId,
+            FullName = user.FullName,
+            Email = user.Email,
+            Phone = user.PhoneNumber ?? string.Empty,
+            CountryCode = user.CountryCode,
+            ProfilePicture = user.ProfilePicture,
+            ReferralCode = user.ReferralCode,
+            SuccessfulReferralCount = user.SuccessfulReferralCount,
+            ReferralAchievementTier = achievement.Tier,
+            ReferralAchievementLabel = achievement.DisplayLabel,
+            Address = address
+        };
     }
 
     public async Task<bool> UpdateUserProfileAsync(long userId, UpdateUserProfileDto dto)

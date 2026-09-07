@@ -48,5 +48,12 @@ namespace localink_be.Models.DTOs
 
         [RegularExpression(@"^[A-Za-z0-9\-\s]{3,10}$", ErrorMessage = "Invalid pincode format (3-10 characters)")]
         public string Pincode { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Optional referrer code (e.g. VFS-AB12CD). Invalid codes are ignored; registration still succeeds.
+        /// Attribution is applied server-side only when the account is created.
+        /// </summary>
+        [StringLength(32, ErrorMessage = "Referral code cannot exceed 32 characters")]
+        public string? ReferralCode { get; set; }
     }
 }

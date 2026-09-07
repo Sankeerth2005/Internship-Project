@@ -20,17 +20,20 @@ namespace localink_be.Services.Implementations
         private readonly AppDbContext _context;
         private readonly IConfiguration _config;
         private readonly IEmailService _emailService;
+        private readonly IReferralService _referralService;
         private readonly ILogger<AuthService> _logger;
 
         public AuthService(
             AppDbContext context,
             IConfiguration config,
             IEmailService emailService,
+            IReferralService referralService,
             ILogger<AuthService> logger)
         {
             _context = context;
             _config = config;
             _emailService = emailService;
+            _referralService = referralService;
             _logger = logger;
         }
 
@@ -97,6 +100,9 @@ namespace localink_be.Services.Implementations
                     _context.Addresses.Add(address);
                     await _context.SaveChangesAsync();
 
+                    // Permanent code + optional verified referral attribution (same transaction).
+                    await _referralService.TryAttributeReferralAsync(user, request.ReferralCode);
+
                     await transaction.CommitAsync();
                 }
                 catch
@@ -155,7 +161,7 @@ namespace localink_be.Services.Implementations
             return await IssueSessionAsync(user);
         }
 
-        public async Task<object> GoogleSignInAsync(string idToken)
+        public async Task<object> GoogleSignInAsync(string idToken, string? referralCode = null)
         {
             try
             {
@@ -200,6 +206,7 @@ namespace localink_be.Services.Implementations
                 if (user != null)
                 {
                     // Verified Google email matches an existing account → sign in (password and Google both OK).
+                    // Referral codes are never applied to existing accounts.
                     var changed = false;
                     if (!string.Equals(user.AuthProvider, "google", StringComparison.OrdinalIgnoreCase)
                         || string.IsNullOrEmpty(user.ProviderId))
@@ -217,6 +224,12 @@ namespace localink_be.Services.Implementations
                     if (string.IsNullOrWhiteSpace(user.ProfilePicture) && !string.IsNullOrWhiteSpace(picture))
                     {
                         user.ProfilePicture = picture;
+                        changed = true;
+                    }
+
+                    if (string.IsNullOrWhiteSpace(user.ReferralCode))
+                    {
+                        await _referralService.EnsureReferralCodeAsync(user);
                         changed = true;
                     }
 
@@ -246,6 +259,8 @@ namespace localink_be.Services.Implementations
 
                         _context.Users.Add(user);
                         await _context.SaveChangesAsync();
+
+                        await _referralService.TryAttributeReferralAsync(user, referralCode);
 
                         await transaction.CommitAsync();
 

@@ -63,6 +63,7 @@ New-Item -ItemType Directory -Force -Path $scriptsOut | Out-Null
     "EnsureRefreshTokensTable.sql",
     "EnsureBusinessReviewModerationColumns.sql",
     "EnsureUserConsentColumn.sql",
+    "EnsureReferralSchema.sql",
     "FixManagerIsFlagged.sql",
     "DiagnoseSchemaGaps.sql"
 ) | ForEach-Object {

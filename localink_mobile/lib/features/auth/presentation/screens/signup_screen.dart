@@ -24,6 +24,7 @@ import '../../../shared/presentation/widgets/app_feedback.dart';
 import '../../../shared/presentation/widgets/searchable_select_field.dart';
 import '../../../shared/presentation/widgets/location_picker_items.dart';
 import '../../../../core/network/app_error_formatter.dart';
+import '../../../../core/storage/user_prefs_store.dart';
 
 class _Tok {
   static const Color primary = Color(0xFFFF6600);
@@ -56,12 +57,14 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+  final _referralCodeController = TextEditingController();
 
   final FocusNode _nameFocus = FocusNode();
   final FocusNode _phoneFocus = FocusNode();
   final FocusNode _emailFocus = FocusNode();
   final FocusNode _passwordFocus = FocusNode();
   final FocusNode _confirmPasswordFocus = FocusNode();
+  final FocusNode _referralFocus = FocusNode();
 
   String _activeFocusField = '';
   List<Country> _countries = [];
@@ -76,6 +79,13 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     _passwordController.addListener(_onPasswordChanged);
     _setupFocusListeners();
     _loadCountries();
+    _loadPendingReferralCode();
+  }
+
+  Future<void> _loadPendingReferralCode() async {
+    final pending = await UserPrefsStore.getPendingReferralCode();
+    if (!mounted || pending == null || pending.isEmpty) return;
+    setState(() => _referralCodeController.text = pending);
   }
 
   void _setupFocusListeners() {
@@ -87,6 +97,8 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     _confirmPasswordFocus.addListener(
       () => _updateFocus('confirmPassword', _confirmPasswordFocus.hasFocus),
     );
+    _referralFocus
+        .addListener(() => _updateFocus('referral', _referralFocus.hasFocus));
   }
 
   void _updateFocus(String fieldName, bool hasFocus) {
@@ -105,11 +117,13 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     _phoneController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
+    _referralCodeController.dispose();
     _nameFocus.dispose();
     _phoneFocus.dispose();
     _emailFocus.dispose();
     _passwordFocus.dispose();
     _confirmPasswordFocus.dispose();
+    _referralFocus.dispose();
     super.dispose();
   }
 
@@ -236,6 +250,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
         _phoneController.text,
         _selectedPhoneCode,
       );
+      final referral = _referralCodeController.text.trim().toUpperCase();
       final request = RegisterRequest(
         userType: 'user',
         name: _nameController.text.trim(),
@@ -248,7 +263,12 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
         city: '',
         street: '',
         pincode: '',
+        referralCode: referral.isEmpty ? null : referral,
       );
+
+      if (referral.isNotEmpty) {
+        await UserPrefsStore.setPendingReferralCode(referral);
+      }
 
       final message = await ref.read(authProvider.notifier).register(request);
       if (!mounted) return;
@@ -276,7 +296,14 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
       HapticFeedback.lightImpact();
       final idToken = await GoogleSignInHelper.getIdToken();
       if (idToken == null) return;
-      await ref.read(authProvider.notifier).googleSignIn(idToken);
+      final typed = _referralCodeController.text.trim().toUpperCase();
+      if (typed.isNotEmpty) {
+        await UserPrefsStore.setPendingReferralCode(typed);
+      }
+      await ref.read(authProvider.notifier).googleSignIn(
+            idToken,
+            referralCode: typed.isEmpty ? null : typed,
+          );
     } catch (e) {
       if (mounted) {
         HapticFeedback.heavyImpact();
@@ -568,7 +595,20 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
               validator: AppValidators.email,
               focusNode: _emailFocus,
               autofillHints: const [AutofillHints.email],
+              textInputAction: TextInputAction.next,
+            ),
+          ),
+          const SizedBox(height: 16),
+          AnimatedFieldGlow(
+            isFocused: _activeFocusField == 'referral',
+            child: AppTextField(
+              controller: _referralCodeController,
+              labelText: 'Referral code (optional)',
+              hintText: 'e.g. VFS-AB12CD',
+              prefixIcon: Icons.card_giftcard_outlined,
+              focusNode: _referralFocus,
               textInputAction: TextInputAction.done,
+              maxLength: 32,
               onFieldSubmitted: (_) => _nextStep(),
             ),
           ),

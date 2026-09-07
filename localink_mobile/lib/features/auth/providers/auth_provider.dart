@@ -196,6 +196,7 @@ class AuthNotifier extends Notifier<AuthState> {
     try {
       final message = await _repository.register(request);
       await UserPrefsStore.markPendingAgreementEmail(request.email);
+      await UserPrefsStore.clearPendingReferralCode();
       state = const AuthUnauthenticated();
       return message;
     } catch (e) {
@@ -205,11 +206,18 @@ class AuthNotifier extends Notifier<AuthState> {
     }
   }
 
-  Future<void> googleSignIn(String idToken) async {
+  Future<void> googleSignIn(String idToken, {String? referralCode}) async {
     state = const AuthLoading();
     try {
-      final response = await _repository.googleSignIn(idToken);
+      final pending = referralCode ?? await UserPrefsStore.getPendingReferralCode();
+      final response = await _repository.googleSignIn(
+        idToken,
+        referralCode: pending,
+      );
       // Google auth itself is unchanged; only post-auth routing asks for a role.
+      if (response.user.isNewUser) {
+        await UserPrefsStore.clearPendingReferralCode();
+      }
       await _persistSession(
         response,
         isNewUser: response.user.isNewUser,

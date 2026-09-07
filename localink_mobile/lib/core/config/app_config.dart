@@ -69,4 +69,28 @@ class AppConfig {
       }
     }
   }
+
+  /// Marketing site (invite landing, legal pages).
+  static const String websiteUrl = String.fromEnvironment(
+    'WEBSITE_URL',
+    defaultValue: 'https://vocalforsanatan.com',
+  );
+
+  /// Invite landing base — appends `?code=`.
+  static const String inviteBaseUrl = String.fromEnvironment(
+    'INVITE_BASE_URL',
+    defaultValue: 'https://vocalforsanatan.com/invite',
+  );
+
+  static const String playStoreUrl = String.fromEnvironment(
+    'PLAY_STORE_URL',
+    defaultValue:
+        'https://play.google.com/store/apps/details?id=com.vocalforsanatan.app',
+  );
+
+  static String referralLinkFor(String referralCode) {
+    final base = inviteBaseUrl.trim().replaceAll(RegExp(r'/+$'), '');
+    final sep = base.contains('?') ? '&' : '?';
+    return '$base${sep}code=${Uri.encodeQueryComponent(referralCode)}';
+  }
 }

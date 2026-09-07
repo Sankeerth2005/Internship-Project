@@ -102,4 +102,49 @@ class UserPrefsStore {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_pendingAgreementEmailKey);
   }
+
+  // --- Referral attribution (device-local pending code) ---
+
+  static const _pendingReferralCodeKey = 'pending_referral_code_v1';
+  static const _celebrationKeyPrefix = 'referral_celebrate_seen_v1_';
+
+  /// Stores a referral code captured from an invite link until successful registration.
+  static Future<void> setPendingReferralCode(String code) async {
+    final normalized = code.trim().toUpperCase();
+    if (normalized.isEmpty) return;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_pendingReferralCodeKey, normalized);
+  }
+
+  static Future<String?> getPendingReferralCode() async {
+    final prefs = await SharedPreferences.getInstance();
+    final value = prefs.getString(_pendingReferralCodeKey);
+    if (value == null || value.trim().isEmpty) return null;
+    return value.trim().toUpperCase();
+  }
+
+  static Future<void> clearPendingReferralCode() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_pendingReferralCodeKey);
+  }
+
+  static String _celebrationKey(int userId, String tier) =>
+      '$_celebrationKeyPrefix${userId}_$tier';
+
+  /// True when this device already showed the milestone celebration for [tier].
+  static Future<bool> hasSeenReferralCelebration({
+    required int userId,
+    required String tier,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_celebrationKey(userId, tier.toLowerCase())) ?? false;
+  }
+
+  static Future<void> markReferralCelebrationSeen({
+    required int userId,
+    required String tier,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_celebrationKey(userId, tier.toLowerCase()), true);
+  }
 }

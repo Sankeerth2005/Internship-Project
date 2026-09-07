@@ -35,9 +35,16 @@ class AuthRepository {
     }
   }
 
-  Future<AuthResponse> googleSignIn(String idToken) async {
+  Future<AuthResponse> googleSignIn(
+    String idToken, {
+    String? referralCode,
+  }) async {
     try {
-      final response = await dio.post('auth/google', data: {'idToken': idToken});
+      final payload = <String, dynamic>{'idToken': idToken};
+      if (referralCode != null && referralCode.trim().isNotEmpty) {
+        payload['referralCode'] = referralCode.trim().toUpperCase();
+      }
+      final response = await dio.post('auth/google', data: payload);
       if (response.data['success'] == true) {
         return AuthResponse.fromJson(response.data['data']);
       } else {

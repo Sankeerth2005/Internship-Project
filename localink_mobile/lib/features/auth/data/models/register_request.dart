@@ -27,6 +27,10 @@ class RegisterRequest {
   @JsonKey(name: 'pincode')
   final String pincode;
 
+  /// Optional referrer code captured from invite link / signup field.
+  @JsonKey(name: 'referralCode', includeIfNull: false)
+  final String? referralCode;
+
   RegisterRequest({
     required this.userType,
     required this.name,
@@ -39,6 +43,7 @@ class RegisterRequest {
     required this.city,
     this.street = '',
     this.pincode = '',
+    this.referralCode,
   });
 
   factory RegisterRequest.fromJson(Map<String, dynamic> json) =>

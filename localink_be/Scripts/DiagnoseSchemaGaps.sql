@@ -17,6 +17,16 @@ INSERT INTO @Expected (table_name, column_name, why) VALUES
 
 (N'users', N'consent_accepted', N'Mandatory User Agreement consent flag'),
 
+-- Referral / community recognition
+(N'users', N'referral_code',              N'Unique permanent referral share code'),
+(N'users', N'referred_by_user_id',        N'Immutable referrer user id'),
+(N'users', N'successful_referral_count',  N'Denormalized verified referral count'),
+(N'referral_history', N'id',                 N'Referral audit PK'),
+(N'referral_history', N'referrer_user_id',   N'Referrer who earns credit'),
+(N'referral_history', N'referred_user_id',   N'Referred user (unique once)'),
+(N'referral_history', N'referral_code',      N'Code used at registration'),
+(N'referral_history', N'created_at',         N'Referral verification timestamp'),
+
 -- Users / auth
 (N'users', N'auth_provider', N'Google / provider auth'),
 (N'users', N'provider_id',   N'Google / provider subject id'),

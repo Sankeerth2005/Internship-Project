@@ -19,19 +19,30 @@ RegisterRequest _$RegisterRequestFromJson(Map<String, dynamic> json) =>
       city: json['city'] as String,
       street: json['street'] as String? ?? '',
       pincode: json['pincode'] as String? ?? '',
+      referralCode: json['referralCode'] as String?,
     );
 
-Map<String, dynamic> _$RegisterRequestToJson(RegisterRequest instance) =>
-    <String, dynamic>{
-      'userType': instance.userType,
-      'name': instance.name,
-      'email': instance.email,
-      'phone': instance.phone,
-      'countryCode': instance.countryCode,
-      'password': instance.password,
-      'country': instance.country,
-      'state': instance.state,
-      'city': instance.city,
-      'street': instance.street,
-      'pincode': instance.pincode,
-    };
+Map<String, dynamic> _$RegisterRequestToJson(RegisterRequest instance) {
+  final val = <String, dynamic>{
+    'userType': instance.userType,
+    'name': instance.name,
+    'email': instance.email,
+    'phone': instance.phone,
+    'countryCode': instance.countryCode,
+    'password': instance.password,
+    'country': instance.country,
+    'state': instance.state,
+    'city': instance.city,
+    'street': instance.street,
+    'pincode': instance.pincode,
+  };
+
+  void writeNotNull(String key, dynamic value) {
+    if (value != null) {
+      val[key] = value;
+    }
+  }
+
+  writeNotNull('referralCode', instance.referralCode);
+  return val;
+}

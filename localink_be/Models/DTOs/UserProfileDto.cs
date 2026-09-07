@@ -26,6 +26,18 @@ namespace localink_be.Models.DTOs
         [StringLength(500000, ErrorMessage = "Profile picture data too large")]
         public string? ProfilePicture { get; set; }
 
+        /// <summary>Read-only permanent referral code (server-generated).</summary>
+        public string? ReferralCode { get; set; }
+
+        /// <summary>Read-only verified successful referral count.</summary>
+        public int SuccessfulReferralCount { get; set; }
+
+        /// <summary>Read-only achievement tier: none | bronze | silver | gold.</summary>
+        public string ReferralAchievementTier { get; set; } = "none";
+
+        /// <summary>Read-only display label, e.g. Bronze Supporter.</summary>
+        public string ReferralAchievementLabel { get; set; } = "Community Member";
+
         public AddressDto Address { get; set; } = new();
     }
 

@@ -114,7 +114,7 @@ namespace localink_be.Controllers
             if (!ModelState.IsValid)
                 return BadRequest(new { success = false, errors = ModelState });
 
-            var result = await _authService.GoogleSignInAsync(request.IdToken);
+            var result = await _authService.GoogleSignInAsync(request.IdToken, request.ReferralCode);
 
             return Ok(new
             {

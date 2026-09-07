@@ -18,12 +18,12 @@ class AddressDto {
   }
 
   Map<String, dynamic> toJson() => {
-    'street': street,
-    'city': city,
-    'state': state,
-    'country': country,
-    'pincode': pincode,
-  };
+        'street': street,
+        'city': city,
+        'state': state,
+        'country': country,
+        'pincode': pincode,
+      };
 }
 
 class UserProfileDto {
@@ -33,6 +33,10 @@ class UserProfileDto {
   final String? phone;
   final String countryCode;
   final String? profilePicture;
+  final String? referralCode;
+  final int successfulReferralCount;
+  final String referralAchievementTier;
+  final String referralAchievementLabel;
   final AddressDto address;
 
   UserProfileDto({
@@ -42,6 +46,10 @@ class UserProfileDto {
     this.phone,
     required this.countryCode,
     this.profilePicture,
+    this.referralCode,
+    this.successfulReferralCount = 0,
+    this.referralAchievementTier = 'none',
+    this.referralAchievementLabel = 'Community Member',
     required this.address,
   });
 
@@ -53,10 +61,31 @@ class UserProfileDto {
       phone: json['phone'] as String?,
       countryCode: json['countryCode'] ?? '',
       profilePicture: json['profilePicture'] as String?,
+      referralCode: json['referralCode'] as String?,
+      successfulReferralCount: json['successfulReferralCount'] is int
+          ? json['successfulReferralCount'] as int
+          : int.tryParse('${json['successfulReferralCount']}') ?? 0,
+      referralAchievementTier:
+          (json['referralAchievementTier'] ?? 'none').toString(),
+      referralAchievementLabel:
+          (json['referralAchievementLabel'] ?? 'Community Member').toString(),
       address: json['address'] != null
           ? AddressDto.fromJson(json['address'])
           : AddressDto(),
     );
+  }
+
+  String get referralTierEmoji {
+    switch (referralAchievementTier.toLowerCase()) {
+      case 'bronze':
+        return '🥉';
+      case 'silver':
+        return '🥈';
+      case 'gold':
+        return '🥇';
+      default:
+        return '';
+    }
   }
 }
 
@@ -78,11 +107,11 @@ class UpdateUserProfileDto {
   });
 
   Map<String, dynamic> toJson() => {
-    'fullName': fullName,
-    'email': email,
-    'phone': phone,
-    'countryCode': countryCode,
-    'profilePicture': profilePicture,
-    'address': address.toJson(),
-  };
+        'fullName': fullName,
+        'email': email,
+        'phone': phone,
+        'countryCode': countryCode,
+        'profilePicture': profilePicture,
+        'address': address.toJson(),
+      };
 }

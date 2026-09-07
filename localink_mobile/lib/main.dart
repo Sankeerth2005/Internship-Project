@@ -35,6 +35,8 @@ import 'features/auth/presentation/screens/user_agreement_consent_screen.dart';
 import 'features/chat/presentation/screens/conversations_screen.dart';
 import 'features/chat/presentation/screens/chat_screen.dart';
 import 'features/catalog/presentation/screens/manage_catalog_screen.dart';
+import 'features/referral/presentation/screens/referral_dashboard_screen.dart';
+import 'features/referral/utils/referral_link_listener.dart';
 
 import 'core/config/app_config.dart';
 import 'core/theme/app_theme.dart';
@@ -46,6 +48,9 @@ void main() {
   WidgetsFlutterBinding.ensureInitialized();
 
   FlutterError.onError = CrashReporter.recordFlutterError;
+
+  // Capture invite deep links as early as possible (best-effort).
+  unawaited(ReferralLinkListener.start());
 
   runZonedGuarded(
     () {
@@ -381,6 +386,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         parentNavigatorKey: _rootNavigatorKey,
         path: '/profile',
         builder: (context, state) => const ProfileScreen(),
+      ),
+      GoRoute(
+        parentNavigatorKey: _rootNavigatorKey,
+        path: '/refer-support',
+        builder: (context, state) => const ReferralDashboardScreen(),
       ),
       GoRoute(
         parentNavigatorKey: _rootNavigatorKey,

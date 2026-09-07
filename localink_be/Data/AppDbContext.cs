@@ -28,6 +28,7 @@ namespace localink_be.Data
         public DbSet<BusinessMetric> BusinessMetrics { get; set; }
         public DbSet<SearchQueryLog> SearchQueryLogs { get; set; }
         public DbSet<TranslationCache> TranslationCaches { get; set; }
+        public DbSet<ReferralHistory> ReferralHistories { get; set; }
         
         // Phase 2: Chat & Messaging
         public DbSet<Conversation> Conversations { get; set; }
@@ -50,6 +51,7 @@ namespace localink_be.Data
             ConfigureBusinessReview(modelBuilder);
             ConfigureFavorite(modelBuilder);
             ConfigureTranslationCache(modelBuilder);
+            ConfigureReferralHistory(modelBuilder);
             ConfigureMessaging(modelBuilder);
 
             ConfigureCatalog(modelBuilder);
@@ -196,8 +198,60 @@ namespace localink_be.Data
                     .HasColumnName("consent_accepted")
                     .HasDefaultValue(false);
 
+                entity.Property(u => u.ReferralCode)
+                    .HasColumnName("referral_code")
+                    .HasMaxLength(16);
+
+                entity.Property(u => u.ReferredByUserId)
+                    .HasColumnName("referred_by_user_id");
+
+                entity.Property(u => u.SuccessfulReferralCount)
+                    .HasColumnName("successful_referral_count")
+                    .HasDefaultValue(0);
+
+                entity.HasOne(u => u.ReferredByUser)
+                    .WithMany()
+                    .HasForeignKey(u => u.ReferredByUserId)
+                    .OnDelete(DeleteBehavior.NoAction);
+
                 entity.HasIndex(u => u.PhoneNumber).IsUnique();
                 entity.HasIndex(u => u.Email).IsUnique();
+                entity.HasIndex(u => u.ReferralCode)
+                    .IsUnique()
+                    .HasFilter("[referral_code] IS NOT NULL");
+                entity.HasIndex(u => u.ReferredByUserId)
+                    .HasFilter("[referred_by_user_id] IS NOT NULL");
+            });
+        }
+
+        private void ConfigureReferralHistory(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<ReferralHistory>(entity =>
+            {
+                entity.ToTable("referral_history");
+                entity.HasKey(r => r.Id);
+
+                entity.Property(r => r.Id).HasColumnName("id");
+                entity.Property(r => r.ReferrerUserId).HasColumnName("referrer_user_id");
+                entity.Property(r => r.ReferredUserId).HasColumnName("referred_user_id");
+                entity.Property(r => r.ReferralCode)
+                    .HasColumnName("referral_code")
+                    .HasMaxLength(16)
+                    .IsRequired();
+                entity.Property(r => r.CreatedAt).HasColumnName("created_at");
+
+                entity.HasIndex(r => r.ReferredUserId).IsUnique();
+                entity.HasIndex(r => r.ReferrerUserId);
+
+                entity.HasOne(r => r.ReferrerUser)
+                    .WithMany()
+                    .HasForeignKey(r => r.ReferrerUserId)
+                    .OnDelete(DeleteBehavior.NoAction);
+
+                entity.HasOne(r => r.ReferredUser)
+                    .WithMany()
+                    .HasForeignKey(r => r.ReferredUserId)
+                    .OnDelete(DeleteBehavior.NoAction);
             });
         }
 

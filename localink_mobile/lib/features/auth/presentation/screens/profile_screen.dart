@@ -738,6 +738,29 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     profile.fullName,
                     style: const TextStyle(color: _ProfileTok.textHigh, fontSize: 18, fontWeight: FontWeight.bold),
                   ),
+                  if (profile.referralAchievementTier.toLowerCase() != 'none') ...[
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: _ProfileTok.primary.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: _ProfileTok.primary.withValues(alpha: 0.25)),
+                      ),
+                      child: Text(
+                        [
+                          if (profile.referralTierEmoji.isNotEmpty)
+                            profile.referralTierEmoji,
+                          profile.referralAchievementLabel,
+                        ].where((e) => e.isNotEmpty).join(' '),
+                        style: const TextStyle(
+                          color: _ProfileTok.primary,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 4),
                   Text(
                     profile.email,
@@ -1078,6 +1101,32 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                 ),
                               ),
                           ],
+                        ),
+                        const Divider(height: 20),
+                        ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          dense: true,
+                          leading: const Icon(
+                            Icons.diversity_3_rounded,
+                            color: _ProfileTok.primary,
+                          ),
+                          title: const Text(
+                            'Refer & Support',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 13,
+                              color: _ProfileTok.textHigh,
+                            ),
+                          ),
+                          subtitle: const Text(
+                            'Invite friends · My Referral Impact',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: _ProfileTok.textMedium,
+                            ),
+                          ),
+                          trailing: const Icon(Icons.chevron_right_rounded),
+                          onTap: () => context.push('/refer-support'),
                         ),
                         const Divider(height: 20),
                         ListTile(

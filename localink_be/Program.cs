@@ -159,9 +159,11 @@ builder.Services.AddScoped<IContactService, ContactService>();
 builder.Services.AddScoped<IHoursService, HoursService>();
 builder.Services.Configure<UploadSettings>(builder.Configuration.GetSection(UploadSettings.SectionName));
 builder.Services.Configure<ImageOptimizationOptions>(builder.Configuration.GetSection(ImageOptimizationOptions.SectionName));
+builder.Services.Configure<ReferralOptions>(builder.Configuration.GetSection(ReferralOptions.SectionName));
 builder.Services.AddSingleton<IUploadStorageService, UploadStorageService>();
 builder.Services.AddScoped<IImageOptimizationService, ImageOptimizationService>();
 builder.Services.AddScoped<IPhotoService, PhotoService>();
+builder.Services.AddScoped<IReferralService, ReferralService>();
 
 // Allow phone-camera sized uploads; backend always optimizes before disk write.
 var maxUploadBytes = builder.Configuration.GetValue<long?>("UploadSettings:MaxUploadBytes") ?? (25L * 1024 * 1024);
@@ -513,6 +515,164 @@ END");
     catch (Exception ex)
     {
         logger.LogWarning(ex, "Could not ensure users.consent_accepted column. Run Scripts/EnsureUserConsentColumn.sql if needed.");
+    }
+
+    try
+    {
+        // Batch 1: additive columns on users (must complete before indexes/FKs reference them).
+        await db.Database.ExecuteSqlRawAsync(@"
+SET QUOTED_IDENTIFIER ON;
+SET ANSI_NULLS ON;
+
+IF NOT EXISTS (
+    SELECT 1 FROM sys.columns
+    WHERE object_id = OBJECT_ID(N'dbo.users')
+      AND name = N'referral_code'
+)
+BEGIN
+    ALTER TABLE dbo.users
+        ADD referral_code NVARCHAR(16) NULL;
+END
+
+IF NOT EXISTS (
+    SELECT 1 FROM sys.columns
+    WHERE object_id = OBJECT_ID(N'dbo.users')
+      AND name = N'referred_by_user_id'
+)
+BEGIN
+    ALTER TABLE dbo.users
+        ADD referred_by_user_id BIGINT NULL;
+END
+
+IF NOT EXISTS (
+    SELECT 1 FROM sys.columns
+    WHERE object_id = OBJECT_ID(N'dbo.users')
+      AND name = N'successful_referral_count'
+)
+BEGIN
+    ALTER TABLE dbo.users
+        ADD successful_referral_count INT NOT NULL
+            CONSTRAINT DF_users_successful_referral_count DEFAULT (0);
+END");
+
+        // Batch 2: constraints + indexes on users (separate batch so new columns are visible).
+        await db.Database.ExecuteSqlRawAsync(@"
+SET QUOTED_IDENTIFIER ON;
+SET ANSI_NULLS ON;
+
+IF COL_LENGTH(N'dbo.users', N'referred_by_user_id') IS NOT NULL
+   AND NOT EXISTS (
+        SELECT 1 FROM sys.check_constraints
+        WHERE name = N'CK_users_no_self_referral'
+          AND parent_object_id = OBJECT_ID(N'dbo.users')
+   )
+BEGIN
+    ALTER TABLE dbo.users
+        ADD CONSTRAINT CK_users_no_self_referral
+        CHECK (referred_by_user_id IS NULL OR referred_by_user_id <> user_id);
+END
+
+IF COL_LENGTH(N'dbo.users', N'successful_referral_count') IS NOT NULL
+   AND NOT EXISTS (
+        SELECT 1 FROM sys.check_constraints
+        WHERE name = N'CK_users_successful_referral_count_nonneg'
+          AND parent_object_id = OBJECT_ID(N'dbo.users')
+   )
+BEGIN
+    ALTER TABLE dbo.users
+        ADD CONSTRAINT CK_users_successful_referral_count_nonneg
+        CHECK (successful_referral_count >= 0);
+END
+
+IF COL_LENGTH(N'dbo.users', N'referred_by_user_id') IS NOT NULL
+   AND NOT EXISTS (
+        SELECT 1 FROM sys.foreign_keys
+        WHERE name = N'FK_users_referred_by_user'
+   )
+BEGIN
+    ALTER TABLE dbo.users
+        ADD CONSTRAINT FK_users_referred_by_user
+        FOREIGN KEY (referred_by_user_id)
+        REFERENCES dbo.users (user_id);
+END
+
+IF COL_LENGTH(N'dbo.users', N'referral_code') IS NOT NULL
+   AND NOT EXISTS (
+        SELECT 1 FROM sys.indexes
+        WHERE name = N'IX_users_referral_code'
+          AND object_id = OBJECT_ID(N'dbo.users')
+   )
+BEGIN
+    CREATE UNIQUE NONCLUSTERED INDEX IX_users_referral_code
+        ON dbo.users (referral_code)
+        WHERE referral_code IS NOT NULL;
+END
+
+IF COL_LENGTH(N'dbo.users', N'referred_by_user_id') IS NOT NULL
+   AND NOT EXISTS (
+        SELECT 1 FROM sys.indexes
+        WHERE name = N'IX_users_referred_by_user_id'
+          AND object_id = OBJECT_ID(N'dbo.users')
+   )
+BEGIN
+    CREATE NONCLUSTERED INDEX IX_users_referred_by_user_id
+        ON dbo.users (referred_by_user_id)
+        WHERE referred_by_user_id IS NOT NULL;
+END");
+
+        // Batch 3: referral_history ledger + referrer lookup index.
+        await db.Database.ExecuteSqlRawAsync(@"
+SET QUOTED_IDENTIFIER ON;
+SET ANSI_NULLS ON;
+
+IF OBJECT_ID(N'dbo.referral_history', N'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.referral_history (
+        id                BIGINT IDENTITY(1,1) NOT NULL
+            CONSTRAINT PK_referral_history PRIMARY KEY,
+        referrer_user_id  BIGINT NOT NULL,
+        referred_user_id  BIGINT NOT NULL,
+        referral_code     NVARCHAR(16) NOT NULL,
+        created_at        DATETIME2 NOT NULL
+            CONSTRAINT DF_referral_history_created_at DEFAULT (SYSUTCDATETIME()),
+        CONSTRAINT FK_referral_history_referrer
+            FOREIGN KEY (referrer_user_id) REFERENCES dbo.users (user_id),
+        CONSTRAINT FK_referral_history_referred
+            FOREIGN KEY (referred_user_id) REFERENCES dbo.users (user_id),
+        CONSTRAINT UQ_referral_history_referred_user
+            UNIQUE (referred_user_id),
+        CONSTRAINT CK_referral_history_no_self
+            CHECK (referrer_user_id <> referred_user_id)
+    );
+END
+
+IF OBJECT_ID(N'dbo.referral_history', N'U') IS NOT NULL
+   AND NOT EXISTS (
+        SELECT 1 FROM sys.indexes
+        WHERE name = N'IX_referral_history_referrer_user_id'
+          AND object_id = OBJECT_ID(N'dbo.referral_history')
+   )
+BEGIN
+    CREATE NONCLUSTERED INDEX IX_referral_history_referrer_user_id
+        ON dbo.referral_history (referrer_user_id)
+        INCLUDE (referred_user_id, referral_code, created_at);
+END");
+    }
+    catch (Exception ex)
+    {
+        logger.LogWarning(ex, "Could not ensure referral schema. Run Scripts/EnsureReferralSchema.sql if needed.");
+    }
+
+    try
+    {
+        var referralService = scope.ServiceProvider.GetRequiredService<IReferralService>();
+        var backfilled = await referralService.BackfillMissingReferralCodesAsync(maxUsers: 500);
+        if (backfilled > 0)
+            logger.LogInformation("Backfilled referral codes for {Count} existing user(s).", backfilled);
+    }
+    catch (Exception ex)
+    {
+        logger.LogWarning(ex, "Could not backfill referral codes on startup.");
     }
 }
 

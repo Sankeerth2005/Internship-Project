@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.vocalforsanatan.app",
+      "sha256_cert_fingerprints": [
+        "40:EC:08:1A:D7:75:82:A1:5D:A2:D6:93:5A:C6:60:E2:4C:A2:0C:DC:43:A2:91:3E:25:AF:AA:EC:F5:D0:87:89"
+      ]
+    }
+  }
+]

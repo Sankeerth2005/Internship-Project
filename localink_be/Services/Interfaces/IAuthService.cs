@@ -7,7 +7,7 @@ namespace localink_be.Services.Interfaces
     {
         Task<string> RegisterAsync(RegisterRequest request);
         Task<object> LoginAsync(LoginRequest request);
-        Task<object> GoogleSignInAsync(string idToken);
+        Task<object> GoogleSignInAsync(string idToken, string? referralCode = null);
         Task<object> RefreshSessionAsync(string refreshToken);
         Task LogoutAsync(string refreshToken);
         Task<string> VerifyEmailAsync(string email);
