@@ -41,6 +41,14 @@
                     android:scheme="vocalforsanatan"
                     android:host="invite"/>
             </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data
+                    android:scheme="vocalforsanatan"
+                    android:host="share"/>
+            </intent-filter>
             <!-- HTTPS invite App Link (requires assetlinks.json on domain for verified linking) -->
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW"/>
@@ -54,6 +62,19 @@
                     android:scheme="https"
                     android:host="www.vocalforsanatan.com"
                     android:pathPrefix="/invite"/>
+            </intent-filter>
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data
+                    android:scheme="https"
+                    android:host="vocalforsanatan.com"
+                    android:pathPrefix="/share"/>
+                <data
+                    android:scheme="https"
+                    android:host="www.vocalforsanatan.com"
+                    android:pathPrefix="/share"/>
             </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.

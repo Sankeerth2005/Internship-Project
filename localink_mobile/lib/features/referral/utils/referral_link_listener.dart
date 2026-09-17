@@ -5,8 +5,9 @@ import '../../../core/storage/user_prefs_store.dart';
 /// Captures invite deep links / custom scheme and stores a pending referral code.
 ///
 /// Supported examples:
-/// - https://vocalforsanatan.com/invite?code=VFS-AB12CD
-/// - vocalforsanatan://invite?code=VFS-AB12CD
+/// - https://vocalforsanatan.com/invite?code=K7M2NP
+/// - vocalforsanatan://invite?code=K7M2NP
+/// - Legacy: …?code=VFS-K7M2NP (still accepted)
 ///
 /// Deferred install attribution is best-effort via the website Play referrer /
 /// localStorage handoff — not guaranteed without a commercial MMP.
@@ -62,17 +63,26 @@ class ReferralLinkListener {
 
     final fromQuery = uri.queryParameters['code']?.trim();
     if (fromQuery != null && fromQuery.isNotEmpty) {
-      return fromQuery.toUpperCase();
+      return _normalizeCode(fromQuery);
     }
 
-    // Path style: /invite/VFS-AB12CD
+    // Path style: /invite/K7M2NP
     final segments = uri.pathSegments.where((s) => s.isNotEmpty).toList();
     if (segments.length >= 2 &&
         segments[0].toLowerCase() == 'invite' &&
         segments[1].isNotEmpty) {
-      return segments[1].toUpperCase();
+      return _normalizeCode(segments[1]);
     }
 
     return null;
+  }
+
+  /// Uppercase + strip legacy `VFS-` prefix for consistent pending storage.
+  static String _normalizeCode(String raw) {
+    var code = raw.trim().toUpperCase();
+    if (code.startsWith('VFS-')) {
+      code = code.substring(4);
+    }
+    return code;
   }
 }

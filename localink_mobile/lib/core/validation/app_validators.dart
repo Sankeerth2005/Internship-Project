@@ -93,18 +93,27 @@ class AppValidators {
   }
 
   /// Strips a matching calling-code prefix so we never store +91 + 91xxxxxxxxxx.
+  ///
+  /// Only strips when the *remainder* is a valid national length for the country
+  /// and the full digit string is *not* already that length. Otherwise a valid
+  /// 10-digit Indian mobile like `9198765432` would lose its leading `91`.
   static String nationalNumber(String? value, String? countryCode) {
     var digits = digitsOnly(value);
     final calling = normalizeCallingCode(countryCode);
+    final allowed = _allowedLengths(calling);
     if (calling.isNotEmpty &&
         digits.startsWith(calling) &&
         digits.length > calling.length) {
-      digits = digits.substring(calling.length);
+      final remaining = digits.substring(calling.length);
+      final fullIsAlreadyNational = allowed.contains(digits.length);
+      final remainingIsNational = allowed.contains(remaining.length);
+      if (remainingIsNational && !fullIsAlreadyNational) {
+        digits = remaining;
+      }
     }
     if (digits.startsWith('0') && digits.length > 1) {
       // Drop a single trunk prefix (e.g. 09876… → 9876…) when remaining length is valid.
       final withoutTrunk = digits.substring(1);
-      final allowed = _allowedLengths(calling);
       if (allowed.contains(withoutTrunk.length)) {
         digits = withoutTrunk;
       }

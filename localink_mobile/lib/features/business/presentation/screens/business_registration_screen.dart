@@ -28,6 +28,7 @@ import '../../../auth/providers/location_provider.dart';
 import '../../../auth/data/repositories/location_repository.dart';
 import '../../../auth/providers/auth_provider.dart';
 import '../../../auth/providers/user_provider.dart';
+import '../../../auth/data/models/user_profile.dart';
 import '../../../../core/validation/postal_code_rules.dart';
 
 class _RegTok {
@@ -133,6 +134,16 @@ class _BusinessRegistrationScreenState extends ConsumerState<BusinessRegistratio
   bool get _isEditMode => widget.businessId != null || widget.businessToEdit != null;
   BusinessDto? get _editSource => _loadedBusiness ?? widget.businessToEdit;
 
+  // Create-mode profile prefill (never overwrites user edits).
+  bool _profilePrefillApplied = false;
+  bool _suppressDirtyTracking = false;
+  bool _emailDirty = false;
+  bool _phoneDirty = false;
+  bool _addressDirty = false;
+  bool _pincodeDirty = false;
+  bool _phoneCodeDirty = false;
+  bool _locationCascadeDirty = false;
+
   List<Map<String, String>> get _phoneCountryItems {
     final list = <Map<String, String>>[];
     list.addAll(_customPhoneCountries);
@@ -152,6 +163,21 @@ class _BusinessRegistrationScreenState extends ConsumerState<BusinessRegistratio
   void initState() {
     super.initState();
     _pincodeController.addListener(_onPincodeChanged);
+    _emailController.addListener(() {
+      if (!_suppressDirtyTracking) _emailDirty = true;
+    });
+    _phoneController.addListener(() {
+      if (!_suppressDirtyTracking) _phoneDirty = true;
+    });
+    _addressController.addListener(() {
+      if (!_suppressDirtyTracking) _addressDirty = true;
+    });
+    // Pincode dirty is tracked separately from validation debounce.
+    _pincodeController.addListener(() {
+      if (!_suppressDirtyTracking && !_fillingFromGeocode) {
+        _pincodeDirty = true;
+      }
+    });
 
     final editId = widget.businessId;
     if (editId != null) {
@@ -441,10 +467,12 @@ class _BusinessRegistrationScreenState extends ConsumerState<BusinessRegistratio
 
     _fillingFromGeocode = true;
     try {
-      if (address.isNotEmpty) {
+      if (address.isNotEmpty && !_addressDirty) {
         _addressController.text = address;
       }
-      if (postcode != null && postcode.trim().isNotEmpty) {
+      if (postcode != null &&
+          postcode.trim().isNotEmpty &&
+          !_pincodeDirty) {
         _pincodeController.text = postcode.trim();
       }
 
@@ -452,6 +480,12 @@ class _BusinessRegistrationScreenState extends ConsumerState<BusinessRegistratio
         await _loadCountries();
       }
       if (!mounted || token != _reverseGeocodeToken) return;
+
+      // User already chose location cascade manually — don't clobber.
+      if (_locationCascadeDirty) {
+        if (mounted) setState(() {});
+        return;
+      }
 
       final matchedCountry = _matchCountry(countryName);
       if (matchedCountry == null) {
@@ -622,8 +656,11 @@ class _BusinessRegistrationScreenState extends ConsumerState<BusinessRegistratio
         // Prefer the owner's registered profile country — never force India.
         if (defaultCountry != null && _selectedCountry == null) {
           _selectedCountry = defaultCountry;
-          if (defaultCountry.phoneCode != null && defaultCountry.phoneCode!.isNotEmpty) {
-            _selectedPhoneCode = defaultCountry.phoneCode!.replaceAll('+', '').trim();
+          if (!_phoneCodeDirty &&
+              defaultCountry.phoneCode != null &&
+              defaultCountry.phoneCode!.isNotEmpty) {
+            _selectedPhoneCode =
+                defaultCountry.phoneCode!.replaceAll('+', '').trim();
           }
         }
         _loadingCountries = false;
@@ -631,9 +668,90 @@ class _BusinessRegistrationScreenState extends ConsumerState<BusinessRegistratio
       if (defaultCountry != null && !_isEditMode) {
         await _loadStates(defaultCountry.iso2);
       }
+      if (!_isEditMode) {
+        await _prefillFromProfile();
+      }
     } catch (e) {
       debugPrint('Error loading countries: $e');
       setState(() => _loadingCountries = false);
+    }
+  }
+
+  /// Create-mode only: copy matching profile contact/address fields once.
+  /// Never maps fullName → business name. Never overwrites dirty fields.
+  Future<void> _prefillFromProfile() async {
+    if (_isEditMode || _profilePrefillApplied || !mounted) return;
+
+    UserProfileDto? profile;
+    try {
+      profile = await ref.read(userProfileProvider.future);
+    } catch (_) {
+      profile = ref.read(userProfileProvider).value;
+    }
+    if (profile == null || !mounted) return;
+
+    _suppressDirtyTracking = true;
+    try {
+      if (!_emailDirty &&
+          _emailController.text.trim().isEmpty &&
+          profile.email.trim().isNotEmpty) {
+        _emailController.text = profile.email.trim();
+      }
+
+      final profileCode =
+          AppValidators.normalizeCallingCode(profile.countryCode);
+      if (!_phoneCodeDirty && profileCode.isNotEmpty) {
+        _selectedPhoneCode = profileCode;
+      }
+
+      final phoneRaw = profile.phone?.trim() ?? '';
+      if (!_phoneDirty &&
+          _phoneController.text.trim().isEmpty &&
+          phoneRaw.isNotEmpty) {
+        _phoneController.text =
+            AppValidators.nationalNumber(phoneRaw, profile.countryCode);
+      }
+
+      final addr = profile.address;
+      if (!_addressDirty &&
+          _addressController.text.trim().isEmpty &&
+          (addr.street ?? '').trim().isNotEmpty) {
+        _addressController.text = addr.street!.trim();
+      }
+      if (!_pincodeDirty &&
+          _pincodeController.text.trim().isEmpty &&
+          (addr.pincode ?? '').trim().isNotEmpty) {
+        _pincodeController.text = addr.pincode!.trim();
+      }
+
+      // Country already applied in _loadCountries; cascade state/city from profile.
+      if (!_locationCascadeDirty && _selectedCountry != null) {
+        final stateName = (addr.state ?? '').trim();
+        final cityName = (addr.city ?? '').trim();
+        if (stateName.isNotEmpty) {
+          if (_states.isEmpty) {
+            await _loadStates(_selectedCountry!.iso2);
+          }
+          if (!mounted) return;
+          final matchedState = _matchState(stateName);
+          if (matchedState != null) {
+            setState(() => _selectedState = matchedState);
+            await _loadCities(_selectedCountry!.iso2, matchedState.iso2);
+            if (!mounted) return;
+            if (cityName.isNotEmpty) {
+              final matchedCity = _matchCity(cityName);
+              if (matchedCity != null) {
+                setState(() => _selectedCity = matchedCity);
+              }
+            }
+          }
+        }
+      }
+
+      _profilePrefillApplied = true;
+      if (mounted) setState(() {});
+    } finally {
+      _suppressDirtyTracking = false;
     }
   }
 
@@ -1547,10 +1665,12 @@ class _BusinessRegistrationScreenState extends ConsumerState<BusinessRegistratio
           emptyMessage: 'No countries found',
           validator: (v) => AppValidators.requiredSelection(v, 'Country'),
           onSelected: (item) {
+            _locationCascadeDirty = true;
             setState(() {
               _selectedCountry = item.value;
               final code = item.value.phoneCode?.replaceAll('+', '').trim();
               if (code != null && code.isNotEmpty) {
+                _phoneCodeDirty = true;
                 _selectedPhoneCode = code;
               }
               _pincodeError = null;
@@ -1571,6 +1691,7 @@ class _BusinessRegistrationScreenState extends ConsumerState<BusinessRegistratio
           emptyMessage: 'No states found',
           validator: (v) => AppValidators.requiredSelection(v, 'State'),
           onSelected: (item) {
+            _locationCascadeDirty = true;
             setState(() {
               _selectedState = item.value;
               _pincodeError = null;
@@ -1591,6 +1712,7 @@ class _BusinessRegistrationScreenState extends ConsumerState<BusinessRegistratio
           emptyMessage: 'No cities found',
           validator: (v) => AppValidators.requiredSelection(v, 'City'),
           onSelected: (item) {
+            _locationCascadeDirty = true;
             setState(() {
               _selectedCity = item.value;
               _manuallySelectedCoordinates = false;
@@ -1777,6 +1899,7 @@ class _BusinessRegistrationScreenState extends ConsumerState<BusinessRegistratio
               onSelected: (item) {
                 setState(() {
                   // Phone calling code is independent of address country/city/pincode.
+                  _phoneCodeDirty = true;
                   _selectedPhoneCode = item.value;
                 });
               },

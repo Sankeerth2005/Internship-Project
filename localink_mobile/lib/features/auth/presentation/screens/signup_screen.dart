@@ -604,7 +604,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
             child: AppTextField(
               controller: _referralCodeController,
               labelText: 'Referral code (optional)',
-              hintText: 'e.g. VFS-AB12CD',
+              hintText: 'e.g. K7M2NP',
               prefixIcon: Icons.card_giftcard_outlined,
               focusNode: _referralFocus,
               textInputAction: TextInputAction.done,

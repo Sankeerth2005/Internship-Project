@@ -1107,32 +1107,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           contentPadding: EdgeInsets.zero,
                           dense: true,
                           leading: const Icon(
-                            Icons.diversity_3_rounded,
-                            color: _ProfileTok.primary,
-                          ),
-                          title: const Text(
-                            'Refer & Support',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w700,
-                              fontSize: 13,
-                              color: _ProfileTok.textHigh,
-                            ),
-                          ),
-                          subtitle: const Text(
-                            'Invite friends · My Referral Impact',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: _ProfileTok.textMedium,
-                            ),
-                          ),
-                          trailing: const Icon(Icons.chevron_right_rounded),
-                          onTap: () => context.push('/refer-support'),
-                        ),
-                        const Divider(height: 20),
-                        ListTile(
-                          contentPadding: EdgeInsets.zero,
-                          dense: true,
-                          leading: const Icon(
                             Icons.lock_reset_rounded,
                             color: _ProfileTok.primary,
                           ),

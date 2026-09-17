@@ -110,7 +110,7 @@ class UserPrefsStore {
 
   /// Stores a referral code captured from an invite link until successful registration.
   static Future<void> setPendingReferralCode(String code) async {
-    final normalized = code.trim().toUpperCase();
+    final normalized = code.trim().toUpperCase().replaceFirst(RegExp(r'^VFS-'), '');
     if (normalized.isEmpty) return;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_pendingReferralCodeKey, normalized);
@@ -147,4 +147,63 @@ class UserPrefsStore {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_celebrationKey(userId, tier.toLowerCase()), true);
   }
+
+  // --- Pending business share deep link (until post-auth navigation) ---
+
+  static const _pendingShareKey = 'pending_share_route_v1';
+
+  /// [value] format: `business:TOKEN` or `collection:TOKEN`
+  static Future<void> setPendingShare(PendingShareRoute pending) async {
+    final token = pending.token.trim().toUpperCase();
+    if (token.isEmpty) return;
+    final kind = pending.kind == ShareLinkKind.business ? 'business' : 'collection';
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_pendingShareKey, '$kind:$token');
+  }
+
+  static Future<PendingShareRoute?> getPendingShare() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_pendingShareKey);
+    if (raw == null || !raw.contains(':')) return null;
+    final parts = raw.split(':');
+    if (parts.length != 2) return null;
+    final token = parts[1].trim().toUpperCase();
+    if (token.isEmpty) return null;
+    if (parts[0] == 'business') {
+      return PendingShareRoute(kind: ShareLinkKind.business, token: token);
+    }
+    if (parts[0] == 'collection') {
+      return PendingShareRoute(kind: ShareLinkKind.collection, token: token);
+    }
+    return null;
+  }
+
+  static Future<void> clearPendingShare() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_pendingShareKey);
+  }
+
+  // --- Play Install Referrer (one-shot claim after first open) ---
+
+  static const _installReferrerClaimedKey = 'install_referrer_claimed_v1';
+
+  static Future<bool> hasClaimedInstallReferrer() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_installReferrerClaimedKey) ?? false;
+  }
+
+  static Future<void> markInstallReferrerClaimed() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_installReferrerClaimedKey, true);
+  }
+}
+
+/// Kept here to avoid circular imports from share_link_listener in storage layer.
+enum ShareLinkKind { business, collection }
+
+class PendingShareRoute {
+  final ShareLinkKind kind;
+  final String token;
+
+  const PendingShareRoute({required this.kind, required this.token});
 }

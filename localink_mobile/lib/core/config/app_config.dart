@@ -93,4 +93,10 @@ class AppConfig {
     final sep = base.contains('?') ? '&' : '?';
     return '$base${sep}code=${Uri.encodeQueryComponent(referralCode)}';
   }
+
+  /// Public share landing base — append /business/{token} or /collection/{token}.
+  static const String shareBaseUrl = String.fromEnvironment(
+    'SHARE_BASE_URL',
+    defaultValue: 'https://vocalforsanatan.com/share',
+  );
 }

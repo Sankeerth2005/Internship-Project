@@ -79,21 +79,29 @@ namespace localink_be.Validation
             return DigitsOnly(code);
         }
 
+        /// Strips a matching calling-code prefix so we never store +91 + 91xxxxxxxxxx.
+        /// Only strips when the remainder is a valid national length and the full
+        /// digit string is not already that length — otherwise a valid 10-digit
+        /// Indian mobile like 9198765432 would lose its leading 91.
         public static string NationalNumber(string? value, string? countryCode)
         {
             var digits = DigitsOnly(value);
             var calling = NormalizeCallingCode(countryCode);
+            var allowed = AllowedLengths(calling);
             if (!string.IsNullOrEmpty(calling) &&
                 digits.StartsWith(calling) &&
                 digits.Length > calling.Length)
             {
-                digits = digits[calling.Length..];
+                var remaining = digits[calling.Length..];
+                var fullIsAlreadyNational = allowed.Contains(digits.Length);
+                var remainingIsNational = allowed.Contains(remaining.Length);
+                if (remainingIsNational && !fullIsAlreadyNational)
+                    digits = remaining;
             }
 
             if (digits.StartsWith('0') && digits.Length > 1)
             {
                 var withoutTrunk = digits[1..];
-                var allowed = AllowedLengths(calling);
                 if (allowed.Contains(withoutTrunk.Length))
                     digits = withoutTrunk;
             }

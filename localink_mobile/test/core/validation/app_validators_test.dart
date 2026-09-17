@@ -46,6 +46,41 @@ void main() {
       );
     });
 
+    test('keeps 10-digit Indian numbers that begin with 91', () {
+      expect(AppValidators.nationalNumber('9198765432', '91'), '9198765432');
+      expect(AppValidators.phone('9198765432', countryCode: '91'), isNull);
+      expect(AppValidators.nationalNumber('9123456789', '91'), '9123456789');
+      expect(AppValidators.phone('9123456789', countryCode: '91'), isNull);
+    });
+
+    test('strips 91 only for 12-digit international forms', () {
+      expect(AppValidators.nationalNumber('919876543210', '91'), '9876543210');
+      expect(AppValidators.phone('919876543210', countryCode: '91'), isNull);
+      expect(AppValidators.nationalNumber('+91 9876543210', '91'), '9876543210');
+      expect(AppValidators.phone('+91 9876543210', countryCode: '91'), isNull);
+      expect(AppValidators.nationalNumber('+91-9876543210', '91'), '9876543210');
+      expect(AppValidators.phone('+91-9876543210', countryCode: '91'), isNull);
+      expect(
+        AppValidators.nationalNumber('(+91) 9876543210', '91'),
+        '9876543210',
+      );
+    });
+
+    test('rejects invalid Indian mobiles', () {
+      expect(
+        AppValidators.phone('1234567890', countryCode: '91'),
+        contains('start with 6'),
+      );
+      expect(
+        AppValidators.phone('987654321', countryCode: '91'),
+        contains('exactly 10 digits'),
+      );
+      expect(
+        AppValidators.phone('98765432101', countryCode: '91'),
+        contains('exactly 10 digits'),
+      );
+    });
+
     test('US numbers must be 10 digits', () {
       expect(AppValidators.phone('2025550123', countryCode: '1'), isNull);
       expect(

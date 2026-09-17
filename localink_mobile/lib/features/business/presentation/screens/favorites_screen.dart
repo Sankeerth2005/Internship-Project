@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../providers/business_provider.dart';
 import '../../../favorites/widgets/favorite_business_card.dart';
@@ -101,6 +102,15 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
                         ),
                       ),
                       const Spacer(),
+                      if (favorites.isNotEmpty)
+                        TextButton.icon(
+                          onPressed: () => context.push('/share-favorites'),
+                          icon: const Icon(Icons.share_rounded, size: 18),
+                          label: const Text('Share'),
+                          style: TextButton.styleFrom(
+                            foregroundColor: _FavTok.primary,
+                          ),
+                        ),
                       if (favorites.isNotEmpty)
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -324,8 +334,10 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
     return AppStateWidget.empty(
       title: 'No favorites saved',
       description:
-          'Explore neighborhood listings and tap the heart icon to save them here.',
+          "You don't have any favorite businesses yet. Explore businesses and tap the heart icon to save them here.",
       icon: Icons.favorite_border_rounded,
+      actionLabel: 'Explore Businesses',
+      onActionPressed: () => context.go('/home'),
     );
   }
 }

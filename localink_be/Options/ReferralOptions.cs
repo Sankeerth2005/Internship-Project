@@ -23,10 +23,13 @@ namespace localink_be.Options
         /// </summary>
         public string InviteBaseUrl { get; set; } = "https://vocalforsanatan.com/invite";
 
-        /// <summary>Prefix for generated codes (VFS-AB12CD).</summary>
-        public string CodePrefix { get; set; } = "VFS-";
+        /// <summary>
+        /// Optional prefix for generated codes. Empty = short memorable body only (e.g. K7M2NP).
+        /// Legacy VFS-… codes remain resolvable when looking up referrers.
+        /// </summary>
+        public string CodePrefix { get; set; } = "";
 
-        /// <summary>Random segment length after the prefix (default 6 → VFS-XXXXXX).</summary>
+        /// <summary>Random segment length (default 6 → K7M2NP).</summary>
         public int CodeBodyLength { get; set; } = 6;
 
         /// <summary>Max attempts when generating a unique code.</summary>

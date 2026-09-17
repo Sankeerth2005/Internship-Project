@@ -39,21 +39,28 @@ namespace localink_be.Services.Implementations
                 .Replace(" ", string.Empty, StringComparison.Ordinal)
                 .Replace("_", "-", StringComparison.Ordinal);
 
-            var prefix = string.IsNullOrWhiteSpace(_options.CodePrefix)
-                ? "VFS-"
-                : _options.CodePrefix.Trim().ToUpperInvariant();
-            if (!prefix.EndsWith('-'))
-                prefix += "-";
+            // Strip legacy brand prefix so VFS-K7M2NP and K7M2NP resolve the same.
+            if (s.StartsWith("VFS-", StringComparison.Ordinal))
+                s = s["VFS-".Length..];
 
-            if (s.StartsWith(prefix, StringComparison.Ordinal))
-                return s;
+            var configuredPrefix = (_options.CodePrefix ?? string.Empty).Trim().ToUpperInvariant();
+            if (!string.IsNullOrEmpty(configuredPrefix))
+            {
+                if (!configuredPrefix.EndsWith('-'))
+                    configuredPrefix += "-";
+                if (s.StartsWith(configuredPrefix, StringComparison.Ordinal))
+                    s = s[configuredPrefix.Length..];
+            }
 
-            // Allow body-only paste (e.g. AB12CD → VFS-AB12CD)
             var bodyLen = Math.Clamp(_options.CodeBodyLength, 4, 12);
             if (s.Length == bodyLen && s.All(c => CodeAlphabet.Contains(c)))
-                return prefix + s;
+                return s;
 
-            return s;
+            // Accept any remaining unambiguous body (e.g. older lengths) for lookup.
+            if (s.Length is >= 4 and <= 12 && s.All(c => CodeAlphabet.Contains(c)))
+                return s;
+
+            return null;
         }
 
         public async Task<string> GenerateUniqueReferralCodeAsync(CancellationToken cancellationToken = default)
@@ -62,9 +69,7 @@ namespace localink_be.Services.Implementations
             for (var attempt = 0; attempt < maxAttempts; attempt++)
             {
                 var code = CreateCandidateCode();
-                var exists = await _db.Users.AsNoTracking()
-                    .AnyAsync(u => u.ReferralCode == code, cancellationToken);
-                if (!exists)
+                if (!await ReferralCodeTakenAsync(code, cancellationToken))
                     return code;
             }
 
@@ -74,6 +79,20 @@ namespace localink_be.Services.Implementations
         public async Task EnsureReferralCodeAsync(User user, CancellationToken cancellationToken = default)
         {
             ArgumentNullException.ThrowIfNull(user);
+
+            // Migrate legacy VFS-XXXXXX → XXXXXX in place (same body; old links still work).
+            if (!string.IsNullOrWhiteSpace(user.ReferralCode)
+                && user.ReferralCode.StartsWith("VFS-", StringComparison.OrdinalIgnoreCase))
+            {
+                var body = NormalizeReferralCode(user.ReferralCode);
+                if (!string.IsNullOrEmpty(body)
+                    && !await ReferralCodeTakenAsync(body, cancellationToken, excludeUserId: user.UserId))
+                {
+                    user.ReferralCode = body;
+                    return;
+                }
+            }
+
             if (!string.IsNullOrWhiteSpace(user.ReferralCode))
                 return;
 
@@ -118,8 +137,10 @@ namespace localink_be.Services.Implementations
                 return;
             }
 
-            var referrer = await _db.Users
-                .FirstOrDefaultAsync(u => u.ReferralCode == code, cancellationToken);
+            // AsNoTracking — never keep the referrer in the change tracker.
+            // A tracked referrer with a stale SuccessfulReferralCount can overwrite the
+            // atomic SQL increment on a later SaveChanges (e.g. IssueSessionAsync).
+            var referrer = await FindReferrerInfoAsync(code, cancellationToken);
 
             if (referrer is null)
             {
@@ -130,8 +151,6 @@ namespace localink_be.Services.Implementations
                 return;
             }
 
-            // Self-referral (same account) — impossible for brand-new code ownership,
-            // but guard if somehow the new user's code matches or IDs collide.
             if (referrer.UserId == newUser.UserId)
             {
                 _logger.LogWarning("Self-referral blocked for user {UserId}", newUser.UserId);
@@ -139,8 +158,6 @@ namespace localink_be.Services.Implementations
                 return;
             }
 
-            // Same mailbox / phone as referrer → treat as self-referral abuse
-            // (includes Gmail +alias / dot-insensitive canonicalization).
             if (!string.IsNullOrWhiteSpace(newUser.Email)
                 && !string.IsNullOrWhiteSpace(referrer.Email)
                 && string.Equals(
@@ -161,6 +178,9 @@ namespace localink_be.Services.Implementations
                 await _db.SaveChangesAsync(cancellationToken);
                 return;
             }
+
+            // Drop any accidentally tracked copy of the referrer before we mutate counts.
+            DetachTrackedUser(referrer.UserId);
 
             newUser.ReferredByUserId = referrer.UserId;
 
@@ -201,11 +221,25 @@ namespace localink_be.Services.Implementations
                 return;
             }
 
-            // Atomic increment only after history row committed (same ambient transaction when present).
-            // Do not mutate tracked referrer.SuccessfulReferralCount — avoids lost updates under concurrency.
-            await _db.Database.ExecuteSqlInterpolatedAsync(
+            // Atomic increment only after history row committed.
+            // Keep referrer detached so a later SaveChanges cannot write stale count=0.
+            DetachTrackedUser(referrer.UserId);
+            var rows = await _db.Database.ExecuteSqlInterpolatedAsync(
                 $"UPDATE dbo.users SET successful_referral_count = successful_referral_count + 1 WHERE user_id = {referrer.UserId}",
                 cancellationToken);
+
+            if (rows != 1)
+            {
+                _logger.LogWarning(
+                    "Referral count increment affected {Rows} rows for referrer {ReferrerId} (expected 1).",
+                    rows, referrer.UserId);
+            }
+            else
+            {
+                _logger.LogInformation(
+                    "Referral attributed: referrer {ReferrerId} ← user {UserId} code {Code}",
+                    referrer.UserId, newUser.UserId, code);
+            }
         }
 
         public async Task<ReferralImpactDto> GetMyReferralImpactAsync(
@@ -215,33 +249,44 @@ namespace localink_be.Services.Implementations
             var user = await _db.Users.FirstOrDefaultAsync(u => u.UserId == userId, cancellationToken)
                 ?? throw new KeyNotFoundException("User not found");
 
-            if (string.IsNullOrWhiteSpace(user.ReferralCode))
-            {
-                await EnsureReferralCodeAsync(user, cancellationToken);
+            await EnsureReferralCodeAsync(user, cancellationToken);
+            if (_db.ChangeTracker.HasChanges())
                 await _db.SaveChangesAsync(cancellationToken);
-            }
 
-            // Prefer history count as source of truth if denormalized counter drifted.
+            // Source of truth: users who actually registered with this referrer.
+            // History should match; if increment was overwritten by EF, referred_by still shows joins.
+            var attributedCount = await _db.Users.AsNoTracking()
+                .CountAsync(u => u.ReferredByUserId == userId, cancellationToken);
+
             var historyCount = await _db.ReferralHistories.AsNoTracking()
                 .CountAsync(h => h.ReferrerUserId == userId, cancellationToken);
 
-            if (historyCount != user.SuccessfulReferralCount)
+            if (attributedCount > historyCount)
+            {
+                await BackfillMissingHistoryAsync(userId, user.ReferralCode!, cancellationToken);
+                historyCount = await _db.ReferralHistories.AsNoTracking()
+                    .CountAsync(h => h.ReferrerUserId == userId, cancellationToken);
+            }
+
+            var trueCount = Math.Max(attributedCount, historyCount);
+
+            if (trueCount != user.SuccessfulReferralCount)
             {
                 _logger.LogWarning(
-                    "Referral count drift for user {UserId}: denormalized={Denorm}, history={History}. Reconciling.",
-                    userId, user.SuccessfulReferralCount, historyCount);
-                user.SuccessfulReferralCount = historyCount;
+                    "Referral count drift for user {UserId}: denormalized={Denorm}, referredBy={Attributed}, history={History}. Reconciling to {True}.",
+                    userId, user.SuccessfulReferralCount, attributedCount, historyCount, trueCount);
+                user.SuccessfulReferralCount = trueCount;
                 await _db.SaveChangesAsync(cancellationToken);
             }
 
-            var achievement = ReferralTagCalculator.FromCount(user.SuccessfulReferralCount, _options);
+            var achievement = ReferralTagCalculator.FromCount(trueCount, _options);
             var link = BuildReferralLink(user.ReferralCode!);
 
             return new ReferralImpactDto
             {
                 ReferralCode = user.ReferralCode!,
                 ReferralLink = link,
-                SuccessfulReferrals = user.SuccessfulReferralCount,
+                SuccessfulReferrals = trueCount,
                 AchievementTier = achievement.Tier,
                 AchievementTitle = achievement.Title,
                 AchievementDisplayLabel = achievement.DisplayLabel,
@@ -267,7 +312,10 @@ namespace localink_be.Services.Implementations
         {
             var limit = Math.Clamp(maxUsers, 1, 5000);
             var users = await _db.Users
-                .Where(u => u.ReferralCode == null || u.ReferralCode == string.Empty)
+                .Where(u =>
+                    u.ReferralCode == null
+                    || u.ReferralCode == string.Empty
+                    || u.ReferralCode.StartsWith("VFS-"))
                 .OrderBy(u => u.UserId)
                 .Take(limit)
                 .ToListAsync(cancellationToken);
@@ -298,12 +346,6 @@ namespace localink_be.Services.Implementations
 
         private string CreateCandidateCode()
         {
-            var prefix = string.IsNullOrWhiteSpace(_options.CodePrefix)
-                ? "VFS-"
-                : _options.CodePrefix.Trim().ToUpperInvariant();
-            if (!prefix.EndsWith('-'))
-                prefix += "-";
-
             var bodyLen = Math.Clamp(_options.CodeBodyLength, 4, 12);
             var body = new char[bodyLen];
             var bytes = new byte[bodyLen];
@@ -311,7 +353,118 @@ namespace localink_be.Services.Implementations
             for (var i = 0; i < bodyLen; i++)
                 body[i] = CodeAlphabet[bytes[i] % CodeAlphabet.Length];
 
-            return prefix + new string(body);
+            var code = new string(body);
+            var prefix = (_options.CodePrefix ?? string.Empty).Trim().ToUpperInvariant();
+            if (string.IsNullOrEmpty(prefix))
+                return code;
+
+            if (!prefix.EndsWith('-'))
+                prefix += "-";
+            return prefix + code;
+        }
+
+        private async Task<bool> ReferralCodeTakenAsync(
+            string code,
+            CancellationToken cancellationToken,
+            long? excludeUserId = null)
+        {
+            var legacy = "VFS-" + code;
+            var query = _db.Users.AsNoTracking()
+                .Where(u => u.ReferralCode == code || u.ReferralCode == legacy);
+            if (excludeUserId.HasValue)
+                query = query.Where(u => u.UserId != excludeUserId.Value);
+            return await query.AnyAsync(cancellationToken);
+        }
+
+        private sealed record ReferrerInfo(long UserId, string? Email, string? PhoneNumber);
+
+        private async Task<ReferrerInfo?> FindReferrerInfoAsync(
+            string code,
+            CancellationToken cancellationToken)
+        {
+            var legacy = "VFS-" + code;
+            return await _db.Users.AsNoTracking()
+                .Where(u => u.ReferralCode == code || u.ReferralCode == legacy)
+                .Select(u => new ReferrerInfo(u.UserId, u.Email, u.PhoneNumber))
+                .FirstOrDefaultAsync(cancellationToken);
+        }
+
+        private void DetachTrackedUser(long userId)
+        {
+            foreach (var entry in _db.ChangeTracker.Entries<User>()
+                         .Where(e => e.Entity.UserId == userId)
+                         .ToList())
+            {
+                entry.State = EntityState.Detached;
+            }
+        }
+
+        /// <summary>
+        /// Inserts missing referral_history rows for users who already have referred_by_user_id set
+        /// (repairs cases where count was overwritten after attribution).
+        /// </summary>
+        private async Task BackfillMissingHistoryAsync(
+            long referrerUserId,
+            string referralCode,
+            CancellationToken cancellationToken)
+        {
+            var referredIds = await _db.Users.AsNoTracking()
+                .Where(u => u.ReferredByUserId == referrerUserId)
+                .Select(u => u.UserId)
+                .ToListAsync(cancellationToken);
+
+            if (referredIds.Count == 0)
+                return;
+
+            var existing = await _db.ReferralHistories.AsNoTracking()
+                .Where(h => h.ReferrerUserId == referrerUserId)
+                .Select(h => h.ReferredUserId)
+                .ToListAsync(cancellationToken);
+
+            var existingSet = existing.ToHashSet();
+            var code = string.IsNullOrWhiteSpace(referralCode) ? "LEGACY" : referralCode;
+            if (code.Length > 16)
+                code = code[..16];
+
+            var added = 0;
+            foreach (var referredId in referredIds)
+            {
+                if (existingSet.Contains(referredId))
+                    continue;
+
+                _db.ReferralHistories.Add(new ReferralHistory
+                {
+                    ReferrerUserId = referrerUserId,
+                    ReferredUserId = referredId,
+                    ReferralCode = code,
+                    CreatedAt = DateTime.UtcNow
+                });
+                added++;
+            }
+
+            if (added == 0)
+                return;
+
+            try
+            {
+                await _db.SaveChangesAsync(cancellationToken);
+                _logger.LogInformation(
+                    "Backfilled {Count} referral_history row(s) for referrer {ReferrerId}",
+                    added, referrerUserId);
+            }
+            catch (DbUpdateException ex)
+            {
+                _logger.LogWarning(ex,
+                    "Referral history backfill conflict for referrer {ReferrerId}; continuing with counts.",
+                    referrerUserId);
+
+                foreach (var entry in _db.ChangeTracker.Entries<ReferralHistory>()
+                             .Where(e => e.State == EntityState.Added)
+                             .ToList())
+                {
+                    entry.State = EntityState.Detached;
+                }
+            }
         }
 
         /// <summary>

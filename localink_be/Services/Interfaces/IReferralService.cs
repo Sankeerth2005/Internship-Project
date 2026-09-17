@@ -8,7 +8,7 @@ namespace localink_be.Services.Interfaces
         /// <summary>Normalize user-entered / link referral codes for lookup.</summary>
         string? NormalizeReferralCode(string? rawCode);
 
-        /// <summary>Generate a unique VFS-… code not present in the database.</summary>
+        /// <summary>Generate a unique short referral code not present in the database.</summary>
         Task<string> GenerateUniqueReferralCodeAsync(CancellationToken cancellationToken = default);
 
         /// <summary>

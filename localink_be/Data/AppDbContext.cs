@@ -29,6 +29,8 @@ namespace localink_be.Data
         public DbSet<SearchQueryLog> SearchQueryLogs { get; set; }
         public DbSet<TranslationCache> TranslationCaches { get; set; }
         public DbSet<ReferralHistory> ReferralHistories { get; set; }
+        public DbSet<BusinessShare> BusinessShares { get; set; }
+        public DbSet<BusinessShareItem> BusinessShareItems { get; set; }
         
         // Phase 2: Chat & Messaging
         public DbSet<Conversation> Conversations { get; set; }
@@ -52,6 +54,7 @@ namespace localink_be.Data
             ConfigureFavorite(modelBuilder);
             ConfigureTranslationCache(modelBuilder);
             ConfigureReferralHistory(modelBuilder);
+            ConfigureBusinessShare(modelBuilder);
             ConfigureMessaging(modelBuilder);
 
             ConfigureCatalog(modelBuilder);
@@ -304,6 +307,53 @@ namespace localink_be.Data
                 entity.HasOne(r => r.User)
                     .WithMany()
                     .HasForeignKey(r => r.UserId)
+                    .OnDelete(DeleteBehavior.NoAction);
+            });
+        }
+
+        private void ConfigureBusinessShare(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<BusinessShare>(entity =>
+            {
+                entity.ToTable("business_shares");
+                entity.HasKey(s => s.ShareId);
+                entity.Property(s => s.ShareId).HasColumnName("share_id");
+                entity.Property(s => s.PublicToken).HasColumnName("public_token").HasMaxLength(32);
+                entity.Property(s => s.ShareKind).HasColumnName("share_kind").HasMaxLength(16);
+                entity.Property(s => s.CreatedByUserId).HasColumnName("created_by_user_id");
+                entity.Property(s => s.Title).HasColumnName("title").HasMaxLength(120);
+                entity.Property(s => s.Note).HasColumnName("note").HasMaxLength(500);
+                entity.Property(s => s.CreatedAt).HasColumnName("created_at");
+
+                entity.HasIndex(s => s.PublicToken).IsUnique();
+                entity.HasIndex(s => s.CreatedByUserId);
+
+                entity.HasOne(s => s.CreatedByUser)
+                    .WithMany()
+                    .HasForeignKey(s => s.CreatedByUserId)
+                    .OnDelete(DeleteBehavior.NoAction);
+            });
+
+            modelBuilder.Entity<BusinessShareItem>(entity =>
+            {
+                entity.ToTable("business_share_items");
+                entity.HasKey(i => i.Id);
+                entity.Property(i => i.Id).HasColumnName("id").ValueGeneratedOnAdd();
+                entity.Property(i => i.ShareId).HasColumnName("share_id");
+                entity.Property(i => i.BusinessId).HasColumnName("business_id");
+                entity.Property(i => i.Position).HasColumnName("position");
+
+                entity.HasIndex(i => new { i.ShareId, i.BusinessId }).IsUnique();
+                entity.HasIndex(i => new { i.ShareId, i.Position });
+
+                entity.HasOne(i => i.Share)
+                    .WithMany(s => s.Items)
+                    .HasForeignKey(i => i.ShareId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(i => i.Business)
+                    .WithMany()
+                    .HasForeignKey(i => i.BusinessId)
                     .OnDelete(DeleteBehavior.NoAction);
             });
         }

@@ -24,6 +24,7 @@ import '../../../home/widgets/home_header.dart';
 import '../../../home/widgets/home_search_bar.dart';
 import '../../../home/widgets/home_hero_banner.dart';
 import '../../../home/widgets/home_category_chips.dart';
+import '../../../referral/presentation/widgets/referral_promo_card.dart';
 
 // ─── DESIGN TOKENS (aligned to DESIGN_SYSTEM.md) ─────────────────────────────
 class _HomeTok {
@@ -621,6 +622,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
                     // Triggers filter refresh or map explore
                     ref.read(searchQueryProvider.notifier).setQuery('');
                   },
+                ),
+              ),
+
+              // ─── 3b. REFERRAL ENTRY (under Near You banner) ───
+              const SliverToBoxAdapter(
+                child: ReferralPromoCard(
+                  subtitle: 'Invite friends to discover Sanatani businesses',
                 ),
               ),
 

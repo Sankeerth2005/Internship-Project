@@ -8,7 +8,7 @@ End-to-end monorepo for the live Play Store app **Vocal for Sanatan** (`com.voca
 | Backend API | `localink_be/` | ASP.NET Core 8 + EF Core + SQL Server |
 | Marketing site | `localink-website/` | Next.js → `https://vocalforsanatan.com` |
 
-**Current mobile version:** `1.0.17+22`  
+**Current mobile version:** `1.0.20+26`  
 **Config:** one repo-root `.env` (see `.env.example`). Do **not** create separate `.env` files under mobile/backend.
 
 ---
@@ -32,7 +32,8 @@ Internship-Project/
 - Discovery: nearby businesses, favorites, For You, AI assistant, voice
 - Owners: business registration, catalog, analytics, chat
 - Admin: approvals, heatmap
-- **Referral & community recognition (1.0.17):** unique `VFS-…` codes, invite links, WhatsApp/share, successful-registration attribution only, Bronze/Silver/Gold milestones
+- **Referral & community recognition (1.0.18):** short 6-char codes (e.g. `K7M2NP`), invite links, WhatsApp/share, successful-registration attribution only, Bronze/Silver/Gold milestones
+- **Business sharing & community recommendation:** share one business or a snapshot of favorites via opaque links (`/share/business/{token}`, `/share/collection/{token}`); recipients view read-only lists and save to their own favorites
 
 ---
 
@@ -78,6 +79,7 @@ Idempotent scripts under `localink_be/Scripts/`. Also applied at API startup whe
 |--------|---------|
 | `EnsureUserConsentColumn.sql` | `users.consent_accepted` |
 | `EnsureReferralSchema.sql` | referral columns + `referral_history` |
+| `EnsureBusinessShareSchema.sql` | `business_shares` + `business_share_items` |
 | `DiagnoseSchemaGaps.sql` | read-only gap report |
 
 **Before relying on referrals in production:** run `EnsureReferralSchema.sql` on the manager SQL database (or restart API and confirm no referral schema warnings).
@@ -146,7 +148,7 @@ Play installs use the **Play App Signing** cert (not the upload keystore).
 ### Referral UX
 
 - Profile → **Refer & Support** → `/refer-support`
-- Invite links: `https://vocalforsanatan.com/invite?code=VFS-…`
+- Invite links: `https://vocalforsanatan.com/invite?code=K7M2NP` (legacy `VFS-…` still accepted)
 - Deep links: `vocalforsanatan://invite?code=…` + HTTPS App Links
 - A referral counts **only after successful registration** (not WhatsApp send / link open alone)
 
@@ -184,24 +186,23 @@ Important public paths:
 
 ---
 
-## Release checklist (referral / 1.0.17)
+## Release checklist (share polish / 1.0.20)
 
-1. Run `EnsureReferralSchema.sql` on production SQL (or verify startup ensure).
-2. Publish backend → copy to manager → restart API.
-3. Deploy website (invite + assetlinks).
-4. Build AAB + APK from root `.env` with release signing.
-5. Upload AAB to Play Console (`1.0.17 (22)`).
-6. Smoke test: User A shares code → User B registers → A’s successful count +1.
+1. Confirm share schema + backend already live (from 1.0.19).
+2. Deploy website share pages (Install Referrer `utm_source=share` + clearer post-install copy).
+3. Build AAB with release signing (`1.0.20+26`).
+4. Upload AAB to Play Console.
+5. Smoke: install from Play with share referrer → open app → shared list; Save All; create business registration prefill.
 
 ### Play Console — short notes
 
 ```
-What's new in 1.0.17
+What's new in 1.0.20
 
-• Refer & Support — invite friends with your unique code
-• Share via WhatsApp, copy link, or system share
-• Earn Bronze / Silver / Gold community recognition for successful joins
-• Referral counts only when someone successfully registers
+• After install from a share link, the app tries to restore the shared list (best-effort via Play Install Referrer)
+• Shared collections: Save All + Already in Favorites
+• New business registration pre-fills contact/address from your profile (editable; never overwrites what you type)
+• Share links remain recommendations — not referral invites
 ```
 
 ---

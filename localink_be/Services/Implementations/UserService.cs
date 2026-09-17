@@ -51,6 +51,15 @@ public class UserService : IUserService
             await _db.SaveChangesAsync();
         }
 
+        // Keep profile count aligned with actual attributed registrations.
+        var attributedCount = await _db.Users.AsNoTracking()
+            .CountAsync(u => u.ReferredByUserId == userId);
+        if (attributedCount != user.SuccessfulReferralCount)
+        {
+            user.SuccessfulReferralCount = attributedCount;
+            await _db.SaveChangesAsync();
+        }
+
         var achievement = ReferralTagCalculator.FromCount(user.SuccessfulReferralCount, _referralOptions);
 
         var address = await _db.Addresses
@@ -322,6 +331,18 @@ public class UserService : IUserService
         await _db.BusinessReviews.Where(r => r.UserId == userId).ExecuteDeleteAsync();
         await _db.Addresses.Where(a => a.UserId == userId).ExecuteDeleteAsync();
         await _db.RefreshTokens.Where(t => t.UserId == userId).ExecuteDeleteAsync();
+
+        // Referral rows reference users with ON DELETE NO ACTION — clear before user remove.
+        await _db.ReferralHistories
+            .Where(h => h.ReferredUserId == userId || h.ReferrerUserId == userId)
+            .ExecuteDeleteAsync();
+
+        // Other accounts that pointed at this user as referrer must be detached.
+        var referredByMe = await _db.Users
+            .Where(u => u.ReferredByUserId == userId)
+            .ToListAsync();
+        foreach (var u in referredByMe)
+            u.ReferredByUserId = null;
 
         // Feedback.UserId is int? — clear matching rows defensively
         if (userId <= int.MaxValue)

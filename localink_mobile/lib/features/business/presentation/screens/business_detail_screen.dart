@@ -28,6 +28,9 @@ import '../../../../core/network/app_error_formatter.dart';
 import '../../../../core/storage/user_prefs_store.dart';
 import '../../../../core/auth/role_routes.dart';
 import '../../../catalog/presentation/providers/currency_provider.dart';
+import '../../../share/providers/share_provider.dart';
+import '../../../share/utils/business_share_helper.dart';
+import '../../../share/utils/share_actions.dart';
 
 // ─── DESIGN TOKENS ────────────────────────────────────────────────────────────
 class _DetailTok {
@@ -432,6 +435,7 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
     final businessAsync = ref.watch(singleBusinessProvider(widget.businessId));
     final reviewsAsync = ref.watch(reviewsProvider(widget.businessId));
     final authState = ref.watch(authProvider);
+    final favorites = ref.watch(favoritesProvider);
     final myBusinesses = ref.watch(myBusinessesProvider).asData?.value ?? const <BusinessDto>[];
     final ownsThisBusiness = authState is AuthAuthenticated &&
         myBusinesses.any((b) => b.businessId == widget.businessId);
@@ -847,6 +851,46 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
                             ),
                           ],
                         ),
+                        const SizedBox(height: 12),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            Expanded(
+                              child: BusinessActionButton(
+                                icon: Icons.share_rounded,
+                                label: 'Share',
+                                onTap: () => _shareBusiness(context, business),
+                              ),
+                            ),
+                            if (isClient) ...[
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: BusinessActionButton(
+                                  icon: favorites.contains(business.businessId)
+                                      ? Icons.favorite_rounded
+                                      : Icons.favorite_border_rounded,
+                                  label: favorites.contains(business.businessId)
+                                      ? 'Saved'
+                                      : 'Save',
+                                  onTap: () async {
+                                    try {
+                                      await ref
+                                          .read(favoritesProvider.notifier)
+                                          .toggleFavorite(business.businessId);
+                                    } catch (e) {
+                                      if (context.mounted) {
+                                        AppFeedback.showError(
+                                          context,
+                                          AppErrorFormatter.format(e),
+                                        );
+                                      }
+                                    }
+                                  },
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
                         const SizedBox(height: 24),
 
                         // Master Detail Card
@@ -1236,6 +1280,26 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
         error: (err, st) => Center(child: Text('Error: $err', style: const TextStyle(color: Color(0xFFE1251B)))),
       ),
     );
+  }
+
+  Future<void> _shareBusiness(BuildContext context, BusinessDto business) async {
+    try {
+      final result = await ref
+          .read(shareRepositoryProvider)
+          .createBusinessShare(business.businessId);
+      final link = BusinessShareHelper.linkForCreated(result);
+      final message = BusinessShareHelper.buildSingleBusinessMessage(
+        business: business,
+        shareUrl: link,
+      );
+      if (context.mounted) {
+        await showShareActionsSheet(context, message: message, link: link);
+      }
+    } catch (e) {
+      if (context.mounted) {
+        AppFeedback.showError(context, AppErrorFormatter.format(e));
+      }
+    }
   }
 
   String _formatReopenDate(DateTime date) {

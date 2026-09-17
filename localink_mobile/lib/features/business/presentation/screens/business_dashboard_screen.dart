@@ -10,6 +10,7 @@ import '../../../../core/network/signalr_service.dart';
 import '../../../../core/widgets/optimized_network_image.dart';
 import '../../../shared/presentation/widgets/app_feedback.dart';
 import '../../../../core/network/app_error_formatter.dart';
+import '../../../referral/presentation/widgets/referral_promo_card.dart';
 
 // ─── DESIGN TOKENS ────────────────────────────────────────────────────────────
 class _DashTok {
@@ -317,6 +318,13 @@ class _BusinessDashboardScreenState extends ConsumerState<BusinessDashboardScree
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                       child: _buildHeroCommandCenter(context, activeBusiness),
+                    ),
+                  ),
+
+                  // Referral entry — above Analytics Insights (user-level, not listing-specific)
+                  const SliverToBoxAdapter(
+                    child: ReferralPromoCard(
+                      subtitle: 'Invite friends · earn community recognition',
                     ),
                   ),
 

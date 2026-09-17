@@ -37,6 +37,14 @@ import 'features/chat/presentation/screens/chat_screen.dart';
 import 'features/catalog/presentation/screens/manage_catalog_screen.dart';
 import 'features/referral/presentation/screens/referral_dashboard_screen.dart';
 import 'features/referral/utils/referral_link_listener.dart';
+import 'features/share/utils/share_link_listener.dart';
+import 'features/share/utils/install_referrer_claim.dart';
+import 'features/share/utils/pending_share_navigation.dart';
+import 'features/share/presentation/widgets/share_resume_listener.dart';
+import 'features/share/presentation/screens/share_favorites_screen.dart';
+import 'features/share/presentation/screens/shared_collection_screen.dart';
+import 'features/share/presentation/screens/shared_business_resolver_screen.dart';
+import 'core/storage/user_prefs_store.dart';
 
 import 'core/config/app_config.dart';
 import 'core/theme/app_theme.dart';
@@ -51,6 +59,9 @@ void main() {
 
   // Capture invite deep links as early as possible (best-effort).
   unawaited(ReferralLinkListener.start());
+  unawaited(ShareLinkListener.start());
+  unawaited(InstallReferrerClaim.claimOnce());
+  bindShareResumeNavigatorKey(_rootNavigatorKey);
 
   runZonedGuarded(
     () {
@@ -129,6 +140,24 @@ bool _isOwnerRoute(String location) =>
     location.startsWith('/manage-catalog/') ||
     location == '/owner-profile';
 
+/// Persist share deep-link context before auth redirects wipe the path.
+void _rememberShareDeepLink(GoRouterState state) {
+  final fromUri = ShareLinkListener.extractPending(state.uri);
+  if (fromUri != null) {
+    unawaited(UserPrefsStore.setPendingShare(fromUri));
+    return;
+  }
+  final fromPath = ShareLinkListener.extractPending(Uri(path: state.uri.path));
+  if (fromPath != null) {
+    unawaited(UserPrefsStore.setPendingShare(fromPath));
+  }
+}
+
+String? _shareAppRoute(GoRouterState state) {
+  return ShareLinkListener.appRouteForUri(state.uri) ??
+      ShareLinkListener.appRouteForUri(Uri(path: state.uri.path));
+}
+
 final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     navigatorKey: _rootNavigatorKey,
@@ -140,6 +169,11 @@ final routerProvider = Provider<GoRouter>((ref) {
       final authState = ref.read(authProvider);
       final splashShown = ref.read(splashShownProvider);
       final currentLocation = state.matchedLocation;
+      final fullPath = state.uri.path;
+
+      if (isShareDeepLinkPath(fullPath) || isShareDeepLinkPath(currentLocation)) {
+        _rememberShareDeepLink(state);
+      }
 
       if (!splashShown) {
         if (currentLocation == '/splash') return null;
@@ -148,6 +182,13 @@ final routerProvider = Provider<GoRouter>((ref) {
 
       if (currentLocation == '/splash') {
         if (authState is AuthAuthenticated) {
+          final shareRoute = _shareAppRoute(state);
+          if (shareRoute != null &&
+              !authState.needsUserAgreement &&
+              (!authState.needsExperienceSelection ||
+                  RoleRoutes.isAdmin(authState.userType))) {
+            return shareRoute;
+          }
           return _postAuthRoute(authState);
         }
         return '/welcome';
@@ -156,6 +197,9 @@ final routerProvider = Provider<GoRouter>((ref) {
       if (authState is AuthInitial) {
         return null;
       }
+
+      final isShareRoute = isShareDeepLinkPath(currentLocation) ||
+          isShareDeepLinkPath(fullPath);
 
       final isPublicRoute = currentLocation == '/welcome' ||
           currentLocation == '/login' ||
@@ -188,7 +232,8 @@ final routerProvider = Provider<GoRouter>((ref) {
             !RoleRoutes.isAdmin(authState.userType) &&
             currentLocation != RoleRoutes.continueAs &&
             currentLocation != RoleRoutes.userAgreement &&
-            !currentLocation.startsWith('/register-business')) {
+            !currentLocation.startsWith('/register-business') &&
+            !isShareRoute) {
           return RoleRoutes.continueAs;
         }
 
@@ -203,6 +248,16 @@ final routerProvider = Provider<GoRouter>((ref) {
         if (currentLocation == RoleRoutes.userAgreement &&
             !authState.needsUserAgreement) {
           return postAuth;
+        }
+
+        // Canonicalize legacy share aliases to public URL paths.
+        if (currentLocation.startsWith('/shared-collection/')) {
+          final token = currentLocation.split('/').last;
+          return '/share/collection/$token';
+        }
+        if (currentLocation.startsWith('/shared-business/')) {
+          final token = currentLocation.split('/').last;
+          return '/share/business/$token';
         }
 
         final role = authState.userType;
@@ -394,6 +449,49 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         parentNavigatorKey: _rootNavigatorKey,
+        path: '/share-favorites',
+        builder: (context, state) => const ShareFavoritesScreen(),
+      ),
+      // Public deep-link paths (must match website / App Links).
+      GoRoute(
+        parentNavigatorKey: _rootNavigatorKey,
+        path: '/share/collection/:token',
+        builder: (context, state) {
+          final token = (state.pathParameters['token'] ?? '').trim();
+          if (token.isEmpty) return _invalidRouteIdScreen(context);
+          return SharedCollectionScreen(publicToken: token.toUpperCase());
+        },
+      ),
+      GoRoute(
+        parentNavigatorKey: _rootNavigatorKey,
+        path: '/share/business/:token',
+        builder: (context, state) {
+          final token = (state.pathParameters['token'] ?? '').trim();
+          if (token.isEmpty) return _invalidRouteIdScreen(context);
+          return SharedBusinessResolverScreen(publicToken: token.toUpperCase());
+        },
+      ),
+      // Legacy aliases kept for in-app navigation compatibility.
+      GoRoute(
+        parentNavigatorKey: _rootNavigatorKey,
+        path: '/shared-collection/:token',
+        builder: (context, state) {
+          final token = (state.pathParameters['token'] ?? '').trim();
+          if (token.isEmpty) return _invalidRouteIdScreen(context);
+          return SharedCollectionScreen(publicToken: token.toUpperCase());
+        },
+      ),
+      GoRoute(
+        parentNavigatorKey: _rootNavigatorKey,
+        path: '/shared-business/:token',
+        builder: (context, state) {
+          final token = (state.pathParameters['token'] ?? '').trim();
+          if (token.isEmpty) return _invalidRouteIdScreen(context);
+          return SharedBusinessResolverScreen(publicToken: token.toUpperCase());
+        },
+      ),
+      GoRoute(
+        parentNavigatorKey: _rootNavigatorKey,
         path: '/business-detail/:id',
         builder: (context, state) {
           final id = _tryParseRouteId(state);
@@ -488,11 +586,13 @@ class LocalinkApp extends ConsumerWidget {
       routerConfig: router,
       scaffoldMessengerKey: scaffoldMessengerKey,
       builder: (context, child) {
-        return Column(
-          children: [
-            const OfflineBanner(),
-            Expanded(child: child ?? const SizedBox.shrink()),
-          ],
+        return ShareResumeListener(
+          child: Column(
+            children: [
+              const OfflineBanner(),
+              Expanded(child: child ?? const SizedBox.shrink()),
+            ],
+          ),
         );
       },
     );
