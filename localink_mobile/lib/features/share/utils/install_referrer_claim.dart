@@ -50,7 +50,7 @@ class InstallReferrerClaim {
     if (source == 'share' && content.isNotEmpty) {
       final pending = parseShareContent(content);
       if (pending != null) {
-        await UserPrefsStore.setPendingShare(pending);
+        await UserPrefsStore.setPendingShare(pending, force: true);
         ShareLinkEvents.notifyCaptured();
         debugPrint(
           'InstallReferrerClaim: pending share ${pending.kind}/${pending.token}',

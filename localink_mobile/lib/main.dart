@@ -141,6 +141,11 @@ bool _isOwnerRoute(String location) =>
     location == '/owner-profile';
 
 /// Persist share deep-link context before auth redirects wipe the path.
+///
+/// Only for unauthenticated sessions. Never re-arm while already signed in
+/// (that resurrected consumed intents after ShareResume cleared them).
+/// [UserPrefsStore.setPendingShare] also refuses to resurrect consumed tokens
+/// unless force=true (App Links / Install Referrer).
 void _rememberShareDeepLink(GoRouterState state) {
   final fromUri = ShareLinkListener.extractPending(state.uri);
   if (fromUri != null) {
@@ -171,7 +176,9 @@ final routerProvider = Provider<GoRouter>((ref) {
       final currentLocation = state.matchedLocation;
       final fullPath = state.uri.path;
 
-      if (isShareDeepLinkPath(fullPath) || isShareDeepLinkPath(currentLocation)) {
+      if (authState is! AuthAuthenticated &&
+          (isShareDeepLinkPath(fullPath) ||
+              isShareDeepLinkPath(currentLocation))) {
         _rememberShareDeepLink(state);
       }
 
@@ -187,6 +194,7 @@ final routerProvider = Provider<GoRouter>((ref) {
               !authState.needsUserAgreement &&
               (!authState.needsExperienceSelection ||
                   RoleRoutes.isAdmin(authState.userType))) {
+            unawaited(markShareRouteConsumed(shareRoute));
             return shareRoute;
           }
           return _postAuthRoute(authState);

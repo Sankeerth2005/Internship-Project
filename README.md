@@ -8,7 +8,7 @@ End-to-end monorepo for the live Play Store app **Vocal for Sanatan** (`com.voca
 | Backend API | `localink_be/` | ASP.NET Core 8 + EF Core + SQL Server |
 | Marketing site | `localink-website/` | Next.js → `https://vocalforsanatan.com` |
 
-**Current mobile version:** `1.0.20+26`  
+**Current mobile version:** `1.0.21+28`  
 **Config:** one repo-root `.env` (see `.env.example`). Do **not** create separate `.env` files under mobile/backend.
 
 ---
@@ -186,23 +186,21 @@ Important public paths:
 
 ---
 
-## Release checklist (share polish / 1.0.20)
+## Release checklist (nav fix / 1.0.21)
 
-1. Confirm share schema + backend already live (from 1.0.19).
-2. Deploy website share pages (Install Referrer `utm_source=share` + clearer post-install copy).
-3. Build AAB with release signing (`1.0.20+26`).
-4. Upload AAB to Play Console.
-5. Smoke: install from Play with share referrer → open app → shared list; Save All; create business registration prefill.
+1. Install APK/AAB `1.0.21+27` (no backend/SQL change required for this fix).
+2. Smoke: Logout → Login → Home (not Shared).
+3. Smoke: open Favorite share link → Shared → Back → Home.
+4. Smoke: share link while logged out → Login → Shared once → Logout → Login → Home.
 
 ### Play Console — short notes
 
 ```
-What's new in 1.0.20
+What's new in 1.0.21
 
-• After install from a share link, the app tries to restore the shared list (best-effort via Play Install Referrer)
-• Shared collections: Save All + Already in Favorites
-• New business registration pre-fills contact/address from your profile (editable; never overwrites what you type)
-• Share links remain recommendations — not referral invites
+• Fixed logout→login incorrectly opening shared businesses
+• Shared list Back button and Android Back now return to Home
+• Favorite share deep links still open Shared when intentionally opened
 ```
 
 ---

@@ -10,9 +10,11 @@ import '../../../business/data/models/business_models.dart';
 import '../../../shared/presentation/widgets/app_back_button.dart';
 import '../../../shared/presentation/widgets/app_feedback.dart';
 import '../../../../core/network/app_error_formatter.dart';
+import '../../../../core/storage/user_prefs_store.dart';
 import '../../../../core/widgets/optimized_network_image.dart';
 import '../../data/models/share_models.dart';
 import '../../providers/share_provider.dart';
+import '../../utils/pending_share_navigation.dart';
 
 class _Tok {
   static const Color primary = Color(0xFFFF6600);
@@ -38,36 +40,58 @@ class _SharedCollectionScreenState
   bool _savingAll = false;
 
   @override
+  void initState() {
+    super.initState();
+    // Ensure this open is consumed even if splash/direct path skipped ShareResume.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      UserPrefsStore.markShareConsumed(
+        PendingShareRoute(
+          kind: ShareLinkKind.collection,
+          token: widget.publicToken,
+        ),
+      );
+    });
+  }
+
+  void _onBack() => leaveShareScreen(context, ref);
+
+  @override
   Widget build(BuildContext context) {
     final shareAsync = ref.watch(shareViewProvider(widget.publicToken));
     final favorites = ref.watch(favoritesProvider);
 
-    return Scaffold(
-      backgroundColor: _Tok.bg,
-      body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(8, 8, 16, 0),
-              child: Row(
-                children: [
-                  AppBackButton(onPressed: () => context.pop()),
-                  const Expanded(
-                    child: Text(
-                      'Businesses Shared With You',
-                      style: TextStyle(
-                        color: _Tok.textHigh,
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        _onBack();
+      },
+      child: Scaffold(
+        backgroundColor: _Tok.bg,
+        body: SafeArea(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(8, 8, 16, 0),
+                child: Row(
+                  children: [
+                    AppBackButton(onPressed: _onBack),
+                    const Expanded(
+                      child: Text(
+                        'Businesses Shared With You',
+                        style: TextStyle(
+                          color: _Tok.textHigh,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-            Expanded(
-              child: shareAsync.when(
+              Expanded(
+                child: shareAsync.when(
                 loading: () => const Center(
                   child: CircularProgressIndicator(color: _Tok.primary),
                 ),
@@ -88,6 +112,11 @@ class _SharedCollectionScreenState
                             shareViewProvider(widget.publicToken),
                           ),
                           child: const Text('Retry'),
+                        ),
+                        const SizedBox(height: 12),
+                        TextButton(
+                          onPressed: _onBack,
+                          child: const Text('Go back'),
                         ),
                       ],
                     ),
@@ -206,6 +235,7 @@ class _SharedCollectionScreenState
             ),
           ],
         ),
+      ),
       ),
     );
   }

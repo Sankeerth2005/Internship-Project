@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../business/data/models/business_models.dart';
 import '../../../business/providers/business_provider.dart';
@@ -9,6 +8,7 @@ import '../../../shared/presentation/widgets/app_feedback.dart';
 import '../../../../core/network/app_error_formatter.dart';
 import '../../providers/share_provider.dart';
 import '../../utils/business_share_helper.dart';
+import '../../utils/pending_share_navigation.dart';
 import '../../utils/share_actions.dart';
 
 enum _ShareMode { all, select }
@@ -57,7 +57,7 @@ class _ShareFavoritesScreenState extends ConsumerState<ShareFavoritesScreen> {
               padding: const EdgeInsets.fromLTRB(8, 8, 16, 0),
               child: Row(
                 children: [
-                  AppBackButton(onPressed: () => context.pop()),
+                  AppBackButton(onPressed: () => safeAppBack(context, ref)),
                   const Expanded(
                     child: Text(
                       'Share Favorites',

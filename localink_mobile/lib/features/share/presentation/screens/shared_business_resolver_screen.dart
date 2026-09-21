@@ -3,17 +3,39 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/network/app_error_formatter.dart';
+import '../../../../core/storage/user_prefs_store.dart';
 import '../../providers/share_provider.dart';
+import '../../utils/pending_share_navigation.dart';
 
 /// Resolves a single-business share token and opens the existing detail screen.
-class SharedBusinessResolverScreen extends ConsumerWidget {
+class SharedBusinessResolverScreen extends ConsumerStatefulWidget {
   final String publicToken;
 
   const SharedBusinessResolverScreen({super.key, required this.publicToken});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final shareAsync = ref.watch(shareViewProvider(publicToken));
+  ConsumerState<SharedBusinessResolverScreen> createState() =>
+      _SharedBusinessResolverScreenState();
+}
+
+class _SharedBusinessResolverScreenState
+    extends ConsumerState<SharedBusinessResolverScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      UserPrefsStore.markShareConsumed(
+        PendingShareRoute(
+          kind: ShareLinkKind.business,
+          token: widget.publicToken,
+        ),
+      );
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final shareAsync = ref.watch(shareViewProvider(widget.publicToken));
 
     return Scaffold(
       body: shareAsync.when(
@@ -32,7 +54,7 @@ class SharedBusinessResolverScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 16),
                 FilledButton(
-                  onPressed: () => context.go('/home'),
+                  onPressed: () => leaveShareScreen(context, ref),
                   child: const Text('Go home'),
                 ),
               ],
@@ -56,7 +78,7 @@ class SharedBusinessResolverScreen extends ConsumerWidget {
                     ),
                     const SizedBox(height: 16),
                     FilledButton(
-                      onPressed: () => context.go('/home'),
+                      onPressed: () => leaveShareScreen(context, ref),
                       child: const Text('Explore businesses'),
                     ),
                   ],

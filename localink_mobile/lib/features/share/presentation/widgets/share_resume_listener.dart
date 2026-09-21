@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -8,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import '../../../auth/providers/auth_provider.dart';
 import '../../../auth/providers/auth_state.dart';
 import '../../../../core/auth/role_routes.dart';
+import '../../../../core/storage/user_prefs_store.dart';
 import '../../utils/pending_share_navigation.dart';
 import '../../utils/share_link_listener.dart';
 
@@ -57,19 +57,28 @@ class _ShareResumeListenerState extends ConsumerState<ShareResumeListener> {
       return;
     }
 
-    final route = await pendingShareGoRoute();
-    if (route == null || !mounted) return;
+    final pending = await UserPrefsStore.getPendingShare();
+    if (pending == null || !mounted) return;
+    final route = shareRouteFor(pending);
 
     _navigating = true;
     try {
-      final routerContext =
-          shareResumeNavigatorKey?.currentContext ?? context;
-      final router = GoRouter.maybeOf(routerContext);
-      if (router != null) {
-        router.go(route);
-      } else if (mounted) {
-        context.go(route);
+      final navContext = shareResumeNavigatorKey?.currentContext;
+      if (navContext == null || !navContext.mounted) {
+        // Not ready yet — keep pending for a later auth/frame retry.
+        return;
       }
+      final router = GoRouter.maybeOf(navContext);
+      if (router == null) return;
+
+      final current = router.state.uri.path;
+      if (current == route) {
+        await UserPrefsStore.markShareConsumed(pending);
+        return;
+      }
+
+      router.go(route);
+      await UserPrefsStore.markShareConsumed(pending);
     } catch (e) {
       debugPrint('ShareResumeListener navigate failed: $e');
     } finally {

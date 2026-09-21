@@ -2,7 +2,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:geolocator/geolocator.dart';
@@ -30,6 +29,7 @@ import '../../../../core/auth/role_routes.dart';
 import '../../../catalog/presentation/providers/currency_provider.dart';
 import '../../../share/providers/share_provider.dart';
 import '../../../share/utils/business_share_helper.dart';
+import '../../../share/utils/pending_share_navigation.dart';
 import '../../../share/utils/share_actions.dart';
 
 // ─── DESIGN TOKENS ────────────────────────────────────────────────────────────
@@ -516,7 +516,7 @@ class _BusinessDetailScreenState extends ConsumerState<BusinessDetailScreen> {
                 leadingWidth: 70,
                 leading: Padding(
                   padding: const EdgeInsets.only(left: 16, top: 8, bottom: 8),
-                  child: AppBackButton(onPressed: () => context.pop()),
+                  child: AppBackButton(onPressed: () => safeAppBack(context, ref)),
                 ),
                 flexibleSpace: FlexibleSpaceBar(
                   stretchModes: const [

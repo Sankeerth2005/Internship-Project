@@ -52,7 +52,7 @@ class ShareLinkListener {
     if (uri == null) return;
     final pending = extractPending(uri);
     if (pending == null) return;
-    await UserPrefsStore.setPendingShare(pending);
+    await UserPrefsStore.setPendingShare(pending, force: true);
     ShareLinkEvents.notifyCaptured();
     debugPrint('Pending share captured: ${pending.kind}/${pending.token}');
   }

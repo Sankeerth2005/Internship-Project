@@ -151,19 +151,65 @@ class UserPrefsStore {
   // --- Pending business share deep link (until post-auth navigation) ---
 
   static const _pendingShareKey = 'pending_share_route_v1';
+  static const _consumedShareKey = 'consumed_share_route_v1';
 
   /// [value] format: `business:TOKEN` or `collection:TOKEN`
-  static Future<void> setPendingShare(PendingShareRoute pending) async {
+  ///
+  /// When [force] is false, refuses to resurrect a token that was already
+  /// opened/consumed (prevents logout→login reopening Shared).
+  /// Inbound App Links / Install Referrer should pass [force]: true.
+  static Future<void> setPendingShare(
+    PendingShareRoute pending, {
+    bool force = false,
+  }) async {
     final token = pending.token.trim().toUpperCase();
     if (token.isEmpty) return;
-    final kind = pending.kind == ShareLinkKind.business ? 'business' : 'collection';
+    final kind =
+        pending.kind == ShareLinkKind.business ? 'business' : 'collection';
     final prefs = await SharedPreferences.getInstance();
+
+    if (!force) {
+      final consumed = prefs.getString(_consumedShareKey);
+      if (consumed == '$kind:$token') return;
+    } else {
+      // New intentional open of this link — allow resume again.
+      final consumed = prefs.getString(_consumedShareKey);
+      if (consumed == '$kind:$token') {
+        await prefs.remove(_consumedShareKey);
+      }
+    }
+
     await prefs.setString(_pendingShareKey, '$kind:$token');
   }
 
   static Future<PendingShareRoute?> getPendingShare() async {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(_pendingShareKey);
+    return _parseShareRoute(raw);
+  }
+
+  static Future<void> clearPendingShare() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_pendingShareKey);
+  }
+
+  /// Marks a share intent as delivered so redirect/logout cannot re-arm it.
+  static Future<void> markShareConsumed(PendingShareRoute pending) async {
+    final token = pending.token.trim().toUpperCase();
+    if (token.isEmpty) return;
+    final kind =
+        pending.kind == ShareLinkKind.business ? 'business' : 'collection';
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_consumedShareKey, '$kind:$token');
+    await prefs.remove(_pendingShareKey);
+  }
+
+  static Future<PendingShareRoute?> getConsumedShare() async {
+    final prefs = await SharedPreferences.getInstance();
+    return _parseShareRoute(prefs.getString(_consumedShareKey));
+  }
+
+  static PendingShareRoute? _parseShareRoute(String? raw) {
     if (raw == null || !raw.contains(':')) return null;
     final parts = raw.split(':');
     if (parts.length != 2) return null;
@@ -176,11 +222,6 @@ class UserPrefsStore {
       return PendingShareRoute(kind: ShareLinkKind.collection, token: token);
     }
     return null;
-  }
-
-  static Future<void> clearPendingShare() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_pendingShareKey);
   }
 
   // --- Play Install Referrer (one-shot claim after first open) ---
